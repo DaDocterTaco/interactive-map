@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campus Chat | FIU Interactive Map</title>
+  <link rel="stylesheet" href="chat.css">
+  <script src="chat.js" defer></script>
+</head>
+<body>
+  <!-- 1. App header: this page can later become a panel in the map. -->
+  <header class="app-header">
+    <a class="brand" href="../../index.html"><span class="brand-mark">FIU</span><span>Campus Connect<small>Interactive campus map</small></span></a>
+    <a class="map-link" href="../../index.html">Back to map <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main class="page">
+    <div class="page-heading"><div><p class="eyebrow">YOUR CAMPUS, CONNECTED</p><h1>A place to catch up.</h1><p>Find your people. Share what's happening around campus.</p></div><span class="demo-badge">Interface demo</span></div>
+    <p class="demo-note">Sample conversations · Messages and reports stay on this page until you refresh. Nothing is sent to other users or added to the map yet.</p>
+
+    <div class="chat-shell">
+      <!-- 2. Sidebar: each button opens a sample conversation. -->
+      <aside class="sidebar" aria-label="Chat navigation">
+        <div class="sidebar-heading"><h2>Your chats</h2><button class="icon-button" id="new-chat-button" aria-label="Create a chat">+</button></div>
+        <p class="section-label">CAMPUS</p>
+        <nav class="chat-navigation" aria-label="Conversations">
+          <button class="chat-choice active" data-chat="campus" aria-current="true"><span class="chat-icon">#</span><span><strong>Campus public chat</strong><small>Everyone is welcome</small></span></button>
+          <button class="chat-choice" data-chat="study"><span class="chat-icon">#</span><span><strong>Library study group</strong><small>Public group · Sample</small></span></button>
+          <button class="chat-choice" data-chat="team"><span class="chat-icon">#</span><span><strong>Hackathon team</strong><small>Private group · Sample</small></span></button>
+          <button class="chat-choice" data-chat="direct"><span class="chat-icon avatar">AM</span><span><strong>Alex Morgan</strong><small>Direct message · Sample</small></span></button>
+        </nav>
+        <p class="section-label">AROUND CAMPUS</p>
+        <button class="chat-choice" id="warnings-button"><span class="chat-icon warning-icon">!</span><span><strong>Warnings & concerns</strong><small>Report a campus issue</small></span></button>
+        <div class="sidebar-footer"><span class="chat-icon avatar">YO</span><div><strong>You</strong><small>Demo profile</small></div></div>
+      </aside>
+
+      <!-- 3. Conversation: JavaScript adds messages to this HTML list. -->
+      <section class="conversation" id="conversation-panel" aria-labelledby="conversation-title">
+        <header class="panel-heading"><div><h2 id="conversation-title">Campus public chat</h2><p id="conversation-description">A shared space for the FIU community.</p></div><span class="visibility-badge" id="visibility-badge">Public</span></header>
+        <div class="conversation-body"><p class="date-divider">SAMPLE CONVERSATION</p><ol class="messages" id="message-list" role="log" aria-label="Messages" aria-live="polite" aria-relevant="additions"></ol></div>
+        <form class="composer" id="message-form">
+          <label for="message-input">Your message</label>
+          <div class="input-row"><input id="message-input" name="message" placeholder="Say something to your campus…" maxlength="2000" autocomplete="off" required><button class="primary-button" type="submit">Send <span aria-hidden="true">↑</span></button></div>
+          <small>Be kind. Keep personal information out of public chats.</small>
+        </form>
+      </section>
+
+      <!-- 4. Warnings: location and description will become a database record. -->
+      <section class="warnings-panel" id="warnings-panel" aria-labelledby="warnings-title" hidden>
+        <header class="panel-heading"><div><h2 id="warnings-title">Warnings & concerns</h2><p>Help others know what's happening nearby.</p></div><span class="visibility-badge">Campus</span></header>
+        <div class="warnings-body">
+          <div class="info-card"><strong>From a report to a map alert</strong><p>Reports will appear on the map after enough community confirmations or approval from an authorized verifier. Verification will be connected in a later step.</p></div>
+          <form id="report-form" class="report-form">
+            <h3>Report a concern</h3>
+            <label for="report-location">Where is it?</label>
+            <select id="report-location" name="location" required><option value="">Choose a campus location</option><option value="GC">Graham Center (GC)</option><option value="GL">Green Library (GL)</option><option value="PG6">Parking Garage 6 (PG6)</option></select>
+            <label for="report-description">What's happening?</label>
+            <textarea id="report-description" name="description" rows="3" maxlength="1000" placeholder="Describe the issue and where people should look." required></textarea>
+            <button class="primary-button" type="submit">Add demo report</button>
+          </form>
+          <h3>Recent reports</h3><p id="reports-empty" class="muted">No reports in this demo yet. Add one above to preview it.</p>
+          <ul id="report-list" class="report-list" aria-live="polite"></ul>
+        </div>
+      </section>
+    </div>
+    <p id="status" class="status" role="status"></p>
+  </main>
+
+  <!-- 5. Native dialog: Escape closes it and focus stays inside while open. -->
+  <dialog id="new-chat-dialog" aria-labelledby="new-chat-title">
+    <form id="new-chat-form" class="dialog-form">
+      <div class="sidebar-heading"><h2 id="new-chat-title">Start a conversation</h2><button type="button" id="close-dialog" class="icon-button" aria-label="Close dialog">×</button></div>
+      <p>This creates a local preview. Invitations and real users come with the backend.</p>
+      <label for="chat-name">Chat name or person's name</label><input id="chat-name" name="name" maxlength="60" required placeholder="e.g. Biology study group">
+      <label for="chat-type">Conversation type</label><select id="chat-type" name="type"><option value="Public group">Public group</option><option value="Private group">Private group</option><option value="Direct message">Direct message</option></select>
+      <button type="submit" class="primary-button">Create demo chat</button>
+    </form>
+  </dialog>
+</body>
+</html>

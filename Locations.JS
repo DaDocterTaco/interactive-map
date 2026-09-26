@@ -5,6 +5,8 @@ Below is the template on how to create a marker and have information display:
     marker.bindPopup("<b>Graham Center (GC)</b><br>");
 */
 
+
+
 const buildings = [
     {
       "abbreviation": "ACC",

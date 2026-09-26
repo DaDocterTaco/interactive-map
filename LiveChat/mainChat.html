@@ -1,0 +1,57 @@
+
+<!-- FIU Live Chat HTML page -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIU Live Chat</title>
+    <script src="chat.js" defer></script>
+</head>
+
+<body>
+    <h1>FIU Live Chat</h1>
+    <p>Connect with people on campus.</p>
+<!-- Button that will open the chat -->
+<button id="open-chat" type="button">Open chat</button>
+<p id="chat-status" role="status"></p>
+
+<!-- First-time visitors choose a name before entering the chat. -->
+<dialog id="name-panel" aria-labelledby="name-title">
+    <form id="name-form">
+        <h2 id="name-title">Choose your chat name</h2>
+        <p>No email or password needed. Your name and sign-in are remembered in this browser.</p>
+        <label for="name-input">Display name</label>
+        <input id="name-input" type="text" maxlength="40" autocomplete="nickname" required>
+        <button id="join-chat" type="submit">Join chat</button>
+        <button id="cancel-name" type="button">Cancel</button>
+        <p id="name-error" role="alert"></p>
+    </form>
+</dialog>
+
+<!-- Popup containing the chat -->
+<dialog id="chat-panel" aria-labelledby="chat-title">
+    <header>
+        <h2 id="chat-title">Campus Chat</h2>
+        <p id="chat-identity"></p>
+        <button id="clear-chat" type="button" disabled>Clear</button>
+        <button id="close-chat" type="button">Close</button>
+    </header>
+
+    <!-- Sent messages appear above the text box. -->
+    <ul id="message-list" aria-label="Messages" aria-live="polite"
+        style="max-height: 50vh; overflow-y: auto; overflow-wrap: anywhere;"></ul>
+
+    <form id="message-form">
+        <label for="message-input">Message</label>
+        <input id="message-input" type="text" placeholder="Type a message..."
+            autocomplete="off" maxlength="2000" required>
+        <button id="send-message" type="submit" disabled>Send</button>
+    </form>
+    <small>Shared Campus Chat. Showing the latest 100 messages; all messages are saved in Firebase. Clear deletes the existing history for everyone.</small>
+    <p id="connection-status" role="status"></p>
+    <p id="message-status" role="status"></p>
+</dialog>
+
+</body>
+</html>
