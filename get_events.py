@@ -13,10 +13,15 @@ print(f"Number of events: {len(items)}\n")
 
 index = 0
 events = []
+NS = {'ev': 'events'}
 
 for item in items:
-    title = item.find("title").text
-    location = item.find("{events}location").text
+    title    = item.findtext('title', default='')
+    link     = item.findtext('link', default='')
+    lhost       = item.findtext('ev:host', default='Unknown Host', namespaces=NS)
+    location   = item.findtext('ev:location', default='Unknown Location', namespaces=NS)
+    start_time = item.findtext('ev:start', default='', namespaces=NS)
+    end_time   = item.findtext('ev:end', default='', namespaces=NS)
 
     print(f"Event: {title}\nLocation: {location}\n")
     events.append(item)
