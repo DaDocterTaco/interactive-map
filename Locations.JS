@@ -630,24 +630,29 @@ async function loadMapWithEvents() {
 
             // If we found events for this building, append them to the popup
             if (buildingEvents.length > 0) {
-                popupHTML += `<hr><b>Upcoming Events:</b><ul>`;
+                popupHTML += `<hr><b>Upcoming Events:</b>
+                              <div style="max-height: 250px; overflow-y: auto; padding-right: 10px;">
+                              <ul>`;
                 
                 buildingEvents.forEach(e => {
-                    // Pass the raw strings into your new helper method
                     const timeDisplay = formatEventTime(e['start time'], e['end time']);
-
                     popupHTML += `<li>
                                     <a href="${e.link}" target="_blank">${e.title}</a><br>
                                     <small>${timeDisplay}</small>
-                                </li>`;
+                                  </li>`;
                 });
                 
-                popupHTML += `</ul>`;
+                popupHTML += `</ul></div>`;
             }
 
-            // 5. Add the marker and bind the customized popup
+            // 5. Add the marker and bind the customized popup + onMarkerClick() method
             const marker = L.marker([building.latitude, building.longitude]).addTo(map);
             marker.bindPopup(popupHTML);
+            marker.on('click', function() {
+            onMarkerClick(building, marker);
+            });
+
+
         });
 
         
@@ -677,3 +682,10 @@ function formatEventTime(startTime, endTime) {
 
     return `${startStr} to ${endStr}`;
 }
+
+//Custom event method for when clicking on markets
+function onMarkerClick(building, marker) {
+  map.flyTo([building.latitude, building.longitude], 18);
+}
+
+
