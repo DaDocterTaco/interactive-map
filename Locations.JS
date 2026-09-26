@@ -588,3 +588,12 @@ const buildings = [
       "description": ""
     }
 ];
+
+// Create a Leaflet marker for every building in the list above.
+buildings.forEach((building) => {
+    const marker = L.marker([building.latitude, building.longitude]).addTo(map);
+    marker.bindPopup(
+        `<b>${building.full_name} (${building.abbreviation})</b>` +
+        (building.description ? `<br>${building.description}` : "")
+    );
+});
