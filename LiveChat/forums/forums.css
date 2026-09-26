@@ -1,0 +1,142 @@
+/* Forums share the chat theme so every view belongs to the same glass sheet. */
+#forums-panel {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    color: var(--chat-text);
+    background: var(--chat-surface);
+    border: 1px solid var(--chat-border);
+    border-radius: 24px;
+}
+#forums-panel[hidden], .forums-list-pane[hidden] { display: none !important; }
+.forums-list-pane { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; padding: 0 18px 18px; gap: 12px; }
+.forums-list-pane p { margin: 0; color: var(--chat-muted); font: 13px/1.55 Arial, sans-serif; }
+.forums-list-pane label { display: block; font-size: 12px; font-weight: 600; margin: 0 2px 6px; color: var(--chat-muted); }
+.forums-list-pane :is(input, select), #forums-panel :is(input, textarea, select) {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    padding: 12px 14px;
+    border: 1px solid var(--chat-border);
+    border-radius: 12px;
+    background: var(--chat-surface);
+    color: var(--chat-text);
+    font: 15px/1.45 Arial, sans-serif;
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.forums-list-pane :is(input, select):focus, #forums-panel :is(input, textarea, select):focus { border-color: var(--chat-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--chat-primary) 12%, transparent); }
+.forums-list-pane input::placeholder, #forums-panel :is(input, textarea)::placeholder { color: var(--chat-muted); opacity: 1; }
+:is(.forums-list-pane, #forums-panel) :is(button, input, textarea, select):focus-visible { outline: 3px solid var(--chat-primary); outline-offset: 3px; }
+:is(.forums-list-pane, #forums-panel) :is(button, input, textarea, select):disabled { cursor: not-allowed; opacity: .55; }
+#forums-panel textarea { resize: vertical; min-height: 108px; }
+#forums-panel label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.forum-list-footer { flex-shrink: 0; padding-top: 14px; border-top: 1px solid var(--chat-border); }
+#chat-panel :is(.forum-list-footer button, #forum-load-more, #forum-older-replies, #forums-panel button) {
+    min-height: 44px;
+    padding: 11px 16px;
+    border: 1px solid var(--chat-border);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--chat-text);
+    font: 600 14px/1.4 Arial, sans-serif;
+    transition: border-color 160ms ease, background 160ms ease, transform 120ms ease;
+}
+#chat-panel :is(.forum-list-footer button, #forum-load-more, #forum-older-replies, #forums-panel button):hover:not(:disabled) { background: var(--chat-selected); border-color: var(--chat-primary); }
+#chat-panel :is(.forum-list-footer button, #forum-load-more, #forum-older-replies, #forums-panel button):active:not(:disabled) { transform: scale(.98); }
+.forum-list-footer #forum-new-post { width: 100%; }
+#chat-panel #forum-retry { width: 100%; min-height: 36px; margin-top: 6px; padding: 8px; border-color: transparent; background: transparent; color: var(--chat-muted); font-size: 12px; font-weight: 400; }
+#forum-post-list { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--chat-border) transparent; min-height: 0; flex: 1; padding: 3px; margin: 0 -3px; }
+#chat-panel .forum-post-card {
+    position: relative;
+    width: 100%;
+    display: block;
+    text-align: left;
+    border: 1px solid var(--chat-border);
+    border-radius: 15px;
+    background: color-mix(in srgb, var(--chat-surface) 75%, transparent);
+    color: var(--chat-text);
+    margin-bottom: 10px;
+    padding: 15px;
+    overflow-wrap: anywhere;
+    transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+#chat-panel .forum-post-card:hover { border-color: var(--chat-primary); background: var(--chat-selected); }
+#chat-panel .forum-post-card:active { transform: scale(.985); }
+#chat-panel .forum-post-card[aria-current="true"] { border-color: var(--chat-primary); background: var(--chat-selected); box-shadow: inset 3px 0 var(--chat-primary); }
+.forum-post-card strong { display: block; font-size: 16px; line-height: 1.4; margin: 7px 0; }
+#chat-panel .forum-post-card small { display: block; font: 12px/1.5 Arial, sans-serif; margin: 4px 0 0; color: var(--chat-muted); }
+.forum-category { display: inline-block; font: 700 11px/1.5 Arial, sans-serif; text-transform: uppercase; letter-spacing: .07em; color: var(--chat-primary); }
+#chat-panel :is(.forum-primary, #forums-panel .forum-primary) { background: var(--chat-primary); border-color: var(--chat-primary); color: #fff; }
+#chat-panel :is(.forum-primary, #forums-panel .forum-primary):hover:not(:disabled) { background: color-mix(in srgb, var(--chat-primary) 88%, #000); color: #fff; }
+.forum-content { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--chat-border) transparent; padding: 30px 32px; scroll-padding: 28px; }
+.forum-content > * { max-width: 800px; margin-left: auto; margin-right: auto; }
+.forum-content > section:not([hidden]) { animation: forum-view-in 210ms cubic-bezier(.2,.7,.2,1) both; }
+.forum-content h2 { font: 700 26px/1.25 Arial, sans-serif; letter-spacing: -.5px; overflow-wrap: anywhere; padding-right: 44px; margin-top: 10px; margin-bottom: 12px; }
+.forum-content h3 { font: 600 19px/1.4 Arial, sans-serif; margin: 28px 0 12px; }
+.forum-content p { line-height: 1.6; }
+.forum-empty { padding: 70px 12px; color: var(--chat-muted); }
+.forum-empty h2 { color: var(--chat-text); }
+.forum-empty p { max-width: 520px; }
+.forum-body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.65; }
+.forum-meta { color: var(--chat-muted); font: 13px/1.55 Arial, sans-serif; }
+#forum-thread-body { margin-top: 26px; margin-bottom: 28px; }
+#forum-compose > p { color: var(--chat-muted); }
+#forum-compose label { margin-top: 20px; }
+#forum-compose .dialog-actions { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 24px; }
+#forum-reply-list { list-style: none; padding: 0; }
+#forum-reply-list li { border-top: 1px solid var(--chat-border); padding: 20px 0; }
+#forum-reply-list p { margin: 5px 0; }
+#forum-reply-list strong { font-size: 14px; }
+#forum-reply-form { padding-top: 22px; border-top: 1px solid var(--chat-border); }
+#forum-reply-form button { margin-top: 12px; }
+#chat-panel :is(#forum-list-status, #forum-thread-status, #forum-compose-status, #forum-reply-status, #forum-replies-status, #alert-confirm-status, #alert-approval-status, #alert-resolution-status) { font-size: 13px; line-height: 1.5; color: var(--chat-muted); }
+#chat-panel :is(#forum-list-status, #forum-thread-status, #forum-compose-status, #forum-reply-status)[data-state="error"] { color: var(--chat-danger); }
+#chat-panel :is(#forum-compose-status, #forum-reply-status)[data-state="success"] { color: var(--chat-success); }
+#chat-panel :is(#forum-list-status, #forum-thread-status, #forum-compose-status, #forum-reply-status, #forum-replies-status, #alert-confirm-status, #alert-approval-status, #alert-resolution-status):empty { display: none; }
+#chat-panel #forum-back { margin: 0 0 24px; padding-left: 0; border-color: transparent; color: var(--chat-primary); background: transparent; }
+#chat-panel #forum-back:hover { background: transparent; text-decoration: underline; text-underline-offset: 4px; }
+#forums-panel button[aria-busy="true"] { display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+#forums-panel button[aria-busy="true"]::before { content: ""; width: 13px; height: 13px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: forum-busy .75s linear infinite; }
+/* Alert verification is separate from community confirmations, with explicit labels. */
+#chat-panel #forum-new-alert { width: 100%; margin-top: 8px; background: color-mix(in srgb, var(--chat-warning) 7%, transparent); border-color: color-mix(in srgb, var(--chat-warning) 45%, var(--chat-border)); color: var(--chat-warning); }
+#chat-panel #forum-new-alert:hover { background: color-mix(in srgb, var(--chat-warning) 14%, transparent); border-color: var(--chat-warning); }
+#alert-location-fields { min-width: 0; margin: 26px 0 0; padding: 18px; border: 1px solid var(--chat-border); border-radius: 16px; }
+#alert-location-fields legend { font-size: 15px; font-weight: 600; padding: 0 8px; }
+#alert-location-map { height: 260px; width: 100%; z-index: 0; border: 1px solid var(--chat-border); border-radius: 12px; overflow: hidden; background: var(--chat-incoming); }
+.alert-coordinates { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.alert-details { padding: 22px; border: 1px solid color-mix(in srgb, var(--chat-warning) 35%, var(--chat-border)); border-left: 4px solid var(--chat-warning); background: color-mix(in srgb, var(--chat-warning) 7%, var(--chat-surface)); border-radius: 15px; margin: 26px 0; }
+#chat-panel .forum-alert-card { border-left: 3px solid var(--chat-warning); }
+.forum-alert-card .forum-category { color: var(--chat-warning); }
+.alert-verification { font-weight: 600; }
+#alert-verification[data-approved="true"] { color: var(--chat-success); }
+#alert-location-display { margin-top: 0; font-weight: 600; overflow-wrap: anywhere; }
+#alert-count { display: block; margin: 20px 0 8px; font-size: 18px; }
+#alert-lifecycle { white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 600; }
+#alert-resolve-fields { margin: 22px 0; padding-top: 18px; border-top: 1px solid var(--chat-border); }
+#chat-panel #alert-resolve { margin-top: 12px; }
+#chat-panel #alert-approve { background: var(--chat-success); color: #fff; border-color: var(--chat-success); margin-bottom: 8px; }
+#chat-panel #alert-approve:hover:not(:disabled) { background: color-mix(in srgb, var(--chat-success) 88%, #000); }
+#chat-panel #alert-confirm { border-color: var(--chat-primary); color: var(--chat-primary); }
+@keyframes forum-view-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes forum-busy { to { transform: rotate(360deg); } }
+@media (max-width: 700px) {
+    #forums-panel { border-radius: 20px; }
+    .forums-list-pane { padding: 0 18px 18px; }
+    .forum-content { padding: 24px 18px; scroll-padding: 24px; }
+    .forum-content h2 { font-size: 23px; }
+    .forum-empty { padding: 36px 0; }
+    .forums-list-pane :is(input, select), #forums-panel :is(input, textarea, select) { font-size: 16px; }
+    .alert-coordinates { grid-template-columns: 1fr; gap: 0; }
+    #alert-location-fields { padding: 14px; }
+    #alert-location-map { height: 220px; }
+    .alert-details { padding: 18px 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #chat-panel .forum-post-card, #forums-panel :is(button, input, textarea, select),
+    .forums-list-pane :is(button, input, select) { transition: none; }
+    .forum-content > section:not([hidden]), #forums-panel button[aria-busy="true"]::before { animation: none; }
+}
+

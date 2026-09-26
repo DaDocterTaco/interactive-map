@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Original RSS map with independent chat, class search, and warning layers. -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -8,17 +9,44 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
         crossorigin=""/>
+    <style>
+        .live-chat-link {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 1000;
+            padding: 11px 16px;
+            border-radius: 999px;
+            background: #081f40;
+            color: #fff;
+            font: 600 15px/1.2 Arial, sans-serif;
+            text-decoration: none;
+            box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+        }
+
+        .live-chat-link:hover,
+        .live-chat-link:focus-visible {
+            background: #123d71;
+        }
+    </style>
+    <link rel="stylesheet" href="LiveChat/bottomSheet.css?v=persistent-2">
+    <link rel="stylesheet" href="LiveChat/mapWarnings.css">
+    <link rel="stylesheet" href="ClassSearch/classSearch.css">
+    <script src="LiveChat/mapChat.js?v=persistent-2" defer></script>
 </head>
-<body>
+<body class="map-page">
 
     <div id="map" style="height: 1000px;"></div>
+    <button id="open-chat" class="live-chat-link" type="button" aria-haspopup="dialog" aria-controls="chat-panel" disabled>Open chat</button>
+    <button id="open-class" class="live-chat-link" type="button" aria-haspopup="dialog" aria-controls="class-dialog">Open Class</button>
+    <p id="chat-status" role="status"></p>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
         crossorigin=""></script>
 
     <script>
-        // your JavaScript code goes right here
+        // Initialize the shared Leaflet map before the feature modules mount.
         const map = L.map('map').setView([25.75396, -80.37662], 16);
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -27,7 +55,19 @@
             }).addTo(map);
     </script>
 
-    <script src = "Locations.JS"></script>
+    <!-- Building/event markers use the classic script's global map variable. -->
+    <script src = "Locations.JS?v=clean-rss-1"></script>
+
+    <!-- Feature modules use Firebase through firebase.js and their own services. -->
+    <script type="module" src="firebase.js"></script>
+    <script type="module">
+        import { mountMapWarnings } from "./LiveChat/mapWarnings.js";
+        mountMapWarnings({ map, L });
+    </script>
+    <script type="module">
+        import { mountClassSearch } from "./ClassSearch/classSearch.js";
+        mountClassSearch({ map, L });
+    </script>
 
 </body>
 </html>

@@ -1,0 +1,336 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function group(id) { return get(/databases/$(database)/documents/chats/$(id)).data; }
+    function active(data) { return !('deletedAt' in data); }
+    function member(id) { return signedIn() && exists(/databases/$(database)/documents/chats/$(id)/members/$(request.auth.uid)); }
+    function directParticipant(data) { return signedIn() && request.auth.uid in data.get('participantIds', []); }
+    function visibleChat(data) { return data.visibility in ['public', 'private'] || directParticipant(data); }
+    function moderator() {
+      let role = /databases/$(database)/documents/users/$(request.auth.uid)/roles/moderator;
+      return signedIn() && exists(role) && get(role).data.enabled == true;
+    }
+    function canModerate(id) {
+      return moderator() && (id == 'Campus Chat'
+        || (group(id).visibility in ['public', 'private'] && member(id) && active(group(id))));
+    }
+    function validMessage() {
+      let data = request.resource.data;
+      return signedIn()
+        && data.keys().hasAll(['senderId', 'name', 'text', 'createdAt'])
+        && data.keys().hasOnly(['senderId', 'name', 'text', 'createdAt'])
+        && data.senderId == request.auth.uid
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 40
+        && data.name.matches('.*\\S.*')
+        && data.text is string && data.text.size() > 0 && data.text.size() <= 2000
+        && data.text.matches('.*\\S.*')
+        && data.createdAt == request.time;
+    }
+    // Keep the existing project's policy for unrelated data only.
+    match /{collection}/{document}/{rest=**} {
+      allow read, write: if request.time < timestamp.date(2026, 10, 25)
+        && !(collection in ['chats', 'chatGroups', 'chatGroupSecrets', 'chatPreferences', 'forums', 'users']);
+    }
+
+    match /forums/{postId} {
+      function validText(value, maximum) {
+        // Match across newlines, while rejecting whitespace-only posts and replies.
+        return value is string && value.size() > 0 && value.size() <= maximum
+          && value.matches('[\\s\\S]*\\S[\\s\\S]*');
+      }
+      function validAuthor(data) {
+        return data.authorId == request.auth.uid && validText(data.name, 40);
+      }
+      function validLocation(location) {
+        return location is map && location.keys().hasOnly(['label', 'latitude', 'longitude'])
+          && validText(location.label, 120)
+          && location.latitude is number && location.latitude >= -90 && location.latitude <= 90
+          && location.longitude is number && location.longitude >= -180 && location.longitude <= 180;
+      }
+      function warningOpen(data) {
+        return data.category == 'Alert' && !('resolution' in data)
+          && request.time < data.createdAt + duration.value(24, 'h');
+      }
+      function authorizedVerifier() {
+        let role = /databases/$(database)/documents/users/$(request.auth.uid)/roles/verifier;
+        return exists(role) && get(role).data.enabled == true;
+      }
+      function confirmationActivity() {
+        let after = request.resource.data;
+        let path = /databases/$(database)/documents/forums/$(postId)/confirmations/$(request.auth.uid);
+        return warningOpen(resource.data) && resource.data.authorId != request.auth.uid
+          && after.diff(resource.data).affectedKeys().hasOnly(['confirmationCount', 'lastConfirmationBy'])
+          && after.lastConfirmationBy == request.auth.uid && after.confirmationCount is int && after.confirmationCount >= 0
+          && ((!exists(path) && existsAfter(path) && after.confirmationCount == resource.data.confirmationCount + 1)
+            || (exists(path) && !existsAfter(path) && after.confirmationCount == resource.data.confirmationCount - 1));
+      }
+      function validPost() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['authorId', 'name', 'title', 'body', 'category', 'createdAt', 'lastActivityAt', 'replyCount', 'lastReplyId'])
+          && ((data.category != 'Alert' && data.keys().hasOnly(['authorId', 'name', 'title', 'body', 'category', 'createdAt', 'lastActivityAt', 'replyCount', 'lastReplyId']))
+            || (data.category == 'Alert' && data.keys().hasOnly(['authorId', 'name', 'title', 'body', 'category', 'createdAt', 'lastActivityAt', 'replyCount', 'lastReplyId', 'location', 'confirmationCount', 'lastConfirmationBy'])
+              && validLocation(data.location) && data.confirmationCount == 0 && data.lastConfirmationBy == ''))
+          && validAuthor(data) && validText(data.title, 140) && validText(data.body, 5000)
+          && data.category in ['Question', 'Comment', 'Concern', 'Alert', 'Other']
+          && data.createdAt == request.time && data.lastActivityAt == request.time
+          && data.replyCount == 0 && data.lastReplyId == '';
+      }
+      function verifierApproval() {
+        let approval = request.resource.data.verification;
+        return warningOpen(resource.data) && resource.data.authorId != request.auth.uid
+          && !('verification' in resource.data)
+          && authorizedVerifier()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verification'])
+          && approval is map && approval.keys().hasOnly(['status', 'verifierId', 'verifierName', 'approvedAt'])
+          && approval.status == 'approved' && approval.verifierId == request.auth.uid
+          && validText(approval.verifierName, 40) && approval.approvedAt == request.time;
+      }
+      function resolveWarning() {
+        let resolution = request.resource.data.resolution;
+        return warningOpen(resource.data)
+          && (resource.data.authorId == request.auth.uid || authorizedVerifier())
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resolution'])
+          && resolution is map && resolution.keys().hasOnly(['status', 'resolvedBy', 'resolvedName', 'resolvedAt', 'note'])
+          && resolution.status == 'resolved' && resolution.resolvedBy == request.auth.uid
+          && validText(resolution.resolvedName, 40) && resolution.resolvedAt == request.time
+          && resolution.note is string && resolution.note.size() <= 500;
+      }
+      function replyActivity() {
+        let data = request.resource.data;
+        let replyPath = /databases/$(database)/documents/forums/$(postId)/replies/$(data.lastReplyId);
+        return data.diff(resource.data).affectedKeys().hasOnly(['replyCount', 'lastReplyId', 'lastActivityAt'])
+          && data.replyCount is int && data.replyCount == resource.data.replyCount + 1
+          && data.lastReplyId is string && data.lastReplyId.size() > 0
+          && data.lastActivityAt == request.time && !exists(replyPath)
+          && getAfter(replyPath).data.authorId == request.auth.uid
+          && getAfter(replyPath).data.createdAt == request.time;
+      }
+      allow read: if signedIn();
+      allow create: if signedIn() && validPost();
+      allow update: if signedIn() && (replyActivity() || confirmationActivity() || verifierApproval() || resolveWarning());
+      allow delete: if false;
+
+      match /confirmations/{uid} {
+        function validChange(delta) {
+          let parent = /databases/$(database)/documents/forums/$(postId);
+          return signedIn() && request.auth.uid == uid && warningOpen(get(parent).data)
+            && get(parent).data.authorId != uid
+            && getAfter(parent).data.confirmationCount == get(parent).data.confirmationCount + delta
+            && getAfter(parent).data.lastConfirmationBy == uid;
+        }
+        allow get: if signedIn() && request.auth.uid == uid;
+        allow list, update: if false;
+        allow create: if validChange(1)
+          && request.resource.data.keys().hasOnly(['userId', 'name', 'createdAt'])
+          && request.resource.data.userId == uid && validText(request.resource.data.name, 40)
+          && request.resource.data.createdAt == request.time;
+        allow delete: if validChange(-1);
+      }
+      match /replies/{replyId} {
+        function validReply() {
+          let data = request.resource.data;
+          let parent = /databases/$(database)/documents/forums/$(postId);
+          return data.keys().hasAll(['authorId', 'name', 'body', 'createdAt'])
+            && data.keys().hasOnly(['authorId', 'name', 'body', 'createdAt'])
+            && validAuthor(data) && validText(data.body, 2000) && data.createdAt == request.time
+            && exists(parent)
+            && getAfter(parent).data.lastReplyId == replyId
+            && getAfter(parent).data.replyCount == get(parent).data.replyCount + 1
+            && getAfter(parent).data.lastActivityAt == request.time;
+        }
+        allow read: if signedIn() && exists(/databases/$(database)/documents/forums/$(postId));
+        allow create: if signedIn() && validReply();
+        allow update, delete: if false;
+      }
+    }
+
+    match /users/{uid} {
+      // Provisioned only by a trusted project administrator, never by app clients.
+      match /roles/verifier {
+        allow get: if signedIn() && request.auth.uid == uid;
+        allow list, create, update, delete: if false;
+      }
+      match /roles/moderator {
+        allow get: if signedIn() && request.auth.uid == uid;
+        allow list, create, update, delete: if false;
+      }
+      function profileValid() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['uid', 'displayName', 'searchName', 'createdAt', 'updatedAt'])
+          && data.keys().hasOnly(['uid', 'displayName', 'searchName', 'createdAt', 'updatedAt'])
+          && data.uid == uid && data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 40
+          && data.displayName.matches('.*\\S.*') && data.searchName == data.displayName.lower()
+          && data.updatedAt == request.time;
+      }
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == uid && profileValid() && request.resource.data.createdAt == request.time;
+      allow update: if signedIn() && request.auth.uid == uid && profileValid() && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+      match /friends/{friendId} {
+        allow read, delete: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn() && request.auth.uid == uid && friendId != uid
+          && exists(/databases/$(database)/documents/users/$(friendId))
+          && request.resource.data.keys().hasOnly(['friendId', 'chatId', 'savedAt'])
+          && request.resource.data.friendId == friendId && request.resource.data.savedAt == request.time
+          && request.resource.data.chatId in ['dm:' + uid + ':' + friendId, 'dm:' + friendId + ':' + uid];
+        allow update: if false;
+      }
+    }
+
+    match /chats/{id} {
+      function validGroup() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['name', 'visibility', 'salt', 'creatorId', 'createdAt', 'lastActivityAt', 'lastMessageId'])
+          && data.keys().hasOnly(['name', 'visibility', 'salt', 'creatorId', 'createdAt', 'lastActivityAt', 'lastMessageId'])
+          && data.name is string && data.name == id && data.name.size() > 0 && data.name.size() <= 60 && data.name.matches('.*\\S.*')
+          && data.visibility in ['public', 'private']
+          && data.creatorId == request.auth.uid
+          && data.createdAt == request.time && data.lastActivityAt == request.time && data.lastMessageId == ''
+          && ((data.visibility == 'public' && data.salt == '')
+            || (data.visibility == 'private' && data.salt.matches('^[a-f0-9]{32}$')
+              && getAfter(/databases/$(database)/documents/chats/$(id)/private/password).data.verifier.matches('^[a-f0-9]{64}$')));
+      }
+      function activityFromNewMessage() {
+        let after = request.resource.data;
+        let messagePath = /databases/$(database)/documents/chats/$(id)/messages/$(after.lastMessageId);
+        return after.diff(resource.data).affectedKeys().hasOnly(['lastActivityAt', 'lastMessageId'])
+          && after.lastActivityAt == request.time && after.lastMessageId is string && after.lastMessageId.size() > 0
+          && !exists(messagePath)
+          && getAfter(messagePath).data.senderId == request.auth.uid
+          && getAfter(messagePath).data.createdAt == request.time;
+      }
+      function validDirect() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['visibility', 'name', 'participantIds', 'createdAt', 'lastActivityAt', 'lastMessageId'])
+          && data.keys().hasOnly(['visibility', 'name', 'participantIds', 'createdAt', 'lastActivityAt', 'lastMessageId'])
+          && data.visibility == 'direct' && data.name == 'Direct message'
+          && data.participantIds is list && data.participantIds.size() == 2
+          && data.participantIds[0] is string && data.participantIds[1] is string
+          && data.participantIds[0] != data.participantIds[1] && request.auth.uid in data.participantIds
+          && id == 'dm:' + data.participantIds[0] + ':' + data.participantIds[1]
+          && exists(/databases/$(database)/documents/users/$(data.participantIds[0]))
+          && exists(/databases/$(database)/documents/users/$(data.participantIds[1]))
+          && data.createdAt == request.time && data.lastActivityAt == request.time && data.lastMessageId == '';
+      }
+      function ownerDeletion() {
+        let after = request.resource.data;
+        let changed = after.diff(resource.data).affectedKeys();
+        return signedIn() && id != 'Campus Chat' && !id.matches('^dm:.*')
+          && resource.data.visibility in ['public', 'private'] && active(resource.data)
+          && resource.data.creatorId == request.auth.uid
+          && changed.hasAll(['deletedAt', 'deletedBy']) && changed.hasOnly(['deletedAt', 'deletedBy'])
+          && after.deletedAt == request.time && after.deletedBy == request.auth.uid;
+      }
+      allow get: if signedIn() && (!exists(/databases/$(database)/documents/chats/$(id)) || visibleChat(resource.data));
+      allow list: if signedIn() && visibleChat(resource.data);
+      allow create: if signedIn() && id != 'Campus Chat' && (validDirect() || (!id.matches('^dm:.*') && validGroup()));
+      allow update: if directParticipant(resource.data) && activityFromNewMessage();
+      allow update: if id != 'Campus Chat' && resource.data.visibility in ['public', 'private']
+        && member(id) && active(resource.data) && activityFromNewMessage();
+      allow update: if ownerDeletion();
+      allow delete: if false;
+
+      match /people/{uid} {
+        allow read: if member(id) && active(group(id));
+        allow create: if signedIn()
+          && (request.auth.uid == uid || member(id))
+          && active(getAfter(/databases/$(database)/documents/chats/$(id)).data)
+          && existsAfter(/databases/$(database)/documents/chats/$(id)/members/$(uid))
+          && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == uid;
+        allow update, delete: if false;
+      }
+      match /members/{uid} {
+        function joiningWithPasswordOrPublic() {
+          let parent = getAfter(/databases/$(database)/documents/chats/$(id)).data;
+          return uid == request.auth.uid && active(parent)
+            && (parent.visibility == 'public' && request.resource.data.proof == ''
+              || parent.visibility == 'private'
+                && request.resource.data.proof == getAfter(/databases/$(database)/documents/chats/$(id)/private/password).data.verifier);
+        }
+        function acceptedByMember() {
+          let decision = getAfter(/databases/$(database)/documents/chats/$(id)/requests/$(uid)).data;
+          return member(id) && active(group(id)) && request.resource.data.proof == ''
+            && decision.status == 'accepted' && decision.decidedBy == request.auth.uid && decision.decidedAt == request.time;
+        }
+        allow get: if signedIn() && uid == request.auth.uid && active(group(id));
+        allow list, update, delete: if false;
+        allow create: if signedIn()
+          && request.resource.data.keys().hasAll(['joinedAt', 'proof'])
+          && request.resource.data.keys().hasOnly(['joinedAt', 'proof'])
+          && request.resource.data.joinedAt == request.time && request.resource.data.proof is string
+          && getAfter(/databases/$(database)/documents/chats/$(id)/people/$(uid)).data.uid == uid
+          && (joiningWithPasswordOrPublic() || acceptedByMember());
+      }
+      match /messages/{messageId} {
+        allow read: if signedIn() && (id == 'Campus Chat' || directParticipant(group(id)) || member(id) && active(group(id)));
+        // A removal and its immutable audit record must be committed together.
+        allow delete: if canModerate(id)
+          && !exists(/databases/$(database)/documents/chats/$(id)/moderation/$(messageId))
+          && getAfter(/databases/$(database)/documents/chats/$(id)/moderation/$(messageId)).data.actorId == request.auth.uid
+          && getAfter(/databases/$(database)/documents/chats/$(id)/moderation/$(messageId)).data.createdAt == request.time;
+        allow create: if validMessage()
+          && !exists(/databases/$(database)/documents/chats/$(id)/moderation/$(messageId))
+          && (id == 'Campus Chat' || ((directParticipant(group(id)) || member(id) && active(group(id)))
+          && getAfter(/databases/$(database)/documents/chats/$(id)).data.lastMessageId == messageId
+          && getAfter(/databases/$(database)/documents/chats/$(id)).data.lastActivityAt == request.time));
+        allow update: if false;
+      }
+      match /moderation/{messageId} {
+        function validRemoval() {
+          let data = request.resource.data;
+          let message = /databases/$(database)/documents/chats/$(id)/messages/$(messageId);
+          return data.keys().hasOnly(['action', 'messageId', 'actorId', 'createdAt', 'reason'])
+            && (data.action == 'remove' || (data.action == 'clear' && id == 'Campus Chat'))
+            && data.messageId == messageId && data.actorId == request.auth.uid
+            && data.createdAt == request.time
+            && data.reason is string && data.reason.size() > 0 && data.reason.size() <= 300
+            && data.reason.matches('[\\s\\S]*\\S[\\s\\S]*')
+            && exists(message) && !existsAfter(message);
+        }
+        allow read: if canModerate(id);
+        allow create: if canModerate(id) && validRemoval();
+        allow update, delete: if false;
+      }
+      match /requests/{uid} {
+        function pendingRequest() {
+          let data = request.resource.data;
+          return request.auth.uid == uid && active(group(id)) && group(id).visibility == 'private'
+            && data.keys().hasAll(['userId', 'name', 'status', 'createdAt', 'decidedAt', 'decidedBy'])
+            && data.keys().hasOnly(['userId', 'name', 'status', 'createdAt', 'decidedAt', 'decidedBy'])
+            && data.userId == uid && data.name is string && data.name.size() > 0 && data.name.size() <= 40
+            && data.name.matches('.*\\S.*') && data.status == 'pending'
+            && data.createdAt == request.time && data.decidedAt == null && data.decidedBy == '';
+        }
+        function validDecision() {
+          let data = request.resource.data;
+          return member(id) && active(group(id)) && resource.data.status == 'pending'
+            && data.diff(resource.data).affectedKeys().hasOnly(['status', 'decidedAt', 'decidedBy'])
+            && data.decidedBy == request.auth.uid && data.decidedAt == request.time
+            && (data.status == 'denied' || (data.status == 'accepted'
+              && getAfter(/databases/$(database)/documents/chats/$(id)/members/$(uid)).data.joinedAt == request.time));
+        }
+        allow read: if signedIn() && active(group(id)) && (uid == request.auth.uid || member(id));
+        allow create: if signedIn() && pendingRequest();
+        allow update: if signedIn() && (validDecision() || resource.data.status == 'denied' && pendingRequest());
+        allow delete: if signedIn() && active(group(id)) && uid == request.auth.uid && resource.data.status == 'pending';
+      }
+    }
+    match /chats/{id}/private/password {
+      // Clients cannot download password verifiers, including the group creator.
+      allow read, update, delete: if false;
+      allow create: if signedIn() && !exists(/databases/$(database)/documents/chats/$(id))
+        && getAfter(/databases/$(database)/documents/chats/$(id)).data.creatorId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/chats/$(id)).data.visibility == 'private'
+        && request.resource.data.keys().hasOnly(['verifier'])
+        && request.resource.data.verifier.matches('^[a-f0-9]{64}$');
+    }
+    match /chatPreferences/{uid}/pins/{id} {
+      allow read: if signedIn() && uid == request.auth.uid;
+      allow create, update: if signedIn() && uid == request.auth.uid
+        && exists(/databases/$(database)/documents/chats/$(id))
+        && request.resource.data.keys().hasOnly(['pinnedAt']) && request.resource.data.pinnedAt == request.time;
+      allow delete: if signedIn() && uid == request.auth.uid;
+    }
+  }
+}

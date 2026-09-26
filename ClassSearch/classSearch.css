@@ -1,0 +1,75 @@
+/* Scoped class dialog and blue class pin; warning and building markers have
+   separate styles so selecting a class does not restyle either layer. */
+.map-page .live-chat-link { min-width: 116px; }
+#open-class { top: 68px; background: #fff; color: #081f40; border: 1px solid #c5cdd8; }
+#open-class:hover, #open-class:focus-visible { background: #edf2f8; }
+.map-page > #chat-status:not(:empty) { top: 118px; }
+#class-dialog { box-sizing: border-box; width: min(720px, calc(100% - 24px)); max-height: 90vh; max-height: 90dvh; padding: 0; border: 1px solid #cbd3df; border-radius: 18px; color: #14243c; background: #fff; box-shadow: 0 20px 80px #081f4055; font: 15px/1.45 Arial, sans-serif; overflow: hidden; }
+#class-dialog[open] { display: flex; flex-direction: column; }
+#class-dialog::backdrop { background: #071b355e; }
+#class-dialog *, #class-dialog *::before, #class-dialog *::after { box-sizing: border-box; }
+#class-dialog [hidden] { display: none !important; }
+#class-dialog button, #class-dialog input, #class-dialog select { font: inherit; }
+#class-dialog button { cursor: pointer; }
+#class-dialog button:disabled { cursor: default; opacity: .48; }
+#class-dialog :focus-visible, #open-class:focus-visible { outline: 3px solid #2679ca; outline-offset: 3px; }
+.class-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 24px 26px 20px; border-bottom: 1px solid #e2e7ee; flex-shrink: 0; }
+.class-eyebrow { margin: 0 0 5px; color: #59708e; font-size: 11px; font-weight: 700; letter-spacing: .1em; }
+#class-title { margin: 0; font-size: 25px; letter-spacing: -.5px; }
+.class-subtitle { margin: 5px 0 0; color: #5e6d80; font-size: 14px; }
+#class-dialog .class-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: #f0f3f7; color: #243852; font-size: 25px; flex-shrink: 0; }
+.class-body { overflow-y: auto; overscroll-behavior: contain; min-height: 0; padding: 20px 26px; }
+.class-term { display: inline-block; margin: 0 0 16px; padding: 5px 10px; border-radius: 5px; background: #eef3f9; font-size: 12px; font-weight: 700; color: #304b70; }
+.class-modes { margin: 0 0 18px; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.class-modes legend { margin-bottom: 8px; font-weight: 700; font-size: 13px; }
+#class-dialog .class-modes label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+#class-dialog input[type=radio] { width: 18px; height: 18px; margin: 0; accent-color: #123e72; flex-shrink: 0; }
+.class-fields { display: grid; grid-template-columns: minmax(0, 1fr) 180px; gap: 12px; }
+.class-course-label { grid-column: 1 / -1; }
+.class-fields label, #class-id-fields > label, .class-location-choice { display: block; font-size: 13px; font-weight: 600; }
+#class-dialog input:not([type=radio]), #class-dialog select { display: block; width: 100%; min-width: 0; min-height: 44px; margin-top: 6px; padding: 10px 12px; border: 1px solid #bbc7d5; border-radius: 7px; background: #fff; color: #14243c; }
+.class-optional, .class-help { color: #657487; font-weight: 400; font-size: 12px; }
+.class-help { margin: 7px 0 0; }
+#class-dialog .class-search-button, #locate-class { min-height: 44px; padding: 10px 20px; background: #081f40; color: #fff; border: 0; border-radius: 8px; font-weight: 600; }
+.class-search-button { margin-top: 16px; }
+#class-results-status { margin: 20px 0 12px; font-size: 13px; color: #4e6078; }
+#class-results { display: grid; gap: 12px; }
+.class-card { padding: 16px; border: 1px solid #d4dde8; border-radius: 10px; background: #fff; }
+.class-card.is-selected { border-color: #174d87; box-shadow: 0 0 0 1px #174d87; background: #f8fbff; }
+.class-card-heading { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.class-card-heading > span:first-of-type { flex: 1; min-width: 0; }
+.class-card-heading input { margin-top: 3px !important; }
+.class-card-heading strong { display: block; font-size: 16px; }
+.class-course-name { display: block; font-size: 13px; color: #51627a; margin-top: 3px; }
+.class-requested { display: inline-block; flex-shrink: 0; padding: 3px 7px; border-radius: 4px; color: #755416; background: #fff1cf; font: 600 11px/1.4 Arial, sans-serif; }
+.class-assigned { color: #165b3a; background: #e2f3e9; }
+.class-professor, .class-schedule, .class-location, .class-date-range { margin: 9px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.class-schedule { font-weight: 700; }
+.class-location { margin-top: 12px; }
+.class-date-range { color: #64738a; font-size: 12px; }
+.class-location-choice { margin-top: 12px; }
+.class-dates { margin-top: 9px; font-size: 12px; color: #4b6380; }
+.class-dates summary { cursor: pointer; width: fit-content; }
+.class-dates p { line-height: 1.8; }
+#class-more { display: block; width: 100%; padding: 10px; margin-top: 12px; border: 1px solid #bcc9da; border-radius: 7px; color: #173c6a; background: #f3f7fb; }
+.class-data-note { font-size: 11px; color: #697a90; margin: 20px 0 0; }
+.class-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 26px; border-top: 1px solid #e2e7ee; background: #fafbfd; flex-shrink: 0; }
+.class-footer p { font-size: 12px; margin: 0; color: #556b88; overflow-wrap: anywhere; }
+#locate-class { flex-shrink: 0; }
+.class-map-marker { box-sizing: border-box; display: grid; place-items: center; border-radius: 50%; background: #0c3767; color: white; border: 3px solid #fff; box-shadow: 0 2px 9px #081f4066; font: 700 18px/1 Arial, sans-serif; }
+.class-map-popup { font: 13px/1.5 Arial, sans-serif; color: #14243c; overflow-wrap: anywhere; }
+.class-map-popup h3 { margin: 8px 0 4px; font-size: 18px; }
+.class-map-popup p { margin: 7px 0; }
+.class-map-note { font-size: 11px; color: #60718a; }
+.class-map-popup button { min-height: 36px; padding: 7px 10px; border-radius: 6px; border: 1px solid #c8d4e3; background: #f2f6fb; color: #193d69; cursor: pointer; }
+@media (max-width: 520px) {
+    #class-dialog { width: calc(100% - 16px); max-height: 94dvh; border-radius: 14px; }
+    .class-header { padding: 18px; }
+    .class-body { padding: 16px 18px; }
+    .class-fields { grid-template-columns: minmax(0, 1fr); }
+    .class-footer { padding: 14px 18px; gap: 10px; }
+    .class-card { padding: 12px; }
+    #class-dialog input:not([type=radio]) { font-size: 16px; }
+    .class-card-heading { flex-wrap: wrap; }
+    .class-card-heading .class-requested { margin-left: 28px; }
+}
