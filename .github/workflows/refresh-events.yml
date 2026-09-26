@@ -1,0 +1,49 @@
+name: Refresh FIU events
+
+on:
+  schedule:
+    # 09:17 UTC = 5:17 AM EDT / 4:17 AM EST; GitHub schedules can be delayed.
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-fiu-events-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check importer and map data logic
+        run: |
+          python -m unittest discover -s tests -p 'test_events.py'
+          node --test tests/event-utils.test.mjs
+      - name: Fetch both sources and atomically replace events.json
+        run: python get_events.py
+      - name: Commit the refreshed feed
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add events.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Refresh public FIU events'
+            git push origin HEAD:"$GITHUB_REF_NAME"
+          fi
+      - name: Save feed as a downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fiu-events
+          path: events.json

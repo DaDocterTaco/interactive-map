@@ -1,0 +1,2 @@
+# Standard library importer. Windows needs the IANA timezone database.
+tzdata>=2024.1; sys_platform == 'win32'
