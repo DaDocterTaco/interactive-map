@@ -1,3 +1,5 @@
+// Emulator integration checks for verifier roles and immutable approvals.
+// Source imports are replaced below so the browser service uses the Node SDK.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { initializeApp, deleteApp } from 'firebase/app';

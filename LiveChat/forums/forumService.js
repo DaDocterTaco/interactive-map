@@ -4,6 +4,8 @@ import {
     serverTimestamp, setDoc, writeBatch, increment, runTransaction, getDocFromServer
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
+// Firestore API for discussions and location-based alert reports. Rules enforce
+// the same author, verifier, counter, and lifecycle constraints on the server.
 const db = getFirestore(app);
 export const categories = ["Question", "Comment", "Concern", "Alert", "Other"];
 const posts = collection(db, "forums");
@@ -64,12 +66,15 @@ export function watchConfirmation(postId, uid, callback, onError) {
 }
 
 export function watchVerifier(uid, callback, onError) {
+    // Treat cached role data as untrusted until the server confirms it.
     return onSnapshot(doc(db, "users", uid, "roles", "verifier"), { includeMetadataChanges: true }, snapshot => {
         callback(!snapshot.metadata.fromCache && snapshot.data()?.enabled === true);
     }, onError);
 }
 
 export async function approveReport(user, postId) {
+    // The role and report are read in one transaction so revocation or another
+    // verifier's approval cannot silently overwrite an immutable approval.
     const author = identity(user);
     const parent = doc(posts, postId);
     let attemptedWrite = false;
@@ -93,6 +98,7 @@ export async function approveReport(user, postId) {
 }
 
 export async function setConfirmation(user, postId, confirmed) {
+    // The per-user confirmation document and parent count change together.
     const author = identity(user);
     const parent = doc(posts, postId), confirmation = doc(parent, "confirmations", user.uid);
     let attemptedWrite = false;
@@ -111,6 +117,33 @@ export async function setConfirmation(user, postId, confirmed) {
         // another tab has already applied this account's requested change.
         if (attemptedWrite && error.code === "permission-denied"
             && (await getDocFromServer(confirmation)).exists() === confirmed) return;
+        throw error;
+    }
+}
+
+export async function resolveReport(user, postId, note = "") {
+    // Resolution is a one-time record; expiry is derived from createdAt and
+    // therefore never needs a background status write.
+    const author = identity(user);
+    const clean = typeof note === "string" ? note.trim() : "";
+    if (clean.length > 500) throw new Error("Resolution notes must be 500 characters or fewer.");
+    const parent = doc(posts, postId);
+    let attemptedWrite = false;
+    try { await runTransaction(db, async transaction => {
+        const report = await transaction.get(parent);
+        if (!report.exists() || report.data().category !== "Alert") throw new Error("This alert is unavailable.");
+        if (report.data().authorId !== user.uid) {
+            const role = await transaction.get(doc(db, "users", user.uid, "roles", "verifier"));
+            if (role.data()?.enabled !== true) throw new Error("Only the author or an authorized verifier can resolve this report.");
+        }
+        if (report.data().resolution?.status === "resolved") return;
+        attemptedWrite = true;
+        transaction.update(parent, { resolution: {
+            status: "resolved", resolvedBy: user.uid, resolvedName: author.name, resolvedAt: serverTimestamp(), note: clean
+        } });
+    }); } catch (error) {
+        if (attemptedWrite && error.code === "permission-denied"
+            && (await getDocFromServer(parent)).data()?.resolution?.status === "resolved") return;
         throw error;
     }
 }

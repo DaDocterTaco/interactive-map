@@ -35,6 +35,19 @@ let sending = false;
 let clearing = false;
 let ready = false;
 let fromCache = true;
+let isModerator = false;
+let stopModerator;
+let latestMessages = [];
+let removalButtons = [];
+let removing = false;
+
+function disconnectModerator() {
+    stopModerator?.();
+    stopModerator = null;
+    isModerator = false;
+    document.getElementById("moderation-status").textContent = "";
+    updateControls();
+}
 
 function selectSection(section) {
     activeSection = section;
@@ -99,9 +112,11 @@ function errorMessage(error) {
 }
 
 function updateControls() {
-    sendButton.disabled = !ready || sending || clearing;
-    clearButton.disabled = !ready || fromCache || sending || clearing;
-    messageInput.disabled = !ready || sending || clearing;
+    sendButton.disabled = !ready || sending || clearing || removing;
+    clearButton.hidden = !isModerator || !!currentGroup;
+    clearButton.disabled = !isModerator || !ready || fromCache || sending || clearing || removing;
+    messageInput.disabled = !ready || sending || clearing || removing;
+    removalButtons.forEach(button => { button.disabled = !isModerator || !ready || fromCache || sending || clearing || removing; });
 }
 
 function disconnectMessages() {
@@ -113,6 +128,8 @@ function disconnectMessages() {
     clearTimeout(expiryTimer);
     document.getElementById("access-requests").replaceChildren();
     ready = false;
+    latestMessages = [];
+    removalButtons = [];
     updateControls();
 }
 
@@ -124,6 +141,8 @@ function discardOldLocalHistory() {
 }
 
 function renderMessages(messages) {
+    latestMessages = messages;
+    removalButtons = [];
     const nearBottom = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < 80;
     const previousScroll = messageList.scrollTop;
     const wasEmpty = messageList.children.length === 0;
@@ -134,9 +153,37 @@ function renderMessages(messages) {
         const time = date ? date.toLocaleString() : "Time pending";
         item.textContent = `${message.name}: ${message.text} — ${time}${message.pending ? " (sending...)" : ""}`;
         item.title = `User ID: ${message.senderId}`;
+        if (isModerator && currentGroup?.visibility !== "direct" && !message.pending) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "remove-message";
+            button.textContent = "Remove";
+            button.setAttribute("aria-label", `Remove message by ${message.name}`);
+            const version = viewVersion;
+            button.addEventListener("click", async () => {
+                if (version !== viewVersion || !isModerator || !ready || fromCache || sending || clearing || removing) return;
+                const reason = window.prompt("Why are you removing this message? (1–300 characters)");
+                if (reason === null) return;
+                if (!window.confirm("Remove this message for everyone? This cannot be undone.")) return;
+                removing = true;
+                updateControls();
+                try {
+                    await chatService.removeMessage(currentUser, message.id, reason, currentGroup?.id);
+                    if (version === viewVersion) messageStatus.textContent = "Message removed. The moderation action was recorded.";
+                } catch (error) {
+                    if (version === viewVersion) messageStatus.textContent = `Message not removed. ${errorMessage(error)}`;
+                } finally {
+                    removing = false;
+                    updateControls();
+                }
+            });
+            removalButtons.push(button);
+            item.appendChild(button);
+        }
         messageList.appendChild(item);
     }
     messageList.scrollTop = nearBottom || wasEmpty ? messageList.scrollHeight : previousScroll;
+    updateControls();
 }
 
 function updateGroup(group) {
@@ -203,8 +250,8 @@ function selectConversation(group) {
         ? "Private conversation. Only you and this person can read these messages."
         : group
         ? "Showing the latest 100 messages. Every message restarts the inactivity timer."
-        : "Showing the latest 100 messages. Clear deletes Campus Chat history for everyone.";
-    clearButton.hidden = !!group;
+        : "Showing the latest 100 messages. Only moderators can clear Campus Chat.";
+    updateControls();
     connectionStatus.textContent = "Connecting to shared chat...";
     if (group && group.visibility !== "direct") {
         updateGroup(group);
@@ -235,6 +282,7 @@ function selectConversation(group) {
 }
 
 async function showChat(user) {
+    disconnectModerator();
     disconnectMessages();
     groupController?.dispose();
     peopleController?.dispose(); peopleController = null;
@@ -251,6 +299,16 @@ async function showChat(user) {
         await modules[4].saveProfile(user);
         if (version !== viewVersion || !chatPanel.open) return;
         [chatService, groupService] = modules;
+        let disposed = false;
+        const stop = chatService.watchModerator(user.uid, enabled => {
+            if (disposed || currentUser?.uid !== user.uid || !chatPanel.open) return;
+            isModerator = enabled;
+            document.getElementById("moderation-status").textContent = enabled ? "Chat moderator · Removals require a reason and are recorded." : "";
+            renderMessages(latestMessages);
+        }, () => {
+            if (!disposed && chatPanel.open) document.getElementById("moderation-status").textContent = "Moderator access could not be checked. Reopen chat to retry.";
+        });
+        stopModerator = () => { disposed = true; stop(); };
         groupController = modules[2].mountGroups({ user, onSelect: selectConversation, onGroupUpdated: updateGroup });
         peopleController = modules[5].mountPeople({ user, onSelect: chat => groupController.selectExternal(chat) });
         forumController = modules[3].mountForums({ user });
@@ -320,6 +378,7 @@ namePanel.addEventListener("cancel", (event) => {
 });
 closeButton.addEventListener("click", () => chatPanel.close());
 chatPanel.addEventListener("close", () => {
+    disconnectModerator();
     disconnectMessages(); groupController?.dispose(); groupController = null;
     peopleController?.dispose(); peopleController = null;
     forumController?.dispose(); forumController = null;
@@ -327,7 +386,7 @@ chatPanel.addEventListener("close", () => {
 
 messageForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (!currentUser?.displayName || !chatPanel.open || !ready || sending || clearing) return;
+    if (!currentUser?.displayName || !chatPanel.open || !ready || sending || clearing || removing) return;
     const text = messageInput.value.trim();
     if (!text) return;
     const version = viewVersion;
@@ -352,14 +411,16 @@ messageForm.addEventListener("submit", async (event) => {
 });
 
 clearButton.addEventListener("click", async () => {
-    if (!currentUser || currentGroup || !ready || fromCache || sending || clearing) return;
+    if (!currentUser || !isModerator || currentGroup || !ready || fromCache || sending || clearing || removing) return;
+    const reason = window.prompt("Why are you clearing Campus Chat? (1–300 characters)");
+    if (reason === null) return;
     if (!window.confirm("Delete ALL existing Campus Chat messages from Firebase for EVERYONE? This cannot be undone. Names and sign-ins are kept. Messages arriving after clearing starts are kept.")) return;
     const version = viewVersion;
     clearing = true;
     updateControls();
     messageStatus.textContent = "Deleting shared chat history...";
     try {
-        const count = await chatService.clearMessages((done, total) => {
+        const count = await chatService.clearMessages(currentUser, reason, (done, total) => {
             if (version === viewVersion) messageStatus.textContent = `Deleting messages: ${done} of ${total}...`;
         });
         if (version === viewVersion) {

@@ -7,6 +7,14 @@ service cloud.firestore {
     function member(id) { return signedIn() && exists(/databases/$(database)/documents/chats/$(id)/members/$(request.auth.uid)); }
     function directParticipant(data) { return signedIn() && request.auth.uid in data.get('participantIds', []); }
     function visibleChat(data) { return data.visibility in ['public', 'private'] || directParticipant(data); }
+    function moderator() {
+      let role = /databases/$(database)/documents/users/$(request.auth.uid)/roles/moderator;
+      return signedIn() && exists(role) && get(role).data.enabled == true;
+    }
+    function canModerate(id) {
+      return moderator() && (id == 'Campus Chat'
+        || (group(id).visibility in ['public', 'private'] && member(id) && active(group(id))));
+    }
     function validMessage() {
       let data = request.resource.data;
       return signedIn()
@@ -40,10 +48,18 @@ service cloud.firestore {
           && location.latitude is number && location.latitude >= -90 && location.latitude <= 90
           && location.longitude is number && location.longitude >= -180 && location.longitude <= 180;
       }
+      function warningOpen(data) {
+        return data.category == 'Alert' && !('resolution' in data)
+          && request.time < data.createdAt + duration.value(24, 'h');
+      }
+      function authorizedVerifier() {
+        let role = /databases/$(database)/documents/users/$(request.auth.uid)/roles/verifier;
+        return exists(role) && get(role).data.enabled == true;
+      }
       function confirmationActivity() {
         let after = request.resource.data;
         let path = /databases/$(database)/documents/forums/$(postId)/confirmations/$(request.auth.uid);
-        return resource.data.category == 'Alert' && resource.data.authorId != request.auth.uid
+        return warningOpen(resource.data) && resource.data.authorId != request.auth.uid
           && after.diff(resource.data).affectedKeys().hasOnly(['confirmationCount', 'lastConfirmationBy'])
           && after.lastConfirmationBy == request.auth.uid && after.confirmationCount is int && after.confirmationCount >= 0
           && ((!exists(path) && existsAfter(path) && after.confirmationCount == resource.data.confirmationCount + 1)
@@ -62,14 +78,23 @@ service cloud.firestore {
       }
       function verifierApproval() {
         let approval = request.resource.data.verification;
-        let role = /databases/$(database)/documents/users/$(request.auth.uid)/roles/verifier;
-        return resource.data.category == 'Alert' && resource.data.authorId != request.auth.uid
+        return warningOpen(resource.data) && resource.data.authorId != request.auth.uid
           && !('verification' in resource.data)
-          && exists(role) && get(role).data.enabled == true
+          && authorizedVerifier()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verification'])
           && approval is map && approval.keys().hasOnly(['status', 'verifierId', 'verifierName', 'approvedAt'])
           && approval.status == 'approved' && approval.verifierId == request.auth.uid
           && validText(approval.verifierName, 40) && approval.approvedAt == request.time;
+      }
+      function resolveWarning() {
+        let resolution = request.resource.data.resolution;
+        return warningOpen(resource.data)
+          && (resource.data.authorId == request.auth.uid || authorizedVerifier())
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['resolution'])
+          && resolution is map && resolution.keys().hasOnly(['status', 'resolvedBy', 'resolvedName', 'resolvedAt', 'note'])
+          && resolution.status == 'resolved' && resolution.resolvedBy == request.auth.uid
+          && validText(resolution.resolvedName, 40) && resolution.resolvedAt == request.time
+          && resolution.note is string && resolution.note.size() <= 500;
       }
       function replyActivity() {
         let data = request.resource.data;
@@ -83,13 +108,13 @@ service cloud.firestore {
       }
       allow read: if signedIn();
       allow create: if signedIn() && validPost();
-      allow update: if signedIn() && (replyActivity() || confirmationActivity() || verifierApproval());
+      allow update: if signedIn() && (replyActivity() || confirmationActivity() || verifierApproval() || resolveWarning());
       allow delete: if false;
 
       match /confirmations/{uid} {
         function validChange(delta) {
           let parent = /databases/$(database)/documents/forums/$(postId);
-          return signedIn() && request.auth.uid == uid && get(parent).data.category == 'Alert'
+          return signedIn() && request.auth.uid == uid && warningOpen(get(parent).data)
             && get(parent).data.authorId != uid
             && getAfter(parent).data.confirmationCount == get(parent).data.confirmationCount + delta
             && getAfter(parent).data.lastConfirmationBy == uid;
@@ -123,6 +148,10 @@ service cloud.firestore {
     match /users/{uid} {
       // Provisioned only by a trusted project administrator, never by app clients.
       match /roles/verifier {
+        allow get: if signedIn() && request.auth.uid == uid;
+        allow list, create, update, delete: if false;
+      }
+      match /roles/moderator {
         allow get: if signedIn() && request.auth.uid == uid;
         allow list, create, update, delete: if false;
       }
@@ -228,11 +257,33 @@ service cloud.firestore {
       }
       match /messages/{messageId} {
         allow read: if signedIn() && (id == 'Campus Chat' || directParticipant(group(id)) || member(id) && active(group(id)));
-        allow delete: if signedIn() && id == 'Campus Chat';
-        allow create: if validMessage() && (id == 'Campus Chat' || ((directParticipant(group(id)) || member(id) && active(group(id)))
+        // A removal and its immutable audit record must be committed together.
+        allow delete: if canModerate(id)
+          && !exists(/databases/$(database)/documents/chats/$(id)/moderation/$(messageId))
+          && getAfter(/databases/$(database)/documents/chats/$(id)/moderation/$(messageId)).data.actorId == request.auth.uid
+          && getAfter(/databases/$(database)/documents/chats/$(id)/moderation/$(messageId)).data.createdAt == request.time;
+        allow create: if validMessage()
+          && !exists(/databases/$(database)/documents/chats/$(id)/moderation/$(messageId))
+          && (id == 'Campus Chat' || ((directParticipant(group(id)) || member(id) && active(group(id)))
           && getAfter(/databases/$(database)/documents/chats/$(id)).data.lastMessageId == messageId
           && getAfter(/databases/$(database)/documents/chats/$(id)).data.lastActivityAt == request.time));
         allow update: if false;
+      }
+      match /moderation/{messageId} {
+        function validRemoval() {
+          let data = request.resource.data;
+          let message = /databases/$(database)/documents/chats/$(id)/messages/$(messageId);
+          return data.keys().hasOnly(['action', 'messageId', 'actorId', 'createdAt', 'reason'])
+            && (data.action == 'remove' || (data.action == 'clear' && id == 'Campus Chat'))
+            && data.messageId == messageId && data.actorId == request.auth.uid
+            && data.createdAt == request.time
+            && data.reason is string && data.reason.size() > 0 && data.reason.size() <= 300
+            && data.reason.matches('[\\s\\S]*\\S[\\s\\S]*')
+            && exists(message) && !existsAfter(message);
+        }
+        allow read: if canModerate(id);
+        allow create: if canModerate(id) && validRemoval();
+        allow update, delete: if false;
       }
       match /requests/{uid} {
         function pendingRequest() {

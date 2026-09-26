@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Map entry point: Leaflet base map, building events, chat, warnings, and class search. -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -29,12 +30,17 @@
         }
     </style>
     <link rel="stylesheet" href="LiveChat/bottomSheet.css">
+    <link rel="stylesheet" href="LiveChat/mapWarnings.css">
+    <link rel="stylesheet" href="ClassSearch/classSearch.css">
+    <link rel="stylesheet" href="events.css?v=dialog-2">
     <script src="LiveChat/mapChat.js" defer></script>
 </head>
 <body class="map-page">
 
     <div id="map"></div>
     <button id="open-chat" class="live-chat-link" type="button" aria-haspopup="dialog" aria-controls="chat-panel" disabled>Open chat</button>
+    <button id="open-class" class="live-chat-link" type="button" aria-haspopup="dialog" aria-controls="class-dialog">Open Class</button>
+    <button id="open-events" class="live-chat-link" type="button" aria-haspopup="dialog" aria-controls="events-dialog" aria-expanded="false">Open Events</button>
     <p id="chat-status" role="status"></p>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
@@ -42,7 +48,7 @@
         crossorigin=""></script>
 
     <script>
-        // your JavaScript code goes right here
+        // Initialize the shared Leaflet map before the feature modules mount.
         const map = L.map('map').setView([25.75396, -80.37662], 16);
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -51,10 +57,19 @@
             }).addTo(map);
     </script>
 
-    <script src = "Locations.JS"></script>
+    <!-- Building/event markers use the classic script's global map variable. -->
+    <script src = "Locations.JS?v=events-dialog-2"></script>
 
-    <!-- This page loads Firebase through a separate JavaScript module. -->
+    <!-- Feature modules use Firebase through firebase.js and their own services. -->
     <script type="module" src="firebase.js"></script>
+    <script type="module">
+        import { mountMapWarnings } from "./LiveChat/mapWarnings.js";
+        mountMapWarnings({ map, L });
+    </script>
+    <script type="module">
+        import { mountClassSearch } from "./ClassSearch/classSearch.js";
+        mountClassSearch({ map, L });
+    </script>
 
 </body>
 </html>

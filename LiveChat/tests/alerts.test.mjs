@@ -1,3 +1,4 @@
+// Emulator integration for alert location validation and per-user confirmations.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { initializeApp, deleteApp } from 'firebase/app';

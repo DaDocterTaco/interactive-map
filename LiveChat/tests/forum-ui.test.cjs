@@ -1,3 +1,4 @@
+// Stub DOM and forum services to test view switching, drafts, and alert forms.
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -29,7 +30,7 @@ const service = {
     async sendReply(user, id) { sentTo = id; if (failReply) throw Error('Offline'); await new Promise(resolve => { sendResolve = resolve; }); }
 };
 const code = fs.readFileSync(path.join(root, 'forums/forumUI.js'), 'utf8').replace(/^import.*;\s*/gm, '').replace('export function', 'function');
-const mount = vm.runInNewContext(code + '\nmountForums;', { service, mountAlerts: () => ({ render() {}, setComposer(value) { composerVisible = value; }, setDisabled(value) { alertDisabled = value; }, location() { return selectedLocation; }, reset() {}, dispose() {} }), AbortController, document: { getElementById: id => { assert.ok(elements[id], id); return elements[id]; }, createElement: element } });
+const mount = vm.runInNewContext(code + '\nmountForums;', { ...require('./lifecycle-helper.cjs')(), service, mountAlerts: () => ({ render() {}, setComposer(value) { composerVisible = value; }, setDisabled(value) { alertDisabled = value; }, location() { return selectedLocation; }, reset() {}, dispose() {} }), AbortController, document: { getElementById: id => { assert.ok(elements[id], id); return elements[id]; }, createElement: element } });
 const fire = (id, event = 'click') => elements[id].listeners[event]({ preventDefault() {} });
 const post = (id, title) => ({ id, title, body: '<script>hello</script>', category: 'Question', name: 'Alice', authorId: 'alice', replyCount: 1, createdAt: { toDate: () => new Date() } });
 (async () => {

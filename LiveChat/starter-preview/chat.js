@@ -1,5 +1,5 @@
-// Frontend practice only: these arrays reset when the page refreshes.
-// Later, chatService.js will replace them with shared backend data.
+// Isolated UI preview: conversations are sample arrays in browser memory and
+// reset on refresh. The live app is implemented in the parent LiveChat folder.
 const chats = {
   campus: { name: 'Campus public chat', type: 'Public', description: 'A shared space for the FIU community.', messages: [
     { author: 'Alex Morgan', text: 'Anyone on campus working on their hackathon project tonight?', time: '6:42 PM' },

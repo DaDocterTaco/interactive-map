@@ -1,6 +1,9 @@
 import * as service from "./forumService.js";
 import { mountAlerts } from "./alertUI.js";
+import { reportState, watchReportExpiry } from "./reportLifecycle.js";
 
+// Coordinates the forum list, composer, selected thread, and alert controls.
+// Each live listener is stopped when its view is no longer active.
 export function mountForums({ user }) {
     const $ = id => document.getElementById(id);
     const events = new AbortController();
@@ -10,6 +13,7 @@ export function mountForums({ user }) {
     let stopPosts, stopPost, stopReplies, listVersion = 0, threadVersion = 0;
     const drafts = new Map();
     const alerts = mountAlerts({ user });
+    const expiry = watchReportExpiry(() => active ? posts : [], renderPosts);
     const date = value => value?.toDate?.().toLocaleString() || "Just now";
     const failure = error => error.code === "permission-denied"
         ? "This discussion is unavailable or your session has expired. Close and reopen chat to retry."
@@ -40,6 +44,8 @@ export function mountForums({ user }) {
         if (selected) drafts.set(selected, $("forum-reply-input").value);
     }
     function renderPosts() {
+        // Search and category filters apply to the currently loaded page set;
+        // Load more expands the listener before those filters run again.
         const search = $("forum-search").value.trim().toLowerCase();
         const category = $("forum-filter").value;
         const filtered = posts.filter(post => (!category || post.category === category)
@@ -55,7 +61,8 @@ export function mountForums({ user }) {
             if (post.category === "Alert") {
                 button.className += " forum-alert-card";
                 button.append(node("small", post.location.label), node("small", `${post.confirmationCount} user confirmations`));
-                button.append(node("small", post.verification?.status === "approved" ? (post.pending ? "Saving approval…" : "Verified by authorized reviewer") : "Awaiting verifier review", "alert-verification"));
+                const state = reportState(post);
+                button.append(node("small", state === "resolved" ? "Resolved" : state === "expired" ? "Expired" : post.verification?.status === "approved" ? (post.pending ? "Saving approval…" : "Verified by authorized reviewer") : "Awaiting verifier review", "alert-verification"));
             }
             button.addEventListener("click", () => openPost(post.id));
             $("forum-post-list").append(button);
@@ -71,6 +78,7 @@ export function mountForums({ user }) {
         stopPosts = service.watchPosts(postLimit, (data, cached) => {
             if (!active || disposed || version !== listVersion) return;
             posts = data;
+            expiry.refresh();
             renderPosts();
             $("forum-list-status").textContent = cached ? "Connecting… Showing any saved discussions." : "";
         }, error => {
@@ -99,6 +107,8 @@ export function mountForums({ user }) {
         });
     }
     function openPost(id, focus = true) {
+        // Switching threads invalidates callbacks from the old post/replies
+        // and restores that thread's unsent reply draft.
         saveDraft(); stopThread();
         selected = id; currentPost = null; replyLimit = 50;
         const version = threadVersion;
@@ -220,11 +230,12 @@ export function mountForums({ user }) {
         setActive(value) {
             if (active === value || disposed) return;
             active = value;
+            expiry.refresh();
             if (value) { listenPosts(); if (selected) openPost(selected, false); else syncComposer(); }
             else { saveDraft(); listVersion++; stopPosts?.(); stopThread(); alerts.setComposer(false); }
         },
         dispose() {
-            disposed = true; active = false; listVersion++; stopPosts?.(); stopThread(); alerts.dispose(); events.abort(); drafts.clear();
+            disposed = true; active = false; listVersion++; stopPosts?.(); stopThread(); alerts.dispose(); expiry.dispose(); events.abort(); drafts.clear();
         }
     };
 }

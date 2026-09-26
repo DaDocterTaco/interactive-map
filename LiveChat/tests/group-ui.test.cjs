@@ -1,3 +1,4 @@
+// Stub DOM and group listeners to check sidebar, join, pin, and dialog flows.
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');

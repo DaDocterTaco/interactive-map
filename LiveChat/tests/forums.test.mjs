@@ -1,3 +1,4 @@
+// Emulator integration for discussion posts, replies, pagination, and rules.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { initializeApp, deleteApp } from 'firebase/app';

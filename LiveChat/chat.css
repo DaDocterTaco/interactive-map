@@ -1,3 +1,5 @@
+/* Unused earlier chat layout kept for reference. The shared dialog uses
+   bottomSheet.css; starter-preview has its own separate stylesheet. */
 :root {
     font-family: Arial, sans-serif;
     color: #17212b;

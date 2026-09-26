@@ -1,0 +1,52 @@
+/* Events uses the same button stack and native dialog interaction as class search. */
+#open-events { top: 120px; min-width: 116px; background: #fff; color: #081f40; border: 1px solid #c5cdd8; cursor: pointer; }
+#open-events:hover, #open-events:focus-visible { background: #edf2f8; }
+.map-page > #chat-status:not(:empty) { top: 170px; }
+.map-page > #chat-status:empty { display: none; }
+#events-dialog { box-sizing: border-box; width: min(720px, calc(100% - 24px)); max-height: 90dvh; padding: 0; border: 1px solid #cbd3df; border-radius: 18px; color: #14243c; background: #fff; box-shadow: 0 20px 80px #081f4055; font: 15px/1.45 Arial, sans-serif; overflow: hidden; }
+#events-dialog[open] { display: flex; flex-direction: column; }
+#events-dialog::backdrop { background: #071b355e; }
+#events-dialog *, #events-dialog *::before, #events-dialog *::after { box-sizing: border-box; }
+#events-dialog [hidden] { display: none !important; }
+#events-dialog button, #events-dialog input, #events-dialog select { font: inherit; }
+#events-dialog :focus-visible, #open-events:focus-visible { outline: 3px solid #2679ca; outline-offset: 3px; }
+.events-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 24px 26px 20px; border-bottom: 1px solid #e2e7ee; flex-shrink: 0; }
+.events-heading small { font-size: 11px; letter-spacing: .1em; color: #59708e; font-weight: 700; }
+.events-heading h1 { margin: 5px 0 0; font-size: 25px; letter-spacing: -.5px; }
+#events-dialog .events-close { width: 36px; height: 36px; flex-shrink: 0; border: 0; border-radius: 50%; background: #f0f3f7; color: #243852; font-size: 25px; cursor: pointer; }
+#events-content { min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+.events-filters { padding: 20px 26px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.events-filters input { grid-column: 1 / -1; }
+.events-filters input, .events-filters select { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid #bbc7d5; border-radius: 7px; background: white; color: #14243c; }
+.events-status { font-size: 12px; color: #63758a; margin: 16px 26px 6px; }
+.events-stale { color: #985d09; }
+.events-summary { margin: 0 26px 16px; font-weight: 700; font-size: 13px; }
+.events-list { padding: 0 26px; }
+.event-card { padding: 16px 0; border-top: 1px solid #e2e7ee; overflow-wrap: anywhere; }
+.event-card h2 { font-size: 16px; line-height: 1.4; margin: 0 0 6px; }
+.event-card a { color: #173c6a; text-decoration: none; }
+.event-card a:hover { text-decoration: underline; }
+.event-card p { margin: 6px 0; font-size: 13px; }
+.event-time { color: #304b70; }
+.event-place { color: #657487; }
+.event-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 9px; }
+.event-source, .event-type { font-size: 11px; padding: 3px 7px; border-radius: 4px; background: #eef3f9; color: #304b70; }
+.event-type { background: #f3f0e7; color: #726444; }
+.event-locate, .events-more { min-height: 40px; padding: 8px 14px; border: 1px solid #bcc9da; border-radius: 7px; background: #f3f7fb; color: #173c6a; font-weight: 600; cursor: pointer; margin-top: 12px; }
+.events-more { margin: 12px 26px; }
+.events-note { font-size: 11px; color: #697a90; padding: 16px 26px; margin: 0; background: #fafbfd; }
+.events-empty { padding: 12px 0; color: #657487; }
+.event-pin { border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 5px #17333b60; box-sizing: border-box; }
+.event-pin.has-events { background: #117763; color: white; text-align: center; font: bold 12px/26px Arial, sans-serif; }
+.event-pin.no-events { background: #85999b; }
+.events-popup { font-family: Arial, sans-serif; }
+.events-popup > h2 { font-size: 16px; }
+.events-popup > p { font-size: 12px; }
+@media (max-width: 520px) {
+    #events-dialog { width: calc(100% - 16px); max-height: 94dvh; border-radius: 14px; }
+    .events-heading { padding: 18px; }
+    .events-filters { padding: 16px 18px 0; gap: 8px; }
+    .events-list { padding: 0 18px; }
+    .events-status, .events-summary { margin-left: 18px; margin-right: 18px; }
+    #events-dialog input { font-size: 16px; }
+}

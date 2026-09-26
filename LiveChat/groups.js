@@ -5,6 +5,8 @@ import {
     serverTimestamp, onSnapshot, query, where, writeBatch, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
+// Group documents are discoverable; membership, access requests, and password
+// verifiers live in protected child documents checked by Firestore rules.
 const db = getFirestore(app);
 const groupCollection = collection(db, "chats");
 const groupRef = id => doc(groupCollection, id);
@@ -12,6 +14,8 @@ const memberRef = (id, uid) => doc(db, "chats", id, "members", uid);
 const requestRef = (id, uid) => doc(db, "chats", id, "requests", uid);
 
 export function expiresAt(group) {
+    // An unresolved server timestamp is treated as open until Firestore sends
+    // its committed activity time.
     const time = group?.lastActivityAt?.toMillis?.();
     return Number.isFinite(time) ? time + group.idleHours * 3600000 : Infinity;
 }
@@ -44,6 +48,8 @@ export async function createGroup(user, { name, visibility, password, idleHours 
     const proof = visibility === "private" ? await passwordVerifier(password, salt) : "";
     const reference = doc(groupCollection, title);
     if ((await getDoc(reference)).exists()) throw new Error("That chat name is already taken. Choose another name.");
+    // Create the group, creator membership, and private verifier atomically so
+    // no discoverable group exists without its required access records.
     const batch = writeBatch(db);
     batch.set(reference, {
         name: title, visibility, idleHours: hours, salt,
@@ -107,6 +113,7 @@ export function watchRequests(id, callback, onError) {
         snapshot => callback(snapshot.docs.map(item => ({ id: item.id, ...item.data() }))), onError);
 }
 export async function decideRequest(groupId, requesterId, member, accept) {
+    // Acceptance and membership must commit together for both rules and UI.
     await runTransaction(db, async transaction => {
         const reference = requestRef(groupId, requesterId);
         const request = await transaction.get(reference);

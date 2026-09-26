@@ -1,12 +1,15 @@
 import { app } from "../firebase.js";
 import { getFirestore, doc, collection, getDoc, getDocs, query, where, orderBy, startAt, endAt, limit, onSnapshot, serverTimestamp, runTransaction, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
+// Public profiles support name search; friends are private to their owner.
+// Stable UID pairs identify direct chats even when display names change.
 const db = getFirestore(app);
 export const directId = (a, b) => "dm:" + [a, b].sort().join(":");
 export async function saveProfile(user) {
     const displayName = user.displayName?.trim();
     if (!displayName) throw Error("Choose a display name first.");
     const reference = doc(db, "users", user.uid);
+    // Preserve createdAt while backfilling or updating a renamed account.
     await runTransaction(db, async transaction => {
         const saved = await transaction.get(reference);
         if (saved.exists() && saved.data().displayName === displayName) return;
@@ -40,6 +43,8 @@ export async function openDirect(user, other) {
     if (user.uid === other.uid) throw Error("Choose another person to message.");
     const ids = [user.uid, other.uid].sort();
     const reference = doc(db, "chats", directId(...ids));
+    // Both participants compute the same document ID, so concurrent opens
+    // converge on one conversation instead of creating duplicate histories.
     await runTransaction(db, async transaction => {
         const current = await transaction.get(reference);
         if (current.exists()) return;

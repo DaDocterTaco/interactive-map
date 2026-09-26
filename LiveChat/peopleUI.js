@@ -1,5 +1,6 @@
 import * as people from "./people.js";
 
+// Render people search, saved friends, direct chats, and group member lists.
 export function mountPeople({ user, onSelect }) {
     const el = id => document.getElementById(id);
     const events = new AbortController();
@@ -52,6 +53,8 @@ export function mountPeople({ user, onSelect }) {
         return wrapper;
     }
     async function renderLists() {
+        // Profile fetches may finish after a newer listener update; only the
+        // latest render is allowed to replace the visible lists.
         const version = ++listVersion;
         try {
             const ids = new Set([...friends.map(item => item.id), ...directs.flatMap(chat => chat.participantIds.filter(uid => uid !== user.uid))]);
@@ -75,6 +78,7 @@ export function mountPeople({ user, onSelect }) {
         for (const person of results) el("people-results").appendChild(row(person));
     }
     function search() {
+        // Debounce remote prefix searches and discard results for old input.
         clearTimeout(timer);
         const version = ++searchVersion;
         const term = el("chat-search").value.trim();

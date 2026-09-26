@@ -1,7 +1,11 @@
 import * as service from "./forumService.js";
+import { expiresAt, reportState, watchReportExpiry } from "./reportLifecycle.js";
 
+// Alert-specific composer and thread controls. The location picker is its own
+// Leaflet map, independent of the campus map and warning marker layer.
 let leafletLoading;
 function leaflet() {
+    // The standalone chat page does not load Leaflet until a user needs it.
     if (window.L) return Promise.resolve(window.L);
     if (!leafletLoading) leafletLoading = new Promise((resolve, reject) => {
         const css = document.createElement("link"); css.rel = "stylesheet";
@@ -24,7 +28,8 @@ export function mountAlerts({ user }) {
     const on = (id, event, fn) => $(id).addEventListener(event, fn, { signal: events.signal });
     let map, marker, disposed = false, disabled = false, visible = false, mapLoading;
     let post = null, stopConfirmation, version = 0, confirmed = null, confirming = false;
-    let verifier = false, approving = false;
+    let verifier = false, approving = false, resolving = false;
+    const expiry = watchReportExpiry(() => post ? [post] : [], controls);
     const locationFields = ["alert-location-label", "alert-latitude", "alert-longitude"];
     function coordinates() {
         const latitude = $("alert-latitude").value.trim(), longitude = $("alert-longitude").value.trim();
@@ -67,18 +72,37 @@ export function mountAlerts({ user }) {
         return mapLoading;
     }
     function controls() {
-        $("alert-confirm").hidden = !post || post.authorId === user.uid;
+        // Permission hints here guide the UI; Firestore rules make the final
+        // decision using server time and the current verifier role.
+        const state = reportState(post), open = !!post && state === "active";
+        $("alert-confirm").hidden = !open || post.authorId === user.uid;
         $("alert-confirm").disabled = !post || post.pending || confirmed === null || confirming;
         $("alert-confirm").textContent = confirmed ? "Withdraw my confirmation" : "I can confirm this";
-        $("alert-approve").hidden = !verifier || !post || post.authorId === user.uid || post.verification?.status === "approved";
+        $("alert-approve").hidden = !verifier || !open || post.authorId === user.uid || post.verification?.status === "approved";
         $("alert-approve").disabled = !verifier || !post || post.pending || approving;
+        $("alert-resolve-fields").hidden = !open || !(verifier || post.authorId === user.uid);
+        $("alert-resolve").disabled = !open || post.pending || resolving;
+        $("alert-resolution-note").disabled = !open || post.pending || resolving;
+        if (post) {
+            const resolution = post.resolution;
+            $("alert-owner-note").hidden = !open || post.authorId !== user.uid;
+            $("alert-lifecycle").textContent = state === "resolved"
+                ? `${post.pending ? "Saving resolution…" : `Resolved by ${resolution.resolvedName} · ${resolution.resolvedAt?.toDate?.().toLocaleString() || "Just now"}`}${resolution.note ? `\n${resolution.note}` : ""}`
+                : state === "expired" ? "Expired — retained in Forums for reference."
+                : `Expires ${new Date(expiresAt(post)).toLocaleString()} (24 hours after posting)`;
+            if (!open && post.verification?.status !== "approved") $("alert-verification").textContent = "Not verified";
+        }
     }
     function render(postData) {
+        // Restart the viewer's confirmation listener only when the selected
+        // report changes, not on every parent snapshot update.
         const next = postData?.category === "Alert" ? postData : null;
         if (post?.id !== next?.id) {
             version++; stopConfirmation?.(); stopConfirmation = null; confirmed = null;
             $("alert-confirm-status").textContent = "";
             $("alert-approval-status").textContent = "";
+            $("alert-resolution-status").textContent = "";
+            $("alert-resolution-note").value = "";
             if (next && next.authorId !== user.uid) {
                 const epoch = version;
                 stopConfirmation = service.watchConfirmation(next.id, user.uid, (exists, pending) => {
@@ -104,9 +128,10 @@ export function mountAlerts({ user }) {
                 : "Awaiting review by an authorized verifier";
         }
         controls();
+        expiry.refresh();
     }
     on("alert-confirm", "click", async () => {
-        if (!post || post.authorId === user.uid || post.pending || confirmed === null || confirming) return;
+        if (!post || reportState(post) !== "active" || post.authorId === user.uid || post.pending || confirmed === null || confirming) return;
         const id = post.id, epoch = version, value = !confirmed;
         confirming = true; controls(); $("alert-confirm-status").textContent = "Saving confirmation...";
         try {
@@ -117,7 +142,7 @@ export function mountAlerts({ user }) {
         } finally { confirming = false; if (!disposed) controls(); }
     });
     on("alert-approve", "click", async () => {
-        if (!verifier || !post || post.pending || approving || post.authorId === user.uid || post.verification?.status === "approved") return;
+        if (!verifier || !post || reportState(post) !== "active" || post.pending || approving || post.authorId === user.uid || post.verification?.status === "approved") return;
         const id = post.id, epoch = version;
         approving = true; controls(); $("alert-approval-status").textContent = "Saving approval…";
         try {
@@ -126,6 +151,17 @@ export function mountAlerts({ user }) {
         } catch (error) {
             if (!disposed && epoch === version) $("alert-approval-status").textContent = `Approval not saved. ${error.message}`;
         } finally { approving = false; if (!disposed) controls(); }
+    });
+    on("alert-resolve", "click", async () => {
+        if (!post || reportState(post) !== "active" || post.pending || resolving || !(verifier || post.authorId === user.uid)) return;
+        const id = post.id, epoch = version, note = $("alert-resolution-note").value;
+        resolving = true; controls(); $("alert-resolution-status").textContent = "Saving resolution…";
+        try {
+            await service.resolveReport(user, id, note);
+            if (!disposed && epoch === version) { $("alert-resolution-status").textContent = "Report resolved. It has been removed from the map."; $("alert-resolution-note").value = ""; }
+        } catch (error) {
+            if (!disposed && epoch === version) $("alert-resolution-status").textContent = `Resolution not saved. ${error.message}`;
+        } finally { resolving = false; if (!disposed) controls(); }
     });
     const stopVerifier = service.watchVerifier(user.uid, enabled => {
         if (disposed) return;
@@ -142,6 +178,6 @@ export function mountAlerts({ user }) {
         setDisabled(value) { disabled = value; for (const id of locationFields) $(id).disabled = value || !visible; },
         reset() { for (const id of locationFields) $(id).value = ""; marker?.remove(); marker = null; $("alert-picker-status").textContent = "Click a spot on the picker, or enter coordinates below."; },
         render,
-        dispose() { disposed = true; version++; events.abort(); stopConfirmation?.(); stopVerifier(); map?.remove(); }
+        dispose() { disposed = true; version++; events.abort(); stopConfirmation?.(); stopVerifier(); expiry.dispose(); map?.remove(); }
     };
 }

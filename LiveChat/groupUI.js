@@ -21,6 +21,8 @@ export function mountGroups({ user, onSelect, onGroupUpdated }) {
         onSelect(group);
     }
     function render() {
+        // Search filters only currently open groups. Pins affect placement,
+        // while Campus Chat is a fixed choice outside this dynamic list.
         const search = el("chat-search").value.trim().toLowerCase();
         el("campus-chat-choice").setAttribute("aria-current", String(!selected));
         el("pinned-groups").replaceChildren();
@@ -71,6 +73,8 @@ export function mountGroups({ user, onSelect, onGroupUpdated }) {
         finally { selecting = false; }
     }
     function showPassword(group) {
+        // Watch both the request and membership because a member can approve
+        // access while this visitor still has the password dialog open.
         stopJoining();
         joining = group;
         el("join-group-title").textContent = `Join ${group.name}`;
@@ -173,6 +177,7 @@ export function mountGroups({ user, onSelect, onGroupUpdated }) {
     });
 
     function refresh() {
+        // Firestore does not send a snapshot at the exact inactivity deadline.
         if (selected && selected.visibility !== "direct") {
             selected = all.find(group => group.id === selected.id) || selected;
             onGroupUpdated(selected);

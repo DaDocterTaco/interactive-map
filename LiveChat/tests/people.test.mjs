@@ -1,3 +1,5 @@
+// Emulator integration for profile search, private friends, direct chats, and
+// member visibility. Browser modules are rebound to the Node Firestore SDK.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { initializeApp, deleteApp } from 'firebase/app';

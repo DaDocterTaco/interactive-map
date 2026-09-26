@@ -1,4 +1,5 @@
-// Reuse the existing chat HTML so both pages always show the same skeleton.
+// Insert the shared chat dialogs into the map page before loading chat.js;
+// that controller looks up dialog elements immediately when it runs.
 (async () => {
     const scriptUrl = document.currentScript.src;
     const openButton = document.getElementById("open-chat");

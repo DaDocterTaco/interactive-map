@@ -24,7 +24,7 @@ const code = (await fs.readFile(new URL('../chatService.js', import.meta.url), '
     .replace(/import\s*\{[\s\S]*?\}\s*from "https:[^"]+";\s*/, '')
     .replaceAll('export ', '');
 const createService = new Function('app', 'sdk',
-    'const { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, limitToLast, onSnapshot, getDocsFromServer, writeBatch, doc } = sdk;\n' +
+    'const { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, limitToLast, onSnapshot, getDocsFromServer, getDocFromServer, writeBatch, doc } = sdk;\n' +
     code + '\nreturn { watchMessages, sendMessage, clearMessages };');
 const service = createService(alice.app, sdk);
 const aliceUser = { uid: 'alice', displayName: 'Alice' };
@@ -44,6 +44,8 @@ async function observe(db, predicate) {
 }
 
 try {
+    const roleResponse = await fetch('http://127.0.0.1:8185/v1/projects/demo-fiu-chat/databases/(default)/documents/users/alice/roles/moderator', { method: 'PATCH', headers: { Authorization: 'Bearer owner', 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { enabled: { booleanValue: true } } }) });
+    assert.ok(roleResponse.ok);
     await rejects(sdk.getDocs(stranger.messages));
     await rejects(sdk.addDoc(stranger.messages, message(aliceUser)));
     await rejects(sdk.addDoc(alice.messages, { ...message(aliceUser), senderId: 'bob' }));
@@ -66,9 +68,9 @@ try {
     });
     assert.ok(seenByAlice.some(message => message.name === 'Bob'));
     // More than 500 documents verifies Clear handles multiple batches.
-    for (let offset = 0; offset < 501; offset += 200) {
+    for (let offset = 0; offset < 501; offset += 10) {
         const batch = sdk.writeBatch(alice.db);
-        for (let i = offset; i < Math.min(offset + 200, 501); i++) batch.set(sdk.doc(alice.messages), message(aliceUser));
+        for (let i = offset; i < Math.min(offset + 10, 501); i++) batch.set(sdk.doc(alice.messages), message(aliceUser));
         await batch.commit();
     }
     const latest = await new Promise((resolve, reject) => {
@@ -78,9 +80,9 @@ try {
     });
     assert.equal(latest.length, 100);
     let newMessage;
-    const count = await service.clearMessages((done) => {
+    const count = await service.clearMessages(aliceUser, 'Test cleanup', (done) => {
         // Emulate another participant posting after the deletion snapshot.
-        if (done === 450) newMessage = sdk.addDoc(bob.messages, { ...message(bobUser), text: 'New after Clear started' });
+        if (done === 4) newMessage = sdk.addDoc(bob.messages, { ...message(bobUser), text: 'New after Clear started' });
     });
     await newMessage;
     assert.equal(count, 503);
@@ -88,12 +90,12 @@ try {
     assert.equal(remaining.size, 1);
     assert.equal(remaining.docs[0].data().text, 'New after Clear started');
     const emptyOnBob = observe(bob.db, snapshot => snapshot.empty);
-    assert.equal(await service.clearMessages(), 1);
+    assert.equal(await service.clearMessages(aliceUser, 'Test cleanup'), 1);
     await emptyOnBob;
-    assert.equal(await service.clearMessages(), 0);
+    assert.equal(await service.clearMessages(aliceUser, 'Test cleanup'), 0);
     await service.sendMessage(aliceUser, 'Fresh start');
     assert.equal((await sdk.getDocsFromServer(bob.messages)).size, 1);
-    await service.clearMessages();
+    await service.clearMessages(aliceUser, 'Test cleanup');
     console.log('PASS: two-user realtime chat; stored identity/time/text; rules reject unsigned/spoofed/invalid writes; latest 100; full 503-message clear; concurrent new message survives; empty clear; fresh send.');
 } finally {
     await Promise.all(apps.map(deleteApp));

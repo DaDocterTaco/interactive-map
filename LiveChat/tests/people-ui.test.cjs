@@ -1,3 +1,4 @@
+// A minimal DOM and service stub verify people UI behavior without a browser.
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const root = path.join(__dirname, '..');
 const code = fs.readFileSync(path.join(root, 'peopleUI.js'), 'utf8').replace(/^import[^\n]+\n/, '').replaceAll('export ', '');

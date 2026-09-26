@@ -8,6 +8,8 @@ import {
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
+// Firebase Anonymous Auth supplies a stable browser identity for permissions.
+// The chosen name is saved on Auth, then people.js copies it to the directory.
 const auth = getAuth(app);
 
 // Restore saved credentials before deciding to create a new account.

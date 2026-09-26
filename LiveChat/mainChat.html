@@ -95,7 +95,8 @@
         <p id="group-expiry"></p>
         <button id="group-settings" type="button" hidden>Change time limit</button>
         <button id="show-members" type="button" hidden>Members</button>
-        <button id="clear-chat" type="button" disabled>Clear</button>
+        <button id="clear-chat" type="button" hidden disabled>Clear Campus Chat</button>
+        <p id="moderation-status" role="status"></p>
     </header>
 
     <div id="access-requests" aria-live="polite"></div>
@@ -110,7 +111,7 @@
             autocomplete="off" maxlength="2000" required>
         <button id="send-message" type="submit" disabled>Send</button>
     </form>
-    <small id="chat-help">Showing the latest 100 messages. Clear deletes Campus Chat history for everyone.</small>
+    <small id="chat-help">Showing the latest 100 messages. Only moderators can clear Campus Chat.</small>
     <p id="connection-status" role="status"></p>
     <p id="message-status" role="status"></p>
     </section>
@@ -144,7 +145,7 @@
                             <div><label for="alert-latitude">Latitude</label><input id="alert-latitude" type="number" step="any" min="-90" max="90" placeholder="25.753960" disabled></div>
                             <div><label for="alert-longitude">Longitude</label><input id="alert-longitude" type="number" step="any" min="-180" max="180" placeholder="-80.376620" disabled></div>
                         </div>
-                        <p class="forum-meta">Describe what you observed. Other users can add a confirmation if they observed it too.</p>
+                        <p class="forum-meta">Warnings expire 24 hours after posting. You or an authorized verifier can resolve them sooner.</p>
                     </fieldset>
                     <div class="dialog-actions"><button id="forum-post-submit" class="forum-primary" type="submit">Publish post</button><button id="forum-cancel-post" type="button">Back to posts</button></div>
                     <p id="forum-compose-status" role="status"></p>
@@ -165,6 +166,13 @@
                     <p id="alert-verification" class="alert-verification" role="status"></p>
                     <button id="alert-approve" type="button" hidden disabled>Approve report</button>
                     <p id="alert-approval-status" role="status"></p>
+                    <p id="alert-lifecycle" role="status"></p>
+                    <div id="alert-resolve-fields" hidden>
+                        <label for="alert-resolution-note">Resolution note (optional)</label>
+                        <textarea id="alert-resolution-note" rows="2" maxlength="500" placeholder="What changed or how was the concern addressed?"></textarea>
+                        <button id="alert-resolve" type="button">Mark resolved</button>
+                    </div>
+                    <p id="alert-resolution-status" role="status"></p>
                     <p id="alert-owner-note" hidden>Other users can confirm your report.</p>
                     <button id="alert-confirm" type="button" disabled>I can confirm this</button>
                     <p id="alert-confirm-status" role="status"></p>

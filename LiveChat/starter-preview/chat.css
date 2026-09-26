@@ -1,4 +1,4 @@
-/* Theme: change these values to adjust the whole chat. */
+/* Standalone sample UI theme. These tokens affect only starter-preview. */
 :root { --navy: #081e3f; --gold: #efc24f; --ink: #18304c; --muted: #647184; --line: #e2e7ed; --surface: #f4f6f9; }
 * { box-sizing: border-box; }
 body { margin: 0; color: var(--ink); background: var(--surface); font-family: "Segoe UI", Arial, sans-serif; font-size: 15px; }

@@ -1,3 +1,5 @@
+// Emulator integration for group creation, membership, access requests,
+// password proofs, activity deadlines, and Firestore rule enforcement.
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import { initializeApp, deleteApp } from 'firebase/app';

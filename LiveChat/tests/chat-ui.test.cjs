@@ -27,10 +27,13 @@ function element() {
     };
 }
 for (const [, id] of html.matchAll(/id="([^"]+)"/g)) elements[id] = element();
+let roleChanged, roleError, roleStops = 0, removals = 0;
 let receive, listenError, selectGroup, groupUpdated, requested, stops = 0, sends = 0, clears = 0, lastGroup;
 let confirm = false, failSend = false, failClear = false, forumsActive = false, forumsDisposed = 0;
 const auth = { restoreUser: async () => ({ uid: 'alice', displayName: 'Alice' }), watchUser() {} };
 const service = {
+    watchModerator(uid, callback, error) { roleChanged = callback; roleError = error; return () => roleStops++; },
+    async removeMessage(user, id, reason) { assert.equal(id, 'message-1'); assert.equal(reason, 'Harmful content'); removals++; },
     watchMessages(callback, error) { receive = callback; listenError = error; return () => stops++; },
     async sendMessage(user, text, groupId) {
         lastGroup = groupId;
@@ -38,7 +41,7 @@ const service = {
         if (failSend) throw { code: 'permission-denied' };
         sends++;
     },
-    async clearMessages(progress) {
+    async clearMessages(user, reason, progress) {
         clears++;
         if (failClear) throw Error('Network interrupted');
         progress(3, 3); receive([], false); return 3;
@@ -50,7 +53,7 @@ vm.runInNewContext(code, {
         createElement: element
     },
     location: { protocol: 'http:' }, localStorage: { removeItem() {} },
-    window: { confirm: () => confirm }, fakeAuth: async () => auth, fakeService: async () => service,
+    window: { confirm: () => confirm, prompt: () => 'Harmful content' }, fakeAuth: async () => auth, fakeService: async () => service,
     setTimeout: () => 1, clearTimeout() {},
     fakePeople: async () => ({ saveProfile: async () => {} }),
     fakePeopleUI: async () => ({ mountPeople: () => ({ setConversation() {}, dispose() {} }) }),
@@ -59,7 +62,7 @@ vm.runInNewContext(code, {
     fakeGroupUI: async () => ({ mountGroups({ onSelect, onGroupUpdated }) { selectGroup = onSelect; groupUpdated = onGroupUpdated; return { dispose() {} }; } })
 });
 const fire = (id, event) => elements[id].listeners[event]({ preventDefault() {} });
-const messages = [{ senderId: 'bob', name: 'Bob', text: '<b>Hello</b>', createdAt: { toDate: () => new Date() }, pending: false }];
+const messages = [{ id: 'message-1', senderId: 'bob', name: 'Bob', text: '<b>Hello</b>', createdAt: { toDate: () => new Date() }, pending: false }];
 (async () => {
     await fire('open-chat', 'click');
     assert.equal(elements['chat-panel'].open, true);
@@ -75,6 +78,18 @@ const messages = [{ senderId: 'bob', name: 'Bob', text: '<b>Hello</b>', createdA
     assert.equal(elements['forums-panel'].hidden, true);
     receive(messages, false);
     assert.match(elements['message-list'].children[0].textContent, /Bob: <b>Hello<\/b>/);
+    assert.equal(elements['clear-chat'].hidden, true);
+    assert.equal(elements['message-list'].children[0].children.length, 0);
+    confirm = true;
+    await fire('clear-chat', 'click'); assert.equal(clears, 0);
+    roleChanged(true);
+    assert.equal(elements['clear-chat'].hidden, false);
+    await elements['message-list'].children[0].children[0].listeners.click();
+    assert.equal(removals, 1);
+    roleChanged(false);
+    assert.equal(elements['message-list'].children[0].children.length, 0);
+    roleChanged(true);
+    confirm = false;
     elements['message-input'].value = 'Hello';
     failSend = true;
     await fire('message-form', 'submit');
@@ -102,13 +117,23 @@ const messages = [{ senderId: 'bob', name: 'Bob', text: '<b>Hello</b>', createdA
     assert.equal(elements['message-list'].children.length, 0);
     assert.match(elements['message-status'].textContent, /Deleted 3/);
     await fire('close-chat', 'click');
-    assert.equal(stops, 1);
+    assert.equal(stops, 1); assert.equal(roleStops, 1);
+    roleChanged(true); assert.equal(elements['clear-chat'].hidden, true);
     assert.equal(forumsDisposed, 1);
     await fire('open-chat', 'click');
     listenError({ code: 'permission-denied' });
     assert.equal(elements['send-message'].disabled, true);
     assert.match(elements['connection-status'].textContent, /denied access/);
     receive(messages, false);
+    roleChanged(true);
+    selectGroup({ id: 'dm:alice:bob', name: 'Bob', visibility: 'direct' });
+    receive(messages, false);
+    assert.equal(elements['clear-chat'].hidden, true);
+    assert.equal(elements['message-list'].children[0].children.length, 0);
+    selectGroup(null); receive(messages, false);
+    roleError(); roleChanged(false);
+    assert.equal(elements['clear-chat'].hidden, true);
+    roleChanged(true);
     elements['message-input'].value = 'Campus draft';
     const group = { id: 'test-group', name: 'Study', visibility: 'private', creatorId: 'alice', idleHours: 12 };
     selectGroup(group);

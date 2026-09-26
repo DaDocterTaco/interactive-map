@@ -1,20 +1,22 @@
+// Stub Leaflet, DOM, and forum services to test the alert picker and controls.
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const root = path.join(__dirname, '..');
 const elements = {};
 function element() { return { value: '', textContent: '', hidden: false, disabled: false, dataset: {}, listeners: {}, addEventListener(type, fn) { this.listeners[type] = fn; } }; }
 for (const [, id] of fs.readFileSync(path.join(root, 'mainChat.html'), 'utf8').matchAll(/id="([^"]+)"/g)) elements[id] = element();
-const source = fs.readFileSync(path.join(root, 'forums/alertUI.js'), 'utf8').replace(/^import.*;\s*/, '').replace('export function', 'function');
+const source = fs.readFileSync(path.join(root, 'forums/alertUI.js'), 'utf8').replace(/^import.*;\s*/gm, '').replace('export function', 'function');
 let receive, mapClick, saved, fail = false, markers = 0, removed = 0;
-let roleChanged, roleError, approvedId, roleStopped = false, approvalResolve;
+let roleChanged, roleError, approvedId, roleStopped = false, approvalResolve, resolved;
 const map = { setView() { return this; }, on(type, cb) { mapClick = cb; }, invalidateSize() {}, remove() { removed++; } };
 const L = { map: container => { assert.equal(container, elements['alert-location-map']); return map; }, tileLayer: () => ({ addTo() {} }), circleMarker: () => { markers++; return { addTo() { return this; }, setLatLng() {}, remove() {} }; } };
 const service = {
+    async resolveReport(user, id, note) { if (fail) throw Error('Offline'); resolved = { id, note }; },
     watchVerifier(uid, cb, error) { roleChanged = cb; roleError = error; return () => { roleStopped = true; }; },
     async approveReport(user, id) { if (fail) throw Error('Offline'); approvedId = id; await new Promise(resolve => { approvalResolve = resolve; }); },
     watchConfirmation(id, uid, cb) { receive = cb; return () => {}; }, async setConfirmation(user, id, value) { if (fail) throw Error('Offline'); saved = { id, value }; receive(value, false); }
 };
-const mount = new Function('service', 'document', 'window', source + '\nreturn mountAlerts;')(service, { getElementById: id => { assert.ok(elements[id], id); return elements[id]; } }, { L });
-const post = { id: 'alert-a', category: 'Alert', authorId: 'author', location: { label: '<Library>', latitude: 25.75, longitude: -80.37 }, confirmationCount: 0 };
+const mount = new Function('service', 'document', 'window', 'lifecycle', 'const {expiresAt, reportState, watchReportExpiry} = lifecycle;\n' + source + '\nreturn mountAlerts;')(service, { getElementById: id => { assert.ok(elements[id], id); return elements[id]; } }, { L }, require('./lifecycle-helper.cjs')());
+const post = { id: 'alert-a', category: 'Alert', authorId: 'author', createdAt: { toMillis: () => Date.now() }, location: { label: '<Library>', latitude: 25.75, longitude: -80.37 }, confirmationCount: 0 };
 const tick = () => new Promise(resolve => setImmediate(resolve));
 (async () => {
     const ui = mount({ user: { uid: 'reader', displayName: 'Reader' } });
@@ -46,6 +48,18 @@ const tick = () => new Promise(resolve => setImmediate(resolve));
     assert.equal(elements['alert-approve'].hidden, true);
     assert.equal(elements['alert-verification'].dataset.approved, 'true');
     roleChanged(false); assert.equal(elements['alert-approve'].hidden, true);
+    assert.equal(elements['alert-resolve-fields'].hidden, true);
+    roleChanged(true); assert.equal(elements['alert-resolve-fields'].hidden, false);
+    elements['alert-resolution-note'].value = 'Fixed'; fail = true;
+    await elements['alert-resolve'].listeners.click(); assert.equal(elements['alert-resolution-note'].value, 'Fixed');
+    assert.match(elements['alert-resolution-status'].textContent, /not saved/); fail = false;
+    await elements['alert-resolve'].listeners.click(); assert.deepEqual(resolved, { id: post.id, note: 'Fixed' });
+    ui.render({ ...post, resolution: { status: 'resolved', resolvedName: '<Reader>', note: '<Fixed>' } });
+    assert.equal(elements['alert-resolve-fields'].hidden, true); assert.equal(elements['alert-confirm'].hidden, true);
+    assert.match(elements['alert-lifecycle'].textContent, /Resolved by <Reader>/); assert.match(elements['alert-lifecycle'].textContent, /<Fixed>/);
+    ui.render({ ...post, createdAt: { toMillis: () => Date.now() - 86400001 } });
+    assert.equal(elements['alert-approve'].hidden, true); assert.equal(elements['alert-confirm'].hidden, true);
+    assert.match(elements['alert-lifecycle'].textContent, /Expired/);
     const stale = receive; ui.render({ ...post, id: 'alert-b', authorId: 'reader' }); stale(true, false);
     assert.equal(elements['alert-confirm'].hidden, true);
     roleChanged(true); assert.equal(elements['alert-approve'].hidden, true);
