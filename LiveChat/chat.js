@@ -18,6 +18,15 @@ const messageStatus = document.getElementById("message-status");
 
 let authModule;
 let chatService;
+let groupService;
+let groupController;
+let peopleController;
+let forumController;
+let activeSection = "chats";
+let currentGroup = null;
+let stopRequests;
+let expiryTimer;
+const drafts = new Map();
 let currentUser = null;
 let stopMessages;
 let viewVersion = 0;
@@ -26,6 +35,20 @@ let sending = false;
 let clearing = false;
 let ready = false;
 let fromCache = true;
+
+function selectSection(section) {
+    activeSection = section;
+    const forums = section === "forums";
+    document.getElementById("chats-tab").setAttribute("aria-pressed", String(!forums));
+    document.getElementById("forums-tab").setAttribute("aria-pressed", String(forums));
+    document.getElementById("chats-sidebar").hidden = forums;
+    document.getElementById("chats-conversation").hidden = forums;
+    document.getElementById("forums-panel").hidden = !forums;
+    document.getElementById("forums-sidebar").hidden = !forums;
+    forumController?.setActive(forums);
+}
+document.getElementById("chats-tab").addEventListener("click", () => selectSection("chats"));
+document.getElementById("forums-tab").addEventListener("click", () => selectSection("forums"));
 
 async function loadAuth() {
     if (location.protocol === "file:") {
@@ -37,6 +60,7 @@ async function loadAuth() {
         module.watchUser((user) => {
             if (currentUser && currentUser.uid !== user?.uid) {
                 currentUser = null;
+                drafts.clear();
                 disconnectMessages();
                 messageList.replaceChildren();
                 messageInput.value = "";
@@ -60,7 +84,7 @@ function errorMessage(error) {
         case "unavailable":
             return "Could not reach Firebase. Check your internet connection and reopen chat to retry.";
         case "permission-denied":
-            return "Firestore denied access. Publish the Campus Chat rules for this Firebase project, then reopen chat.";
+            return "Firestore denied access. The group may have closed, or the chat rules need publishing. Reopen chat to retry.";
         case "not-found":
             return "Create the default Cloud Firestore database in your Firebase project, then reopen chat.";
         case "auth/unauthorized-domain":
@@ -77,13 +101,17 @@ function errorMessage(error) {
 function updateControls() {
     sendButton.disabled = !ready || sending || clearing;
     clearButton.disabled = !ready || fromCache || sending || clearing;
-    messageInput.disabled = sending || clearing;
+    messageInput.disabled = !ready || sending || clearing;
 }
 
 function disconnectMessages() {
     viewVersion++;
     if (stopMessages) stopMessages();
     stopMessages = null;
+    if (stopRequests) stopRequests();
+    stopRequests = null;
+    clearTimeout(expiryTimer);
+    document.getElementById("access-requests").replaceChildren();
     ready = false;
     updateControls();
 }
@@ -111,35 +139,123 @@ function renderMessages(messages) {
     messageList.scrollTop = nearBottom || wasEmpty ? messageList.scrollHeight : previousScroll;
 }
 
-async function showChat(user) {
+function updateGroup(group) {
+    if (group.visibility === "direct") return;
+    if (currentGroup?.id !== group.id) return;
+    currentGroup = group;
+    const closed = groupService.isClosed(group);
+    document.getElementById("group-settings").hidden = closed || group.creatorId !== currentUser.uid;
+    document.getElementById("group-expiry").textContent = closed
+        ? "Closed after inactivity. Create a new group to keep chatting."
+        : `Closes after ${group.idleHours} hours without messages · ${new Date(groupService.expiresAt(group)).toLocaleString()}`;
+    clearTimeout(expiryTimer);
+    if (closed) {
+        peopleController?.setConversation(null);
+        disconnectMessages();
+        messageList.replaceChildren();
+        connectionStatus.textContent = "This group is closed.";
+    } else {
+        expiryTimer = setTimeout(() => updateGroup(currentGroup), Math.max(1, groupService.expiresAt(group) - Date.now()));
+    }
+}
+
+function renderRequests(requests, group, version) {
+    const container = document.getElementById("access-requests");
+    container.replaceChildren();
+    for (const request of requests) {
+        const card = document.createElement("div");
+        card.className = "access-request";
+        const text = document.createElement("p");
+        text.textContent = `${request.name} requests access. Allow this user to join?`;
+        card.appendChild(text);
+        const buttons = [];
+        for (const accept of [true, false]) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.textContent = accept ? "Accept" : "Deny";
+            buttons.push(button);
+            button.addEventListener("click", async () => {
+                buttons.forEach(item => { item.disabled = true; });
+                try { await groupService.decideRequest(group.id, request.id, currentUser, accept); }
+                catch (error) {
+                    if (version === viewVersion) { text.textContent = `${request.name}: ${errorMessage(error)}`; buttons.forEach(item => { item.disabled = false; }); }
+                }
+            });
+            card.appendChild(button);
+        }
+        container.appendChild(card);
+    }
+}
+
+function selectConversation(group) {
+    drafts.set(currentGroup?.id || "Campus Chat", messageInput.value);
     disconnectMessages();
     const version = viewVersion;
-    currentUser = user;
+    currentGroup = group;
+    peopleController?.setConversation(group);
+    messageInput.value = drafts.get(group?.id || "Campus Chat") || "";
     messageList.replaceChildren();
     messageStatus.textContent = "";
-    connectionStatus.textContent = "Connecting to shared Campus Chat...";
+    document.getElementById("chat-title").textContent = group ? group.name : "Campus Chat";
+    document.getElementById("group-settings").hidden = true;
+    document.getElementById("group-expiry").textContent = "";
+    document.getElementById("chat-help").textContent = group?.visibility === "direct"
+        ? "Private conversation. Only you and this person can read these messages."
+        : group
+        ? "Showing the latest 100 messages. Every message restarts the inactivity timer."
+        : "Showing the latest 100 messages. Clear deletes Campus Chat history for everyone.";
+    clearButton.hidden = !!group;
+    connectionStatus.textContent = "Connecting to shared chat...";
+    if (group && group.visibility !== "direct") {
+        updateGroup(group);
+        if (groupService.isClosed(group)) return;
+    }
+    stopMessages = chatService.watchMessages((messages, cached) => {
+        if (version !== viewVersion) return;
+        ready = true;
+        fromCache = cached;
+        renderMessages(messages);
+        connectionStatus.textContent = cached
+            ? "Waiting for Firebase. Messages may be cached; sends will wait for a connection."
+            : group?.visibility === "direct" ? "Connected. Private messages between you and this person."
+            : group ? "Connected. Messages are shared with this group's members." : "Connected. Messages are shared with everyone in Campus Chat.";
+        updateControls();
+    }, error => {
+        if (version !== viewVersion) return;
+        ready = false;
+        connectionStatus.textContent = errorMessage(error);
+        updateControls();
+    }, group?.id);
+    if (group?.visibility === "private") stopRequests = groupService.watchRequests(group.id, requests => {
+        if (version === viewVersion) renderRequests(requests, group, version);
+    }, error => {
+        if (version === viewVersion) document.getElementById("access-requests").textContent = `Access requests unavailable: ${errorMessage(error)}`;
+    });
+    if (activeSection === "chats") messageInput.focus();
+}
+
+async function showChat(user) {
+    disconnectMessages();
+    groupController?.dispose();
+    peopleController?.dispose(); peopleController = null;
+    forumController?.dispose();
+    forumController = null;
+    selectSection("chats");
+    const version = viewVersion;
+    currentUser = user;
     document.getElementById("chat-identity").textContent = `Chatting as ${user.displayName}`;
     discardOldLocalHistory();
     if (!chatPanel.open) chatPanel.showModal();
     try {
-        chatService = await import("./chatService.js");
+        const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js"), import("./forums/forumUI.js"), import("./people.js"), import("./peopleUI.js")]);
+        await modules[4].saveProfile(user);
         if (version !== viewVersion || !chatPanel.open) return;
-        stopMessages = chatService.watchMessages((messages, cached) => {
-            if (version !== viewVersion) return;
-            ready = true;
-            fromCache = cached;
-            renderMessages(messages);
-            connectionStatus.textContent = cached
-                ? "Waiting for Firebase. Messages may be cached; sends will wait for a connection."
-                : "Connected. Messages are shared with everyone in Campus Chat.";
-            updateControls();
-        }, (error) => {
-            if (version !== viewVersion) return;
-            ready = false;
-            connectionStatus.textContent = errorMessage(error);
-            updateControls();
-        });
-        messageInput.focus();
+        [chatService, groupService] = modules;
+        groupController = modules[2].mountGroups({ user, onSelect: selectConversation, onGroupUpdated: updateGroup });
+        peopleController = modules[5].mountPeople({ user, onSelect: chat => groupController.selectExternal(chat) });
+        forumController = modules[3].mountForums({ user });
+        forumController.setActive(activeSection === "forums");
+        selectConversation(null);
     } catch (error) {
         if (version === viewVersion) connectionStatus.textContent = errorMessage(error);
     }
@@ -203,7 +319,11 @@ namePanel.addEventListener("cancel", (event) => {
     if (joining) event.preventDefault();
 });
 closeButton.addEventListener("click", () => chatPanel.close());
-chatPanel.addEventListener("close", disconnectMessages);
+chatPanel.addEventListener("close", () => {
+    disconnectMessages(); groupController?.dispose(); groupController = null;
+    peopleController?.dispose(); peopleController = null;
+    forumController?.dispose(); forumController = null;
+});
 
 messageForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -211,11 +331,13 @@ messageForm.addEventListener("submit", async (event) => {
     const text = messageInput.value.trim();
     if (!text) return;
     const version = viewVersion;
+    const groupId = currentGroup?.id;
     sending = true;
     updateControls();
     messageStatus.textContent = "Saving to Firebase...";
     try {
-        await chatService.sendMessage(currentUser, text);
+        await chatService.sendMessage(currentUser, text, groupId);
+        drafts.delete(groupId || "Campus Chat");
         if (version === viewVersion) {
             messageInput.value = "";
             messageStatus.textContent = "Saved to Firebase.";
@@ -230,7 +352,7 @@ messageForm.addEventListener("submit", async (event) => {
 });
 
 clearButton.addEventListener("click", async () => {
-    if (!currentUser || !ready || fromCache || sending || clearing) return;
+    if (!currentUser || currentGroup || !ready || fromCache || sending || clearing) return;
     if (!window.confirm("Delete ALL existing Campus Chat messages from Firebase for EVERYONE? This cannot be undone. Names and sign-ins are kept. Messages arriving after clearing starts are kept.")) return;
     const version = viewVersion;
     clearing = true;

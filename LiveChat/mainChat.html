@@ -6,10 +6,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FIU Live Chat</title>
+    <link rel="stylesheet" href="bottomSheet.css">
     <script src="chat.js" defer></script>
 </head>
 
 <body>
+    <p><a href="../index.html">← Back to campus map</a></p>
     <h1>FIU Live Chat</h1>
     <p>Connect with people on campus.</p>
 <!-- Button that will open the chat -->
@@ -30,17 +32,77 @@
 </dialog>
 
 <!-- Popup containing the chat -->
-<dialog id="chat-panel" aria-labelledby="chat-title">
+<dialog id="chat-panel" aria-label="Campus chats and forums">
+    <button id="close-chat" type="button" aria-label="Close chat" title="Close chat">&times;</button>
+    <div class="community-sidebar">
+    <nav class="community-tabs" aria-label="Community sections">
+        <button id="chats-tab" type="button" aria-pressed="true" aria-controls="chats-sidebar chats-conversation">Chats</button>
+        <button id="forums-tab" type="button" aria-pressed="false" aria-controls="forums-sidebar forums-panel">Forums</button>
+    </nav>
+    <!-- The chat list will grow here as more conversations are added. -->
+    <aside id="chats-sidebar" class="chat-sidebar" aria-labelledby="chats-heading">
+        <h2 id="chats-heading" class="community-sr-only">Your chats</h2>
+        <label class="search-label" for="chat-search">Search chats and people</label>
+        <input id="chat-search" type="search" placeholder="Chat or user name..." autocomplete="off">
+        <nav class="chat-list-scroll" aria-label="Your chats">
+            <button id="campus-chat-choice" class="chat-choice" type="button" aria-current="true" data-chat="Campus Chat">
+                <strong>Campus Chat</strong>
+                <span>Public · Always open</span>
+            </button>
+            <div id="pinned-groups" aria-label="Pinned groups"></div>
+            <hr class="chat-divider">
+            <div id="other-groups" aria-label="Other groups"></div>
+            <p id="groups-empty">Loading groups...</p>
+            <section id="people-search-section" hidden aria-label="People search results">
+                <h3 class="people-heading">People</h3>
+                <p id="people-search-status" class="people-note" role="status"></p>
+                <div id="people-results"></div>
+            </section>
+            <h3 class="people-heading">Friends</h3>
+            <div id="friends-list"></div>
+            <p id="friends-empty" class="people-note">Search a name to save a friend.</p>
+            <h3 class="people-heading">Direct messages</h3>
+            <div id="direct-list"></div>
+            <p id="direct-empty" class="people-note">No matching direct chats.</p>
+            <p id="people-status" class="people-note" role="status"></p>
+        </nav>
+        <div class="new-chat-footer">
+            <p id="groups-status" role="status"></p>
+            <button id="new-chat" type="button" disabled>+ New chat</button>
+        </div>
+    </aside>
+
+        <aside id="forums-sidebar" class="forums-list-pane" hidden aria-label="Discussions">
+            <h2 class="community-sr-only">Campus forums</h2>
+            <div><label for="forum-search">Search posts</label><input id="forum-search" type="search" placeholder="Search posts…" autocomplete="off"></div>
+            <div><label for="forum-filter">Post type</label><select id="forum-filter"><option value="">All posts</option><option>Question</option><option>Comment</option><option>Concern</option><option>Alert</option><option>Other</option></select></div>
+            <div id="forum-post-list" aria-label="Forum posts"></div>
+            <p id="forum-empty" hidden>No discussions yet. Start the first one.</p>
+            <button id="forum-load-more" type="button" hidden>Load more posts</button>
+            <div class="forum-list-footer">
+            <button id="forum-new-post" class="forum-primary" type="button">+ New post</button>
+            <button id="forum-new-alert" type="button">+ Report alert</button>
+            <p id="forum-list-status" role="status"></p>
+            <button id="forum-retry" type="button">Refresh discussions</button>
+            </div>
+        </aside>
+    </div>
+
+    <section id="chats-conversation" class="chat-conversation" aria-labelledby="chat-title">
     <header>
         <h2 id="chat-title">Campus Chat</h2>
         <p id="chat-identity"></p>
+        <p id="group-expiry"></p>
+        <button id="group-settings" type="button" hidden>Change time limit</button>
+        <button id="show-members" type="button" hidden>Members</button>
         <button id="clear-chat" type="button" disabled>Clear</button>
-        <button id="close-chat" type="button">Close</button>
     </header>
+
+    <div id="access-requests" aria-live="polite"></div>
 
     <!-- Sent messages appear above the text box. -->
     <ul id="message-list" aria-label="Messages" aria-live="polite"
-        style="max-height: 50vh; overflow-y: auto; overflow-wrap: anywhere;"></ul>
+        class="message-list"></ul>
 
     <form id="message-form">
         <label for="message-input">Message</label>
@@ -48,9 +110,128 @@
             autocomplete="off" maxlength="2000" required>
         <button id="send-message" type="submit" disabled>Send</button>
     </form>
-    <small>Shared Campus Chat. Showing the latest 100 messages; all messages are saved in Firebase. Clear deletes the existing history for everyone.</small>
+    <small id="chat-help">Showing the latest 100 messages. Clear deletes Campus Chat history for everyone.</small>
     <p id="connection-status" role="status"></p>
     <p id="message-status" role="status"></p>
+    </section>
+
+    <section id="forums-panel" aria-label="Forums" data-detail="false" hidden>
+
+        <div class="forum-content">
+            <section id="forum-welcome" class="forum-empty">
+                <h2>A place for campus conversations</h2>
+                <p>Choose a post to read the discussion and respond, or select <strong>+ New post</strong> to start your own.</p>
+                <p>Posts and replies are visible to everyone who opens chat.</p>
+            </section>
+            <section id="forum-compose" aria-labelledby="forum-compose-title" hidden>
+                <h2 id="forum-compose-title">Start a discussion</h2>
+                <p>What's on your mind? Share it with the campus community.</p>
+                <form id="forum-post-form">
+                    <label for="forum-category-input">Post type</label>
+                    <select id="forum-category-input"><option>Question</option><option>Comment</option><option>Concern</option><option>Alert</option><option>Other</option></select>
+                    <label for="forum-title-input">Title</label>
+                    <input id="forum-title-input" maxlength="140" placeholder="Give your discussion a title" required>
+                    <label for="forum-body-input">Your post</label>
+                    <textarea id="forum-body-input" rows="6" maxlength="5000" placeholder="Add your question, comment, concern, or idea…" required></textarea>
+                    <fieldset id="alert-location-fields" hidden>
+                        <legend>Where is the concern?</legend>
+                        <label for="alert-location-label">Location name or nearby landmark</label>
+                        <input id="alert-location-label" maxlength="120" placeholder="For example: library entrance" disabled>
+                        <p class="forum-meta">Select the spot on the picker or enter its coordinates below.</p>
+                        <div id="alert-location-map" aria-label="Alert location picker"></div>
+                        <p id="alert-picker-status" class="forum-meta" role="status">Click a spot on the picker, or enter coordinates below.</p>
+                        <div class="alert-coordinates">
+                            <div><label for="alert-latitude">Latitude</label><input id="alert-latitude" type="number" step="any" min="-90" max="90" placeholder="25.753960" disabled></div>
+                            <div><label for="alert-longitude">Longitude</label><input id="alert-longitude" type="number" step="any" min="-180" max="180" placeholder="-80.376620" disabled></div>
+                        </div>
+                        <p class="forum-meta">Describe what you observed. Other users can add a confirmation if they observed it too.</p>
+                    </fieldset>
+                    <div class="dialog-actions"><button id="forum-post-submit" class="forum-primary" type="submit">Publish post</button><button id="forum-cancel-post" type="button">Back to posts</button></div>
+                    <p id="forum-compose-status" role="status"></p>
+                </form>
+            </section>
+            <section id="forum-thread" aria-labelledby="forum-thread-title" hidden>
+                <button id="forum-back" type="button">← All posts</button>
+                <article>
+                    <p id="forum-thread-category" class="forum-category"></p>
+                    <h2 id="forum-thread-title" tabindex="-1"></h2>
+                    <p id="forum-thread-meta" class="forum-meta"></p>
+                    <p id="forum-thread-body" class="forum-body"></p>
+                </article>
+                <section id="alert-details" class="alert-details" aria-label="Alert details" hidden>
+                    <p id="alert-location-display"></p>
+                    <strong id="alert-count"></strong>
+                    <p class="forum-meta">Each account can confirm once. An authorized verifier reviews reports separately.</p>
+                    <p id="alert-verification" class="alert-verification" role="status"></p>
+                    <button id="alert-approve" type="button" hidden disabled>Approve report</button>
+                    <p id="alert-approval-status" role="status"></p>
+                    <p id="alert-owner-note" hidden>Other users can confirm your report.</p>
+                    <button id="alert-confirm" type="button" disabled>I can confirm this</button>
+                    <p id="alert-confirm-status" role="status"></p>
+                </section>
+                <p id="forum-thread-status" role="status"></p>
+                <h3 id="forum-reply-heading">Replies</h3>
+                <button id="forum-older-replies" type="button" hidden>Show earlier replies</button>
+                <ol id="forum-reply-list" aria-label="Replies"></ol>
+                <p id="forum-replies-status" role="status"></p>
+                <form id="forum-reply-form">
+                    <label for="forum-reply-input">Your reply</label>
+                    <textarea id="forum-reply-input" rows="3" maxlength="2000" placeholder="Add to the discussion…" required></textarea>
+                    <button id="forum-reply-submit" class="forum-primary" type="submit" disabled>Post reply</button>
+                    <p id="forum-reply-status" role="status"></p>
+                </form>
+            </section>
+        </div>
+    </section>
+
+    <dialog id="members-panel" class="group-dialog" aria-labelledby="members-title">
+        <h2 id="members-title">Group members</h2>
+        <p id="members-status" role="status"></p>
+        <div id="members-list"></div>
+        <button id="close-members" type="button">Close</button>
+    </dialog>
+    <dialog id="create-group-panel" class="group-dialog" aria-labelledby="create-group-title">
+        <form id="create-group-form">
+            <h2 id="create-group-title">New group chat</h2>
+            <label for="group-name">Group name</label>
+            <input id="group-name" maxlength="60" required autocomplete="off">
+            <label for="group-visibility">Who can join?</label>
+            <select id="group-visibility"><option value="public">Public — anyone can join</option><option value="private">Private — password or approval</option></select>
+            <div id="create-password-field" hidden>
+                <label for="group-password">Set a password</label>
+                <input id="group-password" type="password" minlength="6" maxlength="128" autocomplete="new-password">
+                <small>6–128 characters. Share it with the people you want to invite.</small>
+            </div>
+            <label for="group-idle-hours">Close after this many hours without messages</label>
+            <input id="group-idle-hours" type="number" min="12" max="72" step="1" value="12" required>
+            <p class="dialog-note">Every new message restarts the timer. Choose 12–72 hours.</p>
+            <div class="dialog-actions"><button id="create-group-submit" type="submit">Create group</button><button id="cancel-create-group" type="button">Cancel</button></div>
+            <p id="create-group-error" role="alert"></p>
+        </form>
+    </dialog>
+
+    <dialog id="join-group-panel" class="group-dialog" aria-labelledby="join-group-title">
+        <form id="join-group-form">
+            <h2 id="join-group-title">Join private group</h2>
+            <label for="join-group-password">Password</label>
+            <input id="join-group-password" type="password" minlength="6" maxlength="128" autocomplete="off" required>
+            <div class="dialog-actions"><button id="join-group-submit" type="submit">Join with password</button><button id="cancel-join-group" type="button">Cancel</button></div>
+            <p class="dialog-note">Don't have the password? Ask a member to let you in.</p>
+            <button id="request-group-access" type="button">Request access</button>
+            <p id="join-group-status" role="status"></p>
+        </form>
+    </dialog>
+
+    <dialog id="group-settings-panel" class="group-dialog" aria-labelledby="settings-title">
+        <form id="group-settings-form">
+            <h2 id="settings-title">Group time limit</h2>
+            <label for="settings-idle-hours">Hours without messages before closing</label>
+            <input id="settings-idle-hours" type="number" min="12" max="72" step="1" required>
+            <p class="dialog-note">The limit is counted from the last message. Sending a message restarts it.</p>
+            <div class="dialog-actions"><button id="save-group-settings" type="submit">Save</button><button id="cancel-group-settings" type="button">Cancel</button></div>
+            <p id="group-settings-error" role="alert"></p>
+        </form>
+    </dialog>
 </dialog>
 
 </body>

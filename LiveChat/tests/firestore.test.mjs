@@ -12,7 +12,7 @@ function client(name, uid) {
     const db = sdk.getFirestore(app);
     sdk.connectFirestoreEmulator(db, '127.0.0.1', 8185,
         uid ? { mockUserToken: { sub: uid, name } } : {});
-    return { app, db, messages: sdk.collection(db, 'chats/campus-public/messages') };
+    return { app, db, messages: sdk.collection(db, 'chats/Campus Chat/messages') };
 }
 const alice = client('Alice', 'alice');
 const bob = client('Bob', 'bob');
@@ -24,7 +24,7 @@ const code = (await fs.readFile(new URL('../chatService.js', import.meta.url), '
     .replace(/import\s*\{[\s\S]*?\}\s*from "https:[^"]+";\s*/, '')
     .replaceAll('export ', '');
 const createService = new Function('app', 'sdk',
-    'const { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, limitToLast, onSnapshot, getDocsFromServer, writeBatch } = sdk;\n' +
+    'const { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, limitToLast, onSnapshot, getDocsFromServer, writeBatch, doc } = sdk;\n' +
     code + '\nreturn { watchMessages, sendMessage, clearMessages };');
 const service = createService(alice.app, sdk);
 const aliceUser = { uid: 'alice', displayName: 'Alice' };
@@ -37,7 +37,7 @@ async function rejects(operation) {
 async function observe(db, predicate) {
     return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => { stop(); reject(Error('Realtime update timed out')); }, 15000);
-        const stop = sdk.onSnapshot(sdk.collection(db, 'chats/campus-public/messages'), snapshot => {
+        const stop = sdk.onSnapshot(sdk.collection(db, 'chats/Campus Chat/messages'), snapshot => {
             if (!snapshot.metadata.fromCache && predicate(snapshot)) { clearTimeout(timeout); stop(); resolve(snapshot); }
         }, error => { clearTimeout(timeout); reject(error); });
     });

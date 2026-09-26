@@ -8,10 +8,34 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
         crossorigin=""/>
-</head>
-<body>
+    <style>
+        .live-chat-link {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 1000;
+            padding: 11px 16px;
+            border-radius: 999px;
+            background: #081f40;
+            color: #fff;
+            font: 600 15px/1.2 Arial, sans-serif;
+            text-decoration: none;
+            box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+        }
 
-    <div id="map" style="height: 1000px;"></div>
+        .live-chat-link:hover,
+        .live-chat-link:focus-visible {
+            background: #123d71;
+        }
+    </style>
+    <link rel="stylesheet" href="LiveChat/bottomSheet.css">
+    <script src="LiveChat/mapChat.js" defer></script>
+</head>
+<body class="map-page">
+
+    <div id="map"></div>
+    <button id="open-chat" class="live-chat-link" type="button" aria-haspopup="dialog" aria-controls="chat-panel" disabled>Open chat</button>
+    <p id="chat-status" role="status"></p>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
