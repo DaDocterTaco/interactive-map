@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import { initializeApp, deleteApp } from 'firebase/app';
 import * as sdk from 'firebase/firestore';
 import { makeSalt, passwordVerifier } from '../groupPassword.js';
+import { validateAppearance } from '../groupAppearance.js';
 
 if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8185') throw Error('Use the local emulator only.');
 sdk.setLogLevel('silent');
@@ -12,7 +13,8 @@ const apps = [];
 const groupCode = (await fs.readFile(new URL('../groups.js', import.meta.url), 'utf8')).replace(/import[\s\S]*?from "[^"]+";\s*/g, '').replaceAll('export ', '');
 const chatCode = (await fs.readFile(new URL('../chatService.js', import.meta.url), 'utf8')).replace(/import[\s\S]*?from "[^"]+";\s*/g, '').replaceAll('export ', '');
 const sdkBindings = `const { ${Object.keys(sdk).join(', ')} } = sdk;\n`;
-const groupFactory = new Function('app', 'sdk', 'makeSalt', 'passwordVerifier', sdkBindings + groupCode + '\nreturn { createGroup, joinGroup, isMember, requestAccess, decideRequest, deleteGroup, setPinned, watchGroups, watchRequests, watchMyRequest, watchMembership, isClosed };');
+const makeGroupFactory = new Function('app', 'sdk', 'makeSalt', 'passwordVerifier', 'validateAppearance', sdkBindings + groupCode + '\nreturn { createGroup, joinGroup, isMember, requestAccess, decideRequest, deleteGroup, setPinned, watchGroups, watchRequests, watchMyRequest, watchMembership, isClosed };');
+const groupFactory = (app, sdk, salt, proof) => makeGroupFactory(app, sdk, salt, proof, validateAppearance);
 const chatFactory = new Function('app', 'sdk', sdkBindings + chatCode + '\nreturn { sendMessage, watchMessages };');
 function client(uid) {
     const app = initializeApp({ projectId: 'demo-fiu-chat', apiKey: 'emulator-only' }, uid);

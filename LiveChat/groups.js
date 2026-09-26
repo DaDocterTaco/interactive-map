@@ -1,5 +1,6 @@
 import { app } from "../firebase.js";
 import { makeSalt, passwordVerifier } from "./groupPassword.js";
+import { validateAppearance } from "./groupAppearance.js";
 import {
     getFirestore, collection, doc, getDoc, setDoc, deleteDoc,
     serverTimestamp, onSnapshot, query, where, writeBatch, runTransaction
@@ -39,12 +40,13 @@ export async function setPinned(uid, id, pinned) {
     else await deleteDoc(reference);
 }
 
-export async function createGroup(user, { name, visibility, password }) {
+export async function createGroup(user, { name, visibility, password, appearance }) {
     const title = name.trim();
     if (title === "Campus Chat" || title.startsWith("dm:")) throw new Error("Campus Chat is reserved. Choose another name.");
     if (/[\/\x00-\x1f\x7f]/.test(title) || [".", ".."].includes(title) || /^__.*__$/.test(title)) throw new Error("Chat names cannot contain slashes, control characters, or reserved document names.");
     if (!title || title.length > 60) throw new Error("Enter a group name up to 60 characters.");
     if (!["public", "private"].includes(visibility)) throw new Error("Choose public or private.");
+    const logo = appearance === undefined ? {} : { appearance: validateAppearance(appearance) };
     const salt = visibility === "private" ? makeSalt() : "";
     const proof = visibility === "private" ? await passwordVerifier(password, salt) : "";
     const reference = doc(groupCollection, title);
@@ -53,7 +55,7 @@ export async function createGroup(user, { name, visibility, password }) {
     // no discoverable group exists without its required access records.
     const batch = writeBatch(db);
     batch.set(reference, {
-        name: title, visibility, salt,
+        name: title, visibility, salt, ...logo,
         creatorId: user.uid, createdAt: serverTimestamp(), lastActivityAt: serverTimestamp(), lastMessageId: ""
     });
     if (visibility === "private") batch.set(doc(db, "chats", reference.id, "private", "password"), { verifier: proof });
@@ -66,6 +68,21 @@ export async function createGroup(user, { name, visibility, password }) {
     }
     const saved = await getDoc(reference);
     return { id: saved.id, ...saved.data() };
+}
+
+export async function saveGroupAppearance(id, user, appearance) {
+    if (!user?.uid) throw new Error("Sign in before customizing a group.");
+    if (id === "Campus Chat" || id.startsWith("dm:")) throw new Error("Only group chats can be customized.");
+    const logo = validateAppearance(appearance);
+    await runTransaction(db, async transaction => {
+        const reference = groupRef(id), snapshot = await transaction.get(reference);
+        if (!snapshot.exists()) throw new Error("This group no longer exists.");
+        const group = snapshot.data();
+        if (!["public", "private"].includes(group.visibility)) throw new Error("Only group chats can be customized.");
+        if (group.creatorId !== user.uid) throw new Error("Only the group owner can change its logo.");
+        if (isClosed(group)) throw new Error("This group was deleted.");
+        transaction.update(reference, { appearance: logo });
+    });
 }
 
 export async function isMember(id, uid) { return (await getDoc(memberRef(id, uid))).exists(); }

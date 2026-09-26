@@ -23,6 +23,9 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
         constructor(tag = 'div') {
             Object.assign(this, { tagName: tag, children: [], parentNode: null, listeners: new Map(), attributes: {}, dataset: {},
                 className: '', _text: '', id: '', hidden: false, disabled: false, value: '', open: false, scrollTop: 0, clientHeight: 600 });
+            const styles = new Map();
+            this.style = { setProperty: (key, value) => styles.set(key, value), getPropertyValue: key => styles.get(key) || '' };
+            this.capturedPointers = new Set();
             this.classList = {
                 contains: value => this.className.split(/\s+/).includes(value),
                 add: (...values) => { this.className = [...new Set([...this.className.split(/\s+/).filter(Boolean), ...values])].join(' '); },
@@ -36,7 +39,8 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
         get firstElementChild() { return this.firstChild; }
         get nextSibling() { return this.parentNode?.children[this.parentNode.children.indexOf(this) + 1] || null; }
         get isConnected() { return this === document.documentElement || !!this.parentNode?.isConnected; }
-        get scrollHeight() { return this.children.length * 80; }
+        get layoutHeight() { return this.measureHeight?.() ?? 80; }
+        get scrollHeight() { return this.children.reduce((height, child) => height + child.layoutHeight, 0); }
         append(...children) { children.forEach(child => this.appendChild(child)); }
         appendChild(child) { return this.insertBefore(child, null); }
         insertBefore(child, next) {
@@ -80,20 +84,24 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
         }
         contains(child) { return child === this || this.children.some(item => item.contains(child)); }
         querySelector(selector) {
-            return descendants(this).find(child => selector === '[data-theme-label]'
-                ? child.getAttribute('data-theme-label') !== null
+            return descendants(this).find(child => selector.startsWith('[data-')
+                ? child.getAttribute(selector.slice(1, -1)) !== null
                 : selector.startsWith('button') ? child.tagName === 'button' && !child.hidden && !child.disabled
                 : selector.startsWith('.') ? child.classList.contains(selector.slice(1)) : false) || null;
         }
-        closest(selector) { return selector === this.tagName ? this : this.parentNode?.closest(selector) || null; }
+        closest(selector) { return selector.split(',').some(part => part.trim() === this.tagName) ? this : this.parentNode?.closest(selector) || null; }
+        setPointerCapture(id) { this.capturedPointers.add(id); }
+        hasPointerCapture(id) { return this.capturedPointers.has(id); }
+        releasePointerCapture(id) { this.capturedPointers.delete(id); }
         focus() { document.activeElement = this; }
         showModal() { this.open = true; }
         close() { if (!this.open) return; this.open = false; this.dispatchEvent(event('close', this)); }
         scrollTo({ top, behavior }) { this.scrollTop = top; this.lastScrollBehavior = behavior; }
         getBoundingClientRect() {
             const index = this.parentNode?.children.indexOf(this) || 0;
-            const top = this.id === 'message-list' ? 0 : index * 80 - (this.parentNode?.scrollTop || 0);
-            return { top, bottom: top + 80 };
+            const precedingHeight = this.parentNode?.children.slice(0, index).reduce((height, child) => height + child.layoutHeight, 0) || 0;
+            const top = this.id === 'message-list' ? 0 : precedingHeight - (this.parentNode?.scrollTop || 0);
+            return { top, bottom: top + this.layoutHeight };
         }
         setCustomValidity(message) { this.validationMessage = message; }
         reportValidity() { return !this.validationMessage; }
@@ -114,8 +122,9 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
     }
     const get = id => { const element = document.getElementById(id); assert.ok(element, `Missing HTML element ${id}`); return element; };
     // Only menu/theme child nesting affects the behaviors exercised here.
-    for (const id of ['clear-chat', 'group-settings', 'show-members']) get('chat-options').append(get(id));
+    for (const id of ['clear-chat', 'group-settings', 'show-members', 'toggle-message-times']) get('chat-options').append(get(id));
     const themeLabel = new Element('span'); themeLabel.setAttribute('data-theme-label', ''); get('theme-toggle').append(themeLabel);
+    const timesLabel = new Element('span'); timesLabel.setAttribute('data-message-times-label', ''); get('toggle-message-times').append(timesLabel);
     const media = {
         '(prefers-reduced-motion: reduce)': { matches: reduced, addEventListener() {} },
         '(prefers-color-scheme: dark)': { matches: dark, addEventListener(type, fn) { this.onChange = fn; } },
@@ -244,7 +253,7 @@ test('DMs expose no moderation; conversation switching keeps drafts and routes g
     const group = { id: 'study', name: 'Study group', visibility: 'private', creatorId: 'alice', idleHours: 12, lastActivityAt: { toMillis: () => 0 } };
     app.state.selectGroup(group); app.state.receive([message()], false);
     assert.equal(app.get('group-settings').hidden, false); assert.equal(app.get('conversation-avatar').textContent, 'SG');
-    assert.match(app.get('group-expiry').textContent, /stays open until its owner deletes/);
+    assert.equal(app.get('group-expiry').textContent, '');
     assert.doesNotMatch(app.get('chat-help').textContent, /timer|inactivity/);
     app.get('message-input').value = 'Hello'; await app.fire('message-form', 'submit'); assert.equal(app.state.sends[0].groupId, 'study');
     app.state.groupUpdated({ ...group, deletedAt: { toMillis: () => Date.now() }, deletedBy: 'alice' });
@@ -304,4 +313,195 @@ test('incoming messages preserve reading position and provide a jump to latest',
     assert.equal(app.get('new-message-indicator').hidden, false); assert.match(app.get('new-message-indicator').textContent, /1 new message/);
     await app.fire('new-message-indicator'); assert.equal(app.get('message-list').scrollTop, app.get('message-list').scrollHeight);
     assert.equal(app.get('new-message-indicator').hidden, true);
+});
+
+const at = (id, sender, milliseconds) => ({ ...message(id, sender, sender), createdAt: { toDate: () => new Date(milliseconds) } });
+const separators = app => app.get('message-list').children.filter(child => child.classList.contains('message-date'));
+const pointer = (extra = {}) => ({ pointerId: 7, pointerType: 'touch', isPrimary: true, button: 0, buttons: 1, clientX: 200, clientY: 200, ...extra });
+
+test('message runs honor exact two-minute, one-hour and local-day boundaries', async () => {
+    const app = createApp(); await app.open();
+    const start = new Date(2026, 8, 26, 10, 0).getTime();
+    const afterTwo = start + 120000;
+    const afterRun = afterTwo + 120001;
+    const beforeHour = afterRun + 3599999;
+    const afterHour = beforeHour + 3600000;
+    const nextDay = new Date(2026, 8, 27, 0, 0).getTime();
+    const history = [at('a', 'bob', start), at('b', 'bob', afterTwo), at('c', 'bob', afterRun),
+        at('d', 'bob', beforeHour), at('e', 'bob', afterHour), at('f', 'bob', nextDay),
+        at('g', 'bob', nextDay + 120000), at('h', 'alice', nextDay + 121000),
+        at('i', 'alice', nextDay + 122000), at('j', 'bob', nextDay + 123000)];
+    app.state.receive(history, false);
+    assert.deepEqual(separators(app).map(row => row.dataset.beforeMessage), ['a', 'e', 'f']);
+    assert.equal(app.row('a').classList.contains('message-group-start'), true);
+    assert.equal(app.row('a').classList.contains('message-group-end'), false);
+    assert.equal(app.row('b').classList.contains('message-continuation'), true, 'exactly two minutes stays grouped');
+    assert.equal(app.row('b').querySelector('.message-meta').hidden, true);
+    assert.equal(app.row('b').classList.contains('message-gap'), false);
+    assert.equal(app.row('c').classList.contains('message-continuation'), false, 'two minutes plus 1 ms starts a new run');
+    assert.equal(app.row('c').classList.contains('message-gap'), true);
+    assert.equal(app.row('c').querySelector('.message-meta').hidden, false);
+    assert.equal(app.row('f').classList.contains('message-continuation'), false, 'a new day always starts a run');
+    assert.equal(app.row('g').classList.contains('message-continuation'), true);
+    assert.equal(app.row('h').classList.contains('message-group-start'), true, 'a sender change starts a run');
+    assert.equal(app.row('h').querySelector('.message-meta').hidden, true, 'own name does not repeat');
+    assert.equal(app.row('i').classList.contains('message-continuation'), true);
+    assert.equal(app.row('j').querySelector('.message-meta').hidden, false);
+    assert.equal(app.rows().filter(row => !row.querySelector('.message-delivery').hidden).length, 1);
+    assert.equal(app.row('i').querySelector('.message-delivery').hidden, false);
+    assert.match(separators(app)[0].textContent, / · 10:00/);
+    assert.match(separators(app)[1].textContent, /12:04/);
+    assert.doesNotMatch(separators(app)[1].textContent, /Sep/);
+    assert.match(separators(app)[2].textContent, / · /);
+    const row = app.row('b'), firstSeparator = separators(app)[0];
+    app.state.receive(history, false);
+    assert.equal(app.row('b'), row); assert.equal(separators(app)[0], firstSeparator);
+});
+
+test('midnight adds a separator even for messages only a second apart', async () => {
+    const app = createApp(); await app.open();
+    app.state.receive([at('late', 'bob', new Date(2026, 8, 26, 23, 59, 59).getTime()),
+        at('early', 'bob', new Date(2026, 8, 27, 0, 0, 0).getTime())], false);
+    assert.equal(separators(app).length, 2);
+    assert.equal(app.row('early').classList.contains('message-continuation'), false);
+});
+
+test('live timestamp reorder and regroup retain keyed rows and the first visible reading position', async () => {
+    const app = createApp(); await app.open();
+    const start = new Date(2026, 8, 26, 10).getTime();
+    const first = at('first', 'bob', start), pending = { ...at('pending', 'bob', start + 60000), pending: true };
+    const later = Array.from({ length: 14 }, (_, index) => at(`later-${index}`, 'bob', start + (index + 2) * 60000));
+    app.state.receive([first, pending, ...later], false);
+    const firstRow = app.row('first'), pendingRow = app.row('pending');
+    // A server timestamp may move a known row ahead of earlier snapshot rows.
+    const acknowledged = at('pending', 'bob', start - 3600000);
+    app.state.receive([acknowledged, first, ...later], false);
+    assert.equal(app.rows()[0], pendingRow); assert.equal(app.row('first'), firstRow);
+    const firstSeparator = separators(app)[0];
+    const list = app.get('message-list'); list.scrollTop = 100;
+    const visibleOffset = pendingRow.getBoundingClientRect().top;
+    const corrected = at('first', 'bob', start - 3540000);
+    app.state.receive([acknowledged, corrected, ...later], false);
+    assert.equal(pendingRow.getBoundingClientRect().top, visibleOffset, 'regrouping below the visible row must not move it');
+    assert.equal(list.scrollTop, 100); assert.equal(app.row('first'), firstRow);
+    assert.equal(separators(app)[0], firstSeparator);
+    assert.equal(firstRow.classList.contains('message-continuation'), true);
+    assert.equal(firstRow.querySelector('.message-meta').hidden, true);
+    assert.deepEqual(separators(app).map(row => row.dataset.beforeMessage), ['pending', 'later-0']);
+    assert.equal(app.rows().some(row => row.classList.contains('message-enter')), false);
+    assert.equal(app.get('message-announcer').textContent, '', 'metadata changes must not announce old messages');
+    assert.equal(app.get('new-message-indicator').hidden, true);
+});
+
+test('timestamp rail reflow anchors the first visible DOM row after a snapshot reorder', async () => {
+    const app = createApp(); await app.open();
+    const start = new Date(2026, 8, 26, 10).getTime();
+    const first = at('first', 'bob', start), second = at('second', 'bob', start + 60000);
+    const later = Array.from({ length: 14 }, (_, index) => at(`later-${index}`, 'bob', start + (index + 2) * 60000));
+    app.state.receive([first, second, ...later], false);
+    app.state.receive([at('second', 'bob', start - 60000), first, ...later], false);
+    const list = app.get('message-list'), visibleRow = app.row('second');
+    // Reserving the timestamp rail can wrap this visible bubble onto another line.
+    visibleRow.measureHeight = () => list.classList.contains('times-visible') ? 120 : 80;
+    list.scrollTop = 100; const offset = visibleRow.getBoundingClientRect().top;
+    await app.fire('toggle-message-times');
+    assert.equal(visibleRow.getBoundingClientRect().top, offset);
+    assert.equal(list.scrollTop, 100);
+    await app.fire('toggle-message-times');
+    assert.equal(visibleRow.getBoundingClientRect().top, offset);
+    list.scrollTop = list.scrollHeight - list.clientHeight;
+    await app.fire('toggle-message-times');
+    assert.equal(list.scrollTop, list.scrollHeight, 'readers at the bottom stay with the latest message');
+});
+
+test('times are hidden by default; menu and keyboard controls expose accessible exact dates', async () => {
+    const app = createApp(); await app.open();
+    const instant = new Date(2026, 8, 26, 10, 42, 37);
+    app.state.receive([at('a', 'bob', instant.getTime())], false);
+    const time = app.row('a').querySelector('.message-time');
+    assert.equal(time.getAttribute('aria-hidden'), 'true');
+    assert.equal(time.parentNode, app.row('a'), 'timestamps live in the rail instead of the name header');
+    assert.equal(time.getAttribute('aria-label'), instant.toLocaleString());
+    assert.equal(time.dateTime, instant.toISOString()); assert.equal(time.title, instant.toLocaleString());
+    const label = app.get('toggle-message-times').querySelector('[data-message-times-label]');
+    await app.fire('toggle-message-times');
+    assert.equal(app.get('message-list').classList.contains('times-visible'), true);
+    assert.equal(app.get('toggle-message-times').getAttribute('aria-pressed'), 'true');
+    assert.equal(label.textContent, 'Hide message times'); assert.equal(time.getAttribute('aria-hidden'), 'false');
+    await app.fire('message-list', 'keydown', { key: 'T' });
+    assert.equal(app.get('message-list').classList.contains('times-visible'), false);
+    await app.fire('message-list', 'keydown', { key: 't' });
+    const escape = await app.fire('message-list', 'keydown', { key: 'Escape' });
+    assert.equal(escape.defaultPrevented, true); assert.equal(app.get('chat-panel').open, true);
+    assert.equal(app.get('message-list').classList.contains('times-visible'), false);
+    assert.equal(app.get('toggle-message-times').querySelector('[data-message-times-label]'), label, 'label changes preserve the menu structure');
+});
+
+test('a leftward touch gesture peeks at times and release resnaps without pinning', async () => {
+    const app = createApp(); await app.open(); app.state.receive([message()], false);
+    const list = app.get('message-list');
+    await app.fire('message-list', 'pointerdown', pointer());
+    await app.fire('message-list', 'pointermove', pointer({ clientX: 194 }));
+    assert.equal(list.classList.contains('times-peeking'), false, 'a tap-sized motion must not start a drag');
+    const move = await app.fire('message-list', 'pointermove', pointer({ clientX: 168, clientY: 202 }));
+    assert.equal(move.defaultPrevented, true); assert.equal(list.hasPointerCapture(7), true);
+    assert.equal(list.style.getPropertyValue('--time-reveal'), '32px');
+    assert.equal(list.classList.contains('is-time-dragging'), true);
+    await app.fire('message-list', 'pointermove', pointer({ clientX: 0 }));
+    assert.equal(list.style.getPropertyValue('--time-reveal'), '64px', 'overdrag is clamped');
+    await app.fire('message-list', 'pointerup', pointer({ clientX: 0 }));
+    assert.equal(list.style.getPropertyValue('--time-reveal'), '0px');
+    assert.equal(list.classList.contains('times-peeking'), false); assert.equal(list.hasPointerCapture(7), false);
+    assert.equal(app.get('toggle-message-times').getAttribute('aria-pressed'), 'false');
+});
+
+test('vertical scrolling, rightward movement and interactive controls do not become time drags', async () => {
+    const app = createApp(); await app.open(); app.state.receive([message()], false); app.state.role(true);
+    const list = app.get('message-list');
+    await app.fire('message-list', 'pointerdown', pointer());
+    const vertical = await app.fire('message-list', 'pointermove', pointer({ clientX: 197, clientY: 229 }));
+    assert.equal(vertical.defaultPrevented, false); assert.equal(list.hasPointerCapture(7), false);
+    await app.fire('message-list', 'pointermove', pointer({ clientX: 130, clientY: 230 }));
+    assert.equal(list.classList.contains('times-peeking'), false, 'vertical intent remains with native scroll');
+    await app.fire('message-list', 'pointerdown', pointer());
+    await app.fire('message-list', 'pointermove', pointer({ clientX: 225 }));
+    assert.equal(list.classList.contains('times-peeking'), false);
+    const remove = app.row('message-1').querySelector('.remove-message');
+    await app.fire('message-list', 'pointerdown', pointer({ target: remove }));
+    await app.fire('message-list', 'pointermove', pointer({ clientX: 100 }));
+    assert.equal(list.classList.contains('times-peeking'), false);
+});
+
+test('mouse drag, pointer cancellation and conversation reset clear the time gesture safely', async () => {
+    const app = createApp({ reduced: true }); await app.open(); app.state.receive([message()], false);
+    const list = app.get('message-list');
+    await app.fire('message-list', 'pointerdown', pointer({ pointerType: 'mouse' }));
+    await app.fire('message-list', 'pointermove', pointer({ pointerType: 'mouse', clientX: 150 }));
+    assert.equal(list.classList.contains('times-peeking'), true);
+    await app.fire('message-list', 'pointercancel', pointer({ pointerType: 'mouse' }));
+    assert.equal(list.classList.contains('times-peeking'), false); assert.equal(list.style.getPropertyValue('--time-reveal'), '0px');
+    await app.fire('message-list', 'pointerdown', pointer({ pointerType: 'mouse' }));
+    await app.fire('message-list', 'pointermove', pointer({ pointerType: 'mouse', clientX: 150, buttons: 0 }));
+    assert.equal(list.classList.contains('times-peeking'), false, 'lost mouse release must not leave a latent gesture');
+    await app.fire('toggle-message-times'); app.state.selectGroup(null);
+    assert.equal(list.classList.contains('times-visible'), false); assert.equal(app.get('toggle-message-times').getAttribute('aria-pressed'), 'false');
+    app.state.receive([message()], false);
+    await app.fire('message-list', 'pointerdown', pointer());
+    await app.fire('message-list', 'pointermove', pointer({ clientX: 150 }));
+    app.state.selectGroup(null);
+    assert.equal(list.hasPointerCapture(7), false); assert.equal(list.classList.contains('times-peeking'), false);
+});
+
+test('only pending and latest outgoing delivery states display; sent feedback is not repeated in the composer', async () => {
+    const app = createApp(); await app.open();
+    const start = new Date(2026, 8, 26, 10).getTime();
+    const first = at('one', 'alice', start), next = at('two', 'alice', start + 1000);
+    app.state.receive([first, { ...next, pending: true }], false);
+    assert.equal(app.row('one').querySelector('.message-delivery').hidden, true);
+    assert.equal(app.row('two').querySelector('.message-delivery').textContent, 'Sending…');
+    app.state.receive([first, next], false);
+    assert.equal(app.row('two').querySelector('.message-delivery').textContent, 'Sent');
+    assert.equal(app.row('one').querySelector('.message-delivery').hidden, true);
+    app.get('message-input').value = 'Hello'; await app.fire('message-form', 'submit');
+    assert.equal(app.get('message-status').dataset.kind, 'delivery');
 });

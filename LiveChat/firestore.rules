@@ -179,10 +179,22 @@ service cloud.firestore {
     }
 
     match /chats/{id} {
+      function validAppearance(data) {
+        return data is map && data.keys().hasAll(['kind', 'color'])
+          && data.color in ['blue', 'violet', 'teal', 'rose', 'amber', 'slate']
+          && ((data.kind == 'initials' && data.keys().hasOnly(['kind', 'color', 'text'])
+              && data.text is string && data.text.matches('^[A-Z0-9]{1,3}$'))
+            || (data.kind == 'icon' && data.keys().hasOnly(['kind', 'color', 'icon'])
+              && data.icon in ['people-fill', 'chat-fill', 'book', 'mortarboard', 'controller', 'cup-hot', 'moon-stars', 'sun'])
+            || (data.kind == 'image' && data.keys().hasOnly(['kind', 'color', 'image'])
+              && data.image is string && data.image.size() <= 32768
+              && data.image.matches('^data:image/jpeg;base64,/9j/[A-Za-z0-9+/]+={0,2}$')));
+      }
       function validGroup() {
         let data = request.resource.data;
         return data.keys().hasAll(['name', 'visibility', 'salt', 'creatorId', 'createdAt', 'lastActivityAt', 'lastMessageId'])
-          && data.keys().hasOnly(['name', 'visibility', 'salt', 'creatorId', 'createdAt', 'lastActivityAt', 'lastMessageId'])
+          && data.keys().hasOnly(['name', 'visibility', 'salt', 'creatorId', 'createdAt', 'lastActivityAt', 'lastMessageId', 'appearance'])
+          && (!('appearance' in data) || validAppearance(data.appearance))
           && data.name is string && data.name == id && data.name.size() > 0 && data.name.size() <= 60 && data.name.matches('.*\\S.*')
           && data.visibility in ['public', 'private']
           && data.creatorId == request.auth.uid
@@ -222,6 +234,13 @@ service cloud.firestore {
           && changed.hasAll(['deletedAt', 'deletedBy']) && changed.hasOnly(['deletedAt', 'deletedBy'])
           && after.deletedAt == request.time && after.deletedBy == request.auth.uid;
       }
+      function ownerAppearance() {
+        return signedIn() && id != 'Campus Chat' && !id.matches('^dm:.*')
+          && resource.data.visibility in ['public', 'private'] && active(resource.data)
+          && resource.data.creatorId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['appearance'])
+          && validAppearance(request.resource.data.appearance);
+      }
       allow get: if signedIn() && (!exists(/databases/$(database)/documents/chats/$(id)) || visibleChat(resource.data));
       allow list: if signedIn() && visibleChat(resource.data);
       allow create: if signedIn() && id != 'Campus Chat' && (validDirect() || (!id.matches('^dm:.*') && validGroup()));
@@ -229,6 +248,7 @@ service cloud.firestore {
       allow update: if id != 'Campus Chat' && resource.data.visibility in ['public', 'private']
         && member(id) && active(resource.data) && activityFromNewMessage();
       allow update: if ownerDeletion();
+      allow update: if ownerAppearance();
       allow delete: if false;
 
       match /people/{uid} {

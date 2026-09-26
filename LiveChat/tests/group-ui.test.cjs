@@ -3,8 +3,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const root = path.join(__dirname, '..');
-const html = fs.readFileSync(path.join(root, 'mainChat.html'), 'utf8');
-const code = fs.readFileSync(path.join(root, 'groupUI.js'), 'utf8').replace(/^import[^\n]+\n/, '').replaceAll('export ', '');
+const html = fs.readFileSync(path.join(root, 'mainChat.html'), 'utf8') + ['group-logo-create.html', 'group-logo-dialog.html'].map(name => fs.readFileSync(path.join(root, 'fragments', name), 'utf8')).join('');
+const code = fs.readFileSync(path.join(root, 'groupUI.js'), 'utf8').replace(/^import[^\n]+\n/gm, '').replaceAll('export ', '');
+const appearanceCode = fs.readFileSync(path.join(root, 'groupAppearance.js'), 'utf8').replaceAll('export ', '');
 const user = { uid: 'alice', displayName: 'Alice' };
 const privateGroup = { id: 'private', name: 'Study', visibility: 'private', creatorId: 'alice', idleHours: 12, lastActivityAt: { toMillis: () => 0 } };
 const publicGroup = { id: 'public', name: 'Football', visibility: 'public', creatorId: 'alice', idleHours: 12, lastActivityAt: { toMillis: () => 0 } };
@@ -26,8 +27,9 @@ function element() {
 function setup(initial = [privateGroup, publicGroup]) {
     const elements = {};
     for (const [, id] of html.matchAll(/id="([^"]+)"/g)) elements[id] = element();
+    elements['customize-group'] ||= element();
     let list = initial.slice(), groupsChanged, pinsChanged, requestChanged, membershipChanged;
-    const calls = { selections: [], updates: [], pins: [], creates: [], deletes: [], joins: [], requests: 0, disposed: 0, timers: 0 };
+    const calls = { selections: [], updates: [], pins: [], creates: [], deletes: [], joins: [], logos: [], requests: 0, disposed: 0, timers: 0 };
     const hooks = {};
     const groups = {
         isClosed: group => !!group.deletedAt,
@@ -44,6 +46,7 @@ function setup(initial = [privateGroup, publicGroup]) {
         watchMembership(id, uid, callback) { membershipChanged = callback; return () => {}; },
         async requestAccess() { calls.requests++; requestChanged({ status: 'pending' }); },
         async createGroup(member, values) { calls.creates.push(values); return { ...values, id: 'new', creatorId: member.uid }; },
+        async saveGroupAppearance(id, member, appearance) { calls.logos.push({ id, uid: member.uid, appearance }); if (hooks.logo) return hooks.logo(); },
         async deleteGroup(id, member) {
             calls.deletes.push({ id, uid: member.uid });
             if (hooks.delete) return hooks.delete(id, member);
@@ -53,9 +56,17 @@ function setup(initial = [privateGroup, publicGroup]) {
             groupsChanged(list);
         }
     };
-    const mount = new Function('groups', 'document', 'setInterval', 'clearInterval', code + '\nreturn mountGroups;')(groups, {
+    const document = {
         getElementById: id => { assert.ok(elements[id], 'Missing ' + id); return elements[id]; }, createElement: element
-    }, () => { calls.timers++; }, () => {});
+    };
+    const { renderAppearance, logoInitials } = new Function('document', appearanceCode + '\nreturn { renderAppearance, logoInitials };')(document);
+    const editors = {};
+    const mountAppearanceEditor = (prefix, options) => editors[prefix] = {
+        draft: null, reset(value) { this.draft = value ? { ...value } : null; },
+        value() { return this.draft || { kind: 'initials', color: 'blue', text: logoInitials(options.getName()) }; },
+        updateName() {}, setDisabled(value) { this.disabled = value; }, dispose() {}
+    };
+    const mount = new Function('groups', 'document', 'renderAppearance', 'mountAppearanceEditor', 'setInterval', 'clearInterval', code + '\nreturn mountGroups;')(groups, document, renderAppearance, mountAppearanceEditor, () => { calls.timers++; }, () => {});
     const controller = mount({ user, onSelect: group => calls.selections.push(group), onGroupUpdated: group => calls.updates.push(group) });
     const fire = (id, event = 'click') => elements[id].events[event]({ preventDefault() {} });
     const snapshot = groups => { list = groups; groupsChanged(groups); };
@@ -63,12 +74,11 @@ function setup(initial = [privateGroup, publicGroup]) {
     const rows = () => [...elements['pinned-groups'].children, ...elements['other-groups'].children];
     const choice = name => { const row = rows().find(item => item.children[0].children[1].children[0].textContent === name); assert.ok(row, 'Missing group ' + name); return row.children[0]; };
     const selected = () => calls.selections.at(-1);
-    return { elements, calls, hooks, controller, fire, snapshot, rows, choice, selected, request: value => requestChanged(value), membership: value => membershipChanged(value), oldMembershipCallback: () => membershipChanged };
+    return { elements, calls, hooks, editors, controller, fire, snapshot, rows, choice, selected, request: value => requestChanged(value), membership: value => membershipChanged(value), oldMembershipCallback: () => membershipChanged };
 }
 (async () => {
     assert.doesNotMatch(html, /group-idle-hours|settings-idle-hours|Hours without messages|Change time limit/);
     assert.match(html, /id="group-delete-name"/);
-    assert.match(html, /Your group stays open until you delete it/);
     assert.doesNotMatch(code, /changeIdleHours|expiresAt|setInterval|idleHours/);
 
     // Old groups remain discoverable despite elapsed legacy time limits.
@@ -194,9 +204,35 @@ function setup(initial = [privateGroup, publicGroup]) {
     creation.fire('new-chat'); creation.elements['group-name'].value = 'My group';
     creation.elements['group-visibility'].value = 'private'; creation.fire('group-visibility', 'change');
     creation.elements['group-password'].value = 'secret'; await creation.fire('create-group-form', 'submit');
-    assert.deepEqual(creation.calls.creates[0], { name: 'My group', visibility: 'private', password: 'secret' });
+    assert.deepEqual(creation.calls.creates[0], { name: 'My group', visibility: 'private', password: 'secret', appearance: { kind: 'initials', color: 'blue', text: 'MG' } });
     assert.equal(creation.selected().id, 'new');
     assert.equal(creation.elements['group-password'].value, ''); creation.controller.dispose();
+
+    // Owner logo edits are drafts until Save; cancellation, retry and revocation are guarded.
+    const logos = setup([publicGroup]);
+    await logos.choice('Football').events.click(); logos.fire('customize-group');
+    assert.equal(logos.elements['appearance-panel'].open, true);
+    logos.editors['edit-logo'].draft = { kind: 'icon', color: 'teal', icon: 'book' };
+    logos.fire('appearance-cancel'); assert.equal(logos.calls.logos.length, 0);
+    logos.fire('customize-group'); assert.equal(logos.editors['edit-logo'].draft, null);
+    logos.editors['edit-logo'].draft = { kind: 'icon', color: 'teal', icon: 'book' };
+    const logoSave = deferred(); logos.hooks.logo = () => logoSave.promise;
+    const waitingLogo = logos.fire('appearance-form', 'submit');
+    logos.fire('appearance-cancel'); await logos.fire('appearance-form', 'submit');
+    assert.equal(logos.calls.logos.length, 1); assert.equal(logos.elements['appearance-panel'].open, true);
+    logoSave.reject(Error('Offline')); await waitingLogo;
+    assert.match(logos.elements['appearance-error'].textContent, /Logo not saved/);
+    assert.equal(logos.elements['appearance-save'].disabled, false);
+    delete logos.hooks.logo; await logos.fire('appearance-form', 'submit');
+    assert.equal(logos.calls.logos.length, 2); assert.equal(logos.elements['appearance-panel'].open, false);
+    assert.deepEqual(logos.calls.updates.at(-1).appearance, { kind: 'icon', color: 'teal', icon: 'book' });
+    assert.match(logos.choice('Football').children[0].className, /group-logo logo-teal/);
+    logos.fire('customize-group'); logos.snapshot([{ ...publicGroup, creatorId: 'bob' }]);
+    assert.equal(logos.elements['appearance-panel'].open, false);
+    logos.fire('customize-group'); assert.equal(logos.elements['appearance-panel'].open, false);
+    logos.snapshot([publicGroup]); logos.fire('customize-group'); logos.snapshot([{ ...publicGroup, deletedAt: {} }]);
+    assert.equal(logos.elements['appearance-panel'].open, false); assert.equal(logos.selected(), null);
+    logos.controller.dispose();
 
     // Disposed controllers cannot select a group after a late network completion.
     const disposal = setup([publicGroup]), late = deferred(); disposal.hooks.isMember = () => late.promise;

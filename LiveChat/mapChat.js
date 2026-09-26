@@ -6,9 +6,18 @@
     const status = document.getElementById("chat-status");
     try {
         // Never pair a cached template with newer controller code.
-        const response = await fetch(new URL("mainChat.html?v=persistent-2", scriptUrl), { cache: "no-store" });
+        const response = await fetch(new URL("mainChat.html?v=polish-3", scriptUrl), { cache: "no-store" });
         if (!response.ok) throw new Error("Could not load the chat panel.");
         const page = new DOMParser().parseFromString(await response.text(), "text/html");
+        // Keep the shared template's styles in the same order on both routes.
+        for (const source of page.querySelectorAll('link[rel="stylesheet"]')) {
+            const href = new URL(source.getAttribute("href"), scriptUrl).href;
+            if ([...document.querySelectorAll('link[rel="stylesheet"]')].some(link => link.href === href)) continue;
+            const style = document.createElement("link");
+            style.rel = "stylesheet";
+            style.href = href;
+            document.head.append(style);
+        }
         const panels = ["name-panel", "chat-panel"].map((id) => {
             const panel = page.getElementById(id);
             if (!panel) throw new Error("The chat panel is missing from mainChat.html.");
@@ -17,7 +26,7 @@
         document.body.append(...panels);
         // Load handlers only after their buttons, forms, and panels are mounted.
         const handlers = document.createElement("script");
-        handlers.src = new URL("chat.js?v=persistent-2", scriptUrl).href;
+        handlers.src = new URL("chat.js?v=polish-3", scriptUrl).href;
         handlers.onload = () => { openButton.disabled = false; };
         handlers.onerror = () => { status.textContent = "Chat could not load. Refresh the page to try again."; };
         document.body.append(handlers);

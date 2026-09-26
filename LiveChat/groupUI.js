@@ -1,13 +1,10 @@
 import * as groups from "./groups.js";
+import { renderAppearance } from "./groupAppearance.js";
+import { mountAppearanceEditor } from "./appearanceUI.js";
 
 function groupAvatar(group) {
     const avatar = document.createElement("span");
-    const words = group.name.trim().split(/\s+/);
-    const initials = words.length > 1 ? words[0][0] + words[words.length - 1][0] : group.name.slice(0, 2);
-    const tone = Array.from(group.name).reduce((hash, character) => (hash * 31 + character.charCodeAt(0)) >>> 0, 0) % 5;
-    avatar.className = `avatar avatar-tone-${tone}`;
-    avatar.textContent = initials.toUpperCase();
-    avatar.setAttribute("aria-hidden", "true");
+    renderAppearance(avatar, group);
     return avatar;
 }
 
@@ -19,6 +16,7 @@ export function mountGroups({ user, onSelect, onGroupUpdated }) {
     let all = [], pins = new Set(), selected = null, joining = null;
     let disposed = false, selecting = false, creating = false, passwordBusy = false, deleting = false;
     let selectionVersion = 0, joinVersion = 0, openingId = null, deleteTarget = null;
+    let appearanceTarget = null, savingAppearance = false;
     const deletedIds = new Set();
     let joinStops = [];
     const status = text => { if (!disposed) el("groups-status").textContent = text; };
@@ -28,6 +26,16 @@ export function mountGroups({ user, onSelect, onGroupUpdated }) {
     const stopJoining = () => { joinVersion++; joinStops.forEach(stop => stop()); joinStops = []; joining = null; el("join-group-password").value = ""; };
     const available = group => group && !deletedIds.has(group.id) && !groups.isClosed(group);
     const current = id => all.find(group => group.id === id && available(group));
+    const canCustomize = group => available(group) && group.creatorId === user.uid
+        && ["public", "private"].includes(group.visibility) && group.id !== "Campus Chat" && !group.id.startsWith("dm:");
+    const createAppearance = mountAppearanceEditor("create-logo", {
+        getName: () => el("group-name").value,
+        onBusy: busy => { el("create-group-submit").disabled = creating || busy; }
+    });
+    const editAppearance = mountAppearanceEditor("edit-logo", {
+        getName: () => appearanceTarget?.name || "Group",
+        onBusy: busy => { el("appearance-save").disabled = savingAppearance || busy; }
+    });
 
     function select(group) {
         if (disposed) return;
@@ -188,12 +196,14 @@ export function mountGroups({ user, onSelect, onGroupUpdated }) {
     }
     listen("new-chat", "click", () => {
         el("create-group-form").reset(); passwordField();
+        createAppearance.reset();
         el("create-group-error").textContent = "";
         el("create-group-panel").showModal(); el("group-name").focus();
     });
     listen("group-visibility", "change", passwordField);
+    listen("group-name", "input", () => createAppearance.updateName());
     listen("cancel-create-group", "click", () => el("create-group-panel").close());
-    listen("create-group-panel", "close", () => { el("group-password").value = ""; });
+    listen("create-group-panel", "close", () => { el("group-password").value = ""; createAppearance.reset(); });
     listen("create-group-panel", "cancel", event => { if (creating) event.preventDefault(); });
     listen("create-group-form", "submit", async event => {
         event.preventDefault();
@@ -202,17 +212,60 @@ export function mountGroups({ user, onSelect, onGroupUpdated }) {
         el("create-group-submit").disabled = true;
         el("cancel-create-group").disabled = true;
         el("create-group-error").textContent = "Creating group...";
+        createAppearance.setDisabled(true);
         try {
             const group = await groups.createGroup(user, {
                 name: el("group-name").value, visibility: el("group-visibility").value,
-                password: el("group-password").value
+                password: el("group-password").value, appearance: createAppearance.value()
             });
             if (disposed) return;
             if (!available(group) || all.some(item => item.id === group.id && !available(item))) throw Error("This group has been deleted.");
             if (!all.some(item => item.id === group.id)) all.push(group);
             el("create-group-panel").close(); select(group);
         } catch (error) { if (!disposed) el("create-group-error").textContent = fail(error); }
-        finally { creating = false; if (!disposed) { el("create-group-submit").disabled = false; el("cancel-create-group").disabled = false; } }
+        finally { creating = false; if (!disposed) { createAppearance.setDisabled(false); el("create-group-submit").disabled = false; el("cancel-create-group").disabled = false; } }
+    });
+
+    listen("customize-group", "click", () => {
+        if (disposed || savingAppearance || !selected) return;
+        const group = current(selected.id);
+        if (!canCustomize(group)) return;
+        appearanceTarget = group;
+        editAppearance.reset(group.appearance);
+        el("appearance-group-name").textContent = group.name;
+        el("appearance-error").textContent = "";
+        el("appearance-panel").showModal();
+        el("edit-logo-kind").focus();
+    });
+    listen("appearance-cancel", "click", () => { if (!savingAppearance) el("appearance-panel").close(); });
+    listen("appearance-panel", "cancel", event => { if (savingAppearance) event.preventDefault(); });
+    listen("appearance-panel", "close", () => { appearanceTarget = null; editAppearance.reset(); });
+    listen("appearance-form", "submit", async event => {
+        event.preventDefault();
+        if (disposed || savingAppearance || !appearanceTarget || !el("appearance-panel").open) return;
+        const group = current(appearanceTarget.id);
+        if (!canCustomize(group)) { el("appearance-error").textContent = "Only the owner of an existing group can change its logo."; return; }
+        let appearance;
+        try { appearance = editAppearance.value(); }
+        catch (error) { el("appearance-error").textContent = error.message; return; }
+        savingAppearance = true; editAppearance.setDisabled(true);
+        el("appearance-save").disabled = true; el("appearance-cancel").disabled = true;
+        el("appearance-save").textContent = "Saving…"; el("appearance-form").setAttribute("aria-busy", "true");
+        el("appearance-error").textContent = "";
+        try {
+            await groups.saveGroupAppearance(group.id, user, appearance);
+            if (disposed || appearanceTarget?.id !== group.id || !canCustomize(current(group.id))) return;
+            all = all.map(item => item.id === group.id ? { ...item, appearance } : item);
+            refresh(); el("appearance-panel").close(); status("Group logo updated.");
+        } catch (error) {
+            if (!disposed && appearanceTarget?.id === group.id) el("appearance-error").textContent = `Logo not saved. ${fail(error)}`;
+        } finally {
+            savingAppearance = false;
+            if (!disposed) {
+                editAppearance.setDisabled(false); el("appearance-save").disabled = false; el("appearance-cancel").disabled = false;
+                el("appearance-save").textContent = "Save logo"; el("appearance-form").setAttribute("aria-busy", "false");
+            }
+        }
     });
     listen("group-settings", "click", () => {
         if (disposed || deleting || !selected || selected.visibility === "direct") return;
@@ -280,6 +333,12 @@ export function mountGroups({ user, onSelect, onGroupUpdated }) {
             removedName = joining.name;
             el("join-group-panel").close();
         }
+        if (appearanceTarget && !canCustomize(current(appearanceTarget.id))) {
+            const missing = !current(appearanceTarget.id), name = appearanceTarget.name;
+            el("appearance-panel").close();
+            if (missing) removedName = name;
+            else status("Only the group owner can change this logo.");
+        }
         if (deleteTarget && !current(deleteTarget.id)) {
             removedName = deleteTarget.name;
             el("group-settings-panel").close();
@@ -297,9 +356,11 @@ export function mountGroups({ user, onSelect, onGroupUpdated }) {
     el("new-chat").disabled = false;
     return {
         selectExternal: select,
+        renderAppearance,
         dispose() {
             disposed = true; selectionVersion++; events.abort(); stops.forEach(stop => stop()); stopJoining();
-            for (const id of ["create-group-panel", "join-group-panel", "group-settings-panel"]) if (el(id).open) el(id).close();
+            createAppearance.dispose(); editAppearance.dispose();
+            for (const id of ["create-group-panel", "join-group-panel", "group-settings-panel", "appearance-panel"]) if (el(id).open) el(id).close();
             el("new-chat").disabled = true;
         }
     };

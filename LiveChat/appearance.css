@@ -1,0 +1,37 @@
+.group-logo.logo-blue,.logo-color.logo-blue { --logo-color: #1764d8; background: var(--logo-color); color: #fff; }
+.group-logo.logo-violet,.logo-color.logo-violet { --logo-color: #7357c5; background: var(--logo-color); color: #fff; }
+.group-logo.logo-teal,.logo-color.logo-teal { --logo-color: #167774; background: var(--logo-color); color: #fff; }
+.group-logo.logo-rose,.logo-color.logo-rose { --logo-color: #b74772; background: var(--logo-color); color: #fff; }
+.group-logo.logo-amber,.logo-color.logo-amber { --logo-color: #a56716; background: var(--logo-color); color: #fff; }
+.group-logo.logo-slate,.logo-color.logo-slate { --logo-color: #4d607a; background: var(--logo-color); color: #fff; }
+.group-logo { overflow: hidden; }
+.group-logo img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.group-symbol { display: inline-block; width: 1.35em; height: 1.35em; background: currentColor; mask: var(--symbol) center/contain no-repeat; flex-shrink: 0; }
+.group-symbol[data-symbol="people-fill"] { --symbol: url('./assets/icons/people-fill.svg'); }
+.group-symbol[data-symbol="chat-fill"] { --symbol: url('./assets/icons/chat-fill.svg'); }
+.group-symbol[data-symbol="book"] { --symbol: url('./assets/icons/book.svg'); }
+.group-symbol[data-symbol="mortarboard"] { --symbol: url('./assets/icons/mortarboard.svg'); }
+.group-symbol[data-symbol="controller"] { --symbol: url('./assets/icons/controller.svg'); }
+.group-symbol[data-symbol="cup-hot"] { --symbol: url('./assets/icons/cup-hot.svg'); }
+.group-symbol[data-symbol="moon-stars"] { --symbol: url('./assets/icons/moon-stars.svg'); }
+.group-symbol[data-symbol="sun"] { --symbol: url('./assets/icons/sun.svg'); }
+.logo-editor { border: 0; padding: 0; margin: 20px 0; min-width: 0; }
+.logo-editor legend { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.logo-editor-top { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+.logo-editor .logo-preview { width: 64px; height: 64px; flex: 0 0 64px; font-size: 23px; border-radius: 50%; }
+.logo-editor-top>div { flex: 1; min-width: 0; }
+.logo-editor label { font-size: 13px; }
+.logo-editor .logo-colors { display: grid; grid-template-columns: repeat(6, 44px); gap: 8px; margin: 16px 0; }
+.logo-editor .logo-icons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+/* Match the panel's specificity so shared button states cannot erase swatches. */
+#chat-panel .logo-editor button.logo-color { width: 44px; height: 44px; min-height: 44px; padding: 0; border: 6px solid transparent; border-radius: 50%; background: var(--logo-color); background-clip: padding-box; color: #fff; }
+#chat-panel .logo-editor button.logo-color:hover:not(:disabled) { background-color: var(--logo-color); filter: brightness(1.1); }
+#chat-panel .logo-editor button[aria-pressed="true"] { outline: 2px solid var(--chat-primary,#0866ff); outline-offset: 2px; }
+#chat-panel .logo-editor button:focus-visible { box-shadow: 0 0 0 6px rgb(82 152 255 / 20%); }
+#chat-panel .logo-editor button.logo-icon-choice { display: grid; place-items: center; width: 100%; height: 48px; min-height: 48px; padding: 8px; font-size: 21px; }
+#chat-panel .logo-editor input[type="file"] { width: 100%; padding: 8px; font-size: 12px; }
+.logo-editor input[type="file"]::file-selector-button { padding: 8px 12px; border: 0; border-radius: 7px; margin-right: 8px; cursor: pointer; }
+.logo-editor .logo-note { font-size: 12px; line-height: 1.5; color: var(--chat-muted,#60708c); margin: 8px 0; }
+.logo-editor .logo-feedback:empty { display: none; }
+.logo-editor .logo-feedback { font-size: 12px; line-height: 1.5; margin: 8px 0 0; }
+@media (max-width: 360px) { .logo-editor .logo-colors { grid-template-columns: repeat(3, 44px); } }

@@ -1,4 +1,4 @@
-@import url("./forums/forums.css?v=glass-1");
+@import url("./forums/forums.css?v=polish-3");
 :root {
  --chat-text:#080e50; --chat-muted:#536695; --chat-surface:rgba(253,254,255,.96); --chat-sidebar:rgba(247,248,255,.93);
  --chat-frame:rgba(242,249,255,.47); --chat-frame-border:rgba(255,255,255,.85); --chat-border:#d8dfef;
@@ -99,8 +99,13 @@ body:has(dialog[open]) {overflow:hidden}
 .people-heading {margin:20px 10px 8px;font-size:14px;font-weight:600}
 .people-heading:has(+ #friends-list:empty),.people-heading:has(+ #direct-list:empty) {display:none}
 #friends-empty,#direct-empty {display:none}
-.person-row {margin:5px 0 10px}
-#chat-panel .friend-button {margin:4px 0 0 78px;min-height:30px;padding:4px 12px;font-size:12px}
+.person-row {display:flex;align-items:center;gap:4px;margin:4px 0;border-radius:13px}
+#chat-panel .person-row .chat-choice {flex:1;min-width:0;gap:12px;padding-right:4px}
+#chat-panel .person-row .chat-choice-copy strong {font-size:15px}
+#chat-panel .person-row .chat-choice-copy > span {font-size:12px}
+#chat-panel .person-row .avatar {width:42px;height:42px;flex-basis:42px;font-size:16px}
+#chat-panel .friend-button {flex-shrink:0;margin:0 6px 0 0;min-height:36px;padding:6px 9px;font-size:12px;border-radius:10px;background:transparent}
+#chat-panel .friend-button[aria-pressed="true"] {color:var(--chat-muted);border-color:transparent}
 #chat-panel .profile-button {display:flex;align-items:center;gap:18px;flex-shrink:0;margin:0 18px;padding:12px 2px 16px;text-align:left;border:0;border-top:1px solid var(--chat-border);border-radius:0;background:transparent;min-height:80px}
 .profile-copy {flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 #profile-name {white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:16px}
@@ -117,7 +122,9 @@ body:has(dialog[open]) {overflow:hidden}
 #chat-subtitle {margin:0;color:var(--chat-muted);font-size:16px;overflow-wrap:anywhere}
 #chat-panel .icon-button {display:grid;place-items:center;width:42px;height:42px;padding:0;border:0;background:transparent;flex-shrink:0}
 #chat-panel .chat-options {position:absolute;top:88px;right:0;z-index:6;width:280px;max-width:90vw;padding:12px;border:1px solid var(--chat-border);border-radius:16px;background:var(--chat-surface);box-shadow:0 12px 36px rgb(0 14 38 / 18%);animation:chat-pop-in 150ms var(--chat-ease)}
-#chat-panel .chat-options button {display:block;width:100%;text-align:left;margin:6px 0}
+#chat-panel .chat-options button {display:flex;align-items:center;gap:10px;width:100%;text-align:left;margin:2px 0;border-color:transparent;background:transparent;font-size:14px}
+#chat-panel .chat-options button .icon {width:17px;height:17px}
+#chat-panel .chat-options button[aria-pressed="true"] {background:var(--chat-selected)}
 #chat-panel .chat-options p,#chat-panel .chat-options small {display:block;color:var(--chat-muted);font-size:13px;line-height:1.5;margin:8px 3px}
 #chat-panel .danger-button {color:var(--chat-danger)}
 .mobile-conversation-nav {display:none}
@@ -215,3 +222,25 @@ body:has(dialog[open]) {overflow:hidden}
 :root[data-chat-theme="dark"] :is(.group-row,.conversation-header) .avatar-tone-1 {background:#6059b9}
 :root[data-chat-theme="dark"] :is(.group-row,.conversation-header) .avatar-tone-2 {background:#2a72cf}
 .community-sidebar,.chat-conversation,.message-bubble,.composer {transition:background-color 180ms ease,color 180ms ease,border-color 180ms ease}
+/* Shared secondary surfaces use the same quiet hierarchy as the conversation. */
+.icon-trash {--icon:url('./assets/icons/trash3.svg')}
+#chat-panel .group-dialog h2 {margin-bottom:18px;font-size:22px}
+.group-dialog :is(small,[role="status"]) {color:var(--chat-muted);font-size:13px;line-height:1.5}
+.group-dialog small {display:block;margin-top:8px}
+.group-dialog p:empty {display:none}
+.group-dialog .dialog-actions {padding-top:18px;margin-top:22px;border-top:1px solid var(--chat-border)}
+#chat-panel .group-dialog .dialog-actions button {min-height:44px}
+#chat-panel #close-members {display:block;margin:20px 0 0 auto}
+#members-status {margin:0 0 12px}
+#chat-panel #request-group-access {width:100%;background:transparent}
+#join-group-panel .dialog-note {text-align:center;font-size:13px}
+#chat-panel #theme-toggle {justify-content:flex-start;border-radius:14px;min-height:52px}
+.account-details {padding:12px 0;border-block:1px solid var(--chat-border)}
+.account-details summary {padding:4px 0}
+#chat-panel #profile-panel .dialog-actions {justify-content:flex-end}
+@media (max-width:700px) {
+ .group-dialog,#name-panel {padding:22px;border-radius:22px}
+ #chat-panel .group-dialog h2 {font-size:21px}
+ .group-dialog .dialog-actions {margin-top:18px;padding-top:16px}
+ #chat-panel .group-dialog .dialog-actions button {flex:1}
+}

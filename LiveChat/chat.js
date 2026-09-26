@@ -45,6 +45,11 @@ let hasRenderedMessages = false;
 let hasReceivedServerMessages = false;
 let unseenMessages = 0;
 let pendingModeration;
+let timesPinned = false;
+let timeGesture = null;
+const GROUP_GAP_MS = 2 * 60 * 1000;
+const TIME_BREAK_MS = 60 * 60 * 1000;
+const TIME_REVEAL_WIDTH = 64;
 const messageElements = new Map();
 const dateElements = new Map();
 const el = id => document.getElementById(id);
@@ -68,6 +73,78 @@ messageAnnouncer.setAttribute("aria-live", "polite");
 if (!messageAnnouncer.isConnected) messageStatus.after(messageAnnouncer);
 // Announce only new arrivals, rather than reading the initial shared history.
 messageList.setAttribute("aria-live", "off");
+messageList.setAttribute("aria-keyshortcuts", "T");
+messageList.setAttribute("aria-description", "Swipe left to peek at message times. Press T or use Chat options to show or hide them.");
+
+function updateTimeToggle() {
+    const toggle = el("toggle-message-times");
+    if (!toggle) return;
+    const label = timesPinned ? "Hide message times" : "Show message times";
+    toggle.setAttribute("aria-pressed", String(timesPinned));
+    toggle.setAttribute("aria-controls", "message-list");
+    const copy = toggle.querySelector("[data-message-times-label]");
+    if (copy) setText(copy, label); else setText(toggle, label);
+}
+function stopTimeGesture() {
+    const gesture = timeGesture;
+    timeGesture = null;
+    messageList.classList.remove("is-time-dragging", "times-peeking");
+    messageList.style.setProperty("--time-reveal", "0px");
+    messageList.style.setProperty("--time-opacity", "0");
+    if (gesture && messageList.hasPointerCapture?.(gesture.id)) messageList.releasePointerCapture(gesture.id);
+}
+function setTimesPinned(pinned, preserveScroll = true) {
+    const nearBottom = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < 80;
+    const listTop = messageList.getBoundingClientRect().top;
+    const anchor = preserveScroll && !nearBottom && [...messageList.children].find(row => row.classList.contains("message-row") && row.getBoundingClientRect().bottom > listTop);
+    const anchorOffset = anchor ? anchor.getBoundingClientRect().top - listTop : 0;
+    stopTimeGesture();
+    timesPinned = pinned;
+    messageList.classList.toggle("times-visible", pinned);
+    for (const row of messageElements.values()) row.parts.time.setAttribute("aria-hidden", String(!pinned));
+    updateTimeToggle();
+    if (!preserveScroll) return;
+    if (nearBottom) messageList.scrollTop = messageList.scrollHeight;
+    else if (anchor?.isConnected) messageList.scrollTop += anchor.getBoundingClientRect().top - listTop - anchorOffset;
+}
+el("toggle-message-times")?.addEventListener("click", () => setTimesPinned(!timesPinned));
+messageList.addEventListener("keydown", event => {
+    if (event.target !== messageList || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key.toLowerCase() === "t") {
+        event.preventDefault(); setTimesPinned(!timesPinned);
+    } else if (event.key === "Escape" && timesPinned) {
+        event.preventDefault(); event.stopPropagation(); setTimesPinned(false);
+    }
+});
+messageList.addEventListener("pointerdown", event => {
+    stopTimeGesture();
+    if (timesPinned || !messageElements.size || event.isPrimary === false || event.button !== 0
+        || event.target.closest("button, a, input, textarea, select")) return;
+    timeGesture = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false };
+});
+messageList.addEventListener("pointermove", event => {
+    if (!timeGesture || timeGesture.id !== event.pointerId) return;
+    if (event.pointerType === "mouse" && event.buttons === 0) { stopTimeGesture(); return; }
+    const dx = event.clientX - timeGesture.x;
+    const dy = event.clientY - timeGesture.y;
+    if (!timeGesture.horizontal) {
+        // Let normal vertical scrolling and rightward movement win immediately.
+        // Only a clear leftward intent takes pointer capture.
+        if (Math.abs(dy) > 8 && Math.abs(dy) >= Math.abs(dx) || dx > 8) { stopTimeGesture(); return; }
+        if (dx > -10 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+        timeGesture.horizontal = true;
+        messageList.setPointerCapture?.(event.pointerId);
+        messageList.classList.add("is-time-dragging", "times-peeking");
+    }
+    event.preventDefault();
+    const distance = Math.max(0, Math.min(TIME_REVEAL_WIDTH, -dx));
+    messageList.style.setProperty("--time-reveal", `${distance}px`);
+    messageList.style.setProperty("--time-opacity", String(Math.min(1, distance / 48)));
+}, { passive: false });
+for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) messageList.addEventListener(type, event => {
+    if (timeGesture?.id === event.pointerId) stopTimeGesture();
+});
+updateTimeToggle();
 
 function readPreference(key) {
     try { return localStorage.getItem(key); } catch { return null; }
@@ -147,6 +224,7 @@ function avatarTone(name) {
 function statusMessage(text, state = "") {
     messageStatus.textContent = text;
     messageStatus.dataset.state = state;
+    messageStatus.dataset.kind = text === "Sent" ? "delivery" : "";
 }
 function connectionMessage(text, state) {
     connectionStatus.textContent = text;
@@ -211,6 +289,7 @@ function selectSection(section) {
     activeSection = section;
     chatPanel.dataset.section = section;
     setMenu(false);
+    stopTimeGesture();
     const forums = section === "forums";
     document.getElementById("chats-tab").setAttribute("aria-pressed", String(!forums));
     document.getElementById("forums-tab").setAttribute("aria-pressed", String(forums));
@@ -292,6 +371,7 @@ function disconnectMessages() {
     stopRequests = null;
     document.getElementById("access-requests").replaceChildren();
     ready = false;
+    setTimesPinned(false, false);
     latestMessages = [];
     messageElements.clear();
     dateElements.clear();
@@ -319,8 +399,18 @@ function messageDate(message) {
     return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
 }
 function dateLabel(date) {
-    const label = date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-    return date.toDateString() === new Date().toDateString() ? `Today · ${label}` : label;
+    const today = new Date();
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric",
+        ...(date.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {}) });
+}
+function clockLabel(date) { return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); }
+function sameMessageRun(previous, current, previousDate, currentDate) {
+    if (!previous || !current || previous.senderId !== current.senderId || !previousDate || !currentDate) return false;
+    const elapsed = currentDate.getTime() - previousDate.getTime();
+    return previousDate.toDateString() === currentDate.toDateString() && elapsed >= 0 && elapsed <= GROUP_GAP_MS;
 }
 function renderMessagePlaceholder(title, detail, loading = false) {
     const item = document.createElement("li");
@@ -364,7 +454,7 @@ function createMessageRow(message, animate) {
     const meta = document.createElement("div"); meta.className = "message-meta";
     const name = document.createElement("span"); name.className = "message-name";
     const time = document.createElement("time"); time.className = "message-time";
-    meta.append(name, time);
+    meta.append(name);
     const bubble = document.createElement("div"); bubble.className = "message-bubble";
     const delivery = document.createElement("span"); delivery.className = "message-delivery";
     const remove = document.createElement("button");
@@ -374,8 +464,8 @@ function createMessageRow(message, animate) {
     const groupId = currentGroup?.id;
     remove.addEventListener("click", () => removeMessage(item.messageData, version, groupId));
     content.append(meta, bubble, delivery, remove);
-    item.append(avatar, content);
-    item.parts = { avatar, content, name, time, bubble, delivery, remove };
+    item.append(avatar, content, time);
+    item.parts = { avatar, content, meta, name, time, bubble, delivery, remove };
     if (animate && !reducedMotion.matches) {
         item.classList.add("message-enter");
         item.addEventListener("animationend", () => item.classList.remove("message-enter"), { once: true });
@@ -389,28 +479,39 @@ function renderMessages(messages, historical = false) {
     const previousScroll = messageList.scrollTop;
     const previousHeight = messageList.scrollHeight;
     const listTop = messageList.getBoundingClientRect().top;
-    const anchor = !nearBottom && [...messageElements.values()].find(row => row.getBoundingClientRect().bottom > listTop);
+    const anchor = !nearBottom && [...messageList.children].find(row => row.classList.contains("message-row") && row.getBoundingClientRect().bottom > listTop);
     const anchorOffset = anchor ? anchor.getBoundingClientRect().top - listTop : 0;
     const desired = [];
     const visibleIds = new Set();
     const visibleDates = new Set();
     const additions = [];
-    let lastDate = "";
+    const dates = messages.map(messageDate);
     let lastOwnId = null;
     for (const message of messages) if (message.senderId === currentUser?.uid) lastOwnId = message.id;
-    for (const message of messages) {
+    for (let index = 0; index < messages.length; index++) {
+        const message = messages[index];
         const own = message.senderId === currentUser?.uid;
-        const date = messageDate(message);
-        const day = (date || new Date()).toDateString();
-        if (day !== lastDate) {
-            let separator = dateElements.get(day);
+        const date = dates[index];
+        const previousDate = dates[index - 1];
+        const elapsed = date && previousDate ? date.getTime() - previousDate.getTime() : 0;
+        const dayChanged = !!date && (!previousDate || date.toDateString() !== previousDate.toDateString());
+        const hasSeparator = index === 0 || dayChanged || elapsed >= TIME_BREAK_MS;
+        const continuation = sameMessageRun(messages[index - 1], message, previousDate, date);
+        const continuesNext = sameMessageRun(message, messages[index + 1], date, dates[index + 1]);
+        if (hasSeparator) {
+            // Multiple pauses can occur on one day. Key the separator to its
+            // following message so metadata changes retain the same DOM node.
+            let separator = dateElements.get(message.id);
             if (!separator) {
                 separator = document.createElement("li"); separator.className = "message-date";
                 const label = document.createElement("span"); separator.appendChild(label);
-                dateElements.set(day, separator);
+                dateElements.set(message.id, separator);
             }
-            setText(separator.firstElementChild, dateLabel(date || new Date()));
-            visibleDates.add(day); desired.push(separator); lastDate = day;
+            const label = date ? (index === 0 || dayChanged ? `${dateLabel(date)} · ${clockLabel(date)}` : clockLabel(date))
+                : message.pending ? "Sending…" : "Messages";
+            setText(separator.firstElementChild, label);
+            separator.dataset.beforeMessage = message.id;
+            visibleDates.add(message.id); desired.push(separator);
         }
         let item = messageElements.get(message.id);
         if (!item) {
@@ -422,11 +523,21 @@ function renderMessages(messages, historical = false) {
         const parts = item.parts;
         item.classList.toggle("own", own);
         item.classList.toggle("pending", !!message.pending);
+        item.classList.toggle("message-continuation", continuation);
+        item.classList.toggle("message-group-start", !continuation);
+        item.classList.toggle("message-group-end", !continuesNext);
+        item.classList.toggle("message-gap", elapsed > GROUP_GAP_MS);
         parts.avatar.hidden = own;
         parts.avatar.className = `message-avatar avatar avatar-tone-${avatarTone(message.name)}`;
+        parts.meta.hidden = own || continuation;
         setText(parts.avatar, initials(message.name));
         setText(parts.name, own ? "You" : message.name || "Campus member");
-        setText(parts.time, date ? date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : "Just now");
+        setText(parts.time, date ? clockLabel(date) : "Pending");
+        parts.time.setAttribute("aria-hidden", String(!timesPinned));
+        const exactTime = date ? date.toLocaleString() : "Time pending";
+        parts.time.title = exactTime;
+        parts.time.setAttribute("aria-label", exactTime);
+        parts.bubble.title = exactTime;
         if (date) parts.time.dateTime = date.toISOString(); else parts.time.removeAttribute("datetime");
         setText(parts.bubble, message.text || "");
         parts.delivery.hidden = !own || (!message.pending && lastOwnId !== message.id);
@@ -481,9 +592,11 @@ function updateGroup(group) {
     currentGroup = group;
     const closed = groupService.isClosed(group);
     document.getElementById("group-settings").hidden = closed || group.creatorId !== currentUser.uid;
+    el("customize-group").hidden = closed || group.creatorId !== currentUser.uid;
+    if (el("conversation-avatar")) groupController?.renderAppearance?.(el("conversation-avatar"), group);
     document.getElementById("group-expiry").textContent = closed
         ? "This group was deleted by its owner."
-        : "This group stays open until its owner deletes it.";
+        : "";
     if (closed) {
         peopleController?.setConversation(null);
         disconnectMessages();
@@ -499,7 +612,7 @@ function renderRequests(requests, group, version) {
         const card = document.createElement("div");
         card.className = "access-request";
         const text = document.createElement("p");
-        text.textContent = `${request.name} requests access. Allow this user to join?`;
+        text.textContent = `${request.name} wants to join.`;
         card.appendChild(text);
         const buttons = [];
         for (const accept of [true, false]) {
@@ -551,12 +664,9 @@ function selectConversation(group, { reveal = true } = {}) {
     }
     messageInput.placeholder = `Message ${group?.name || "Campus Chat"}…`;
     document.getElementById("group-settings").hidden = true;
+    el("customize-group").hidden = true;
     document.getElementById("group-expiry").textContent = "";
-    document.getElementById("chat-help").textContent = group?.visibility === "direct"
-        ? "Private conversation. Only you and this person can read these messages."
-        : group
-        ? "Showing the latest 100 messages. Only the owner can delete this group."
-        : "Showing the latest 100 messages. Only moderators can clear Campus Chat.";
+    document.getElementById("chat-help").textContent = "Latest 100 messages";
     updateControls();
     connectionMessage("Connecting…", "loading");
     if (group && group.visibility !== "direct") {
@@ -569,7 +679,7 @@ function selectConversation(group, { reveal = true } = {}) {
         fromCache = cached;
         renderMessages(messages, !hasReceivedServerMessages);
         if (!cached) hasReceivedServerMessages = true;
-        connectionMessage(cached ? "Reconnecting… Saved messages are available. New messages will send when connected." : "Connected", cached ? "offline" : "connected");
+        connectionMessage(cached ? "Reconnecting… New messages will send when connected." : "Connected", cached ? "offline" : "connected");
         updateControls();
     }, error => {
         if (version !== viewVersion) return;
@@ -596,7 +706,7 @@ async function showChat(user) {
     selectSection("chats");
     const version = viewVersion;
     currentUser = user;
-    document.getElementById("chat-identity").textContent = `Chatting as ${user.displayName}`;
+    document.getElementById("chat-identity").textContent = "";
     if (el("profile-name")) el("profile-name").textContent = user.displayName;
     if (el("profile-initials")) el("profile-initials").textContent = initials(user.displayName);
     setMobileView(readPreference("fiu-chat:mobile-view") === "list" ? "list" : "conversation", false);
@@ -614,7 +724,7 @@ async function showChat(user) {
         const stop = chatService.watchModerator(user.uid, enabled => {
             if (disposed || currentUser?.uid !== user.uid || !chatPanel.open) return;
             isModerator = enabled;
-            document.getElementById("moderation-status").textContent = enabled ? "Chat moderator · Removals require a reason and are recorded." : "";
+            document.getElementById("moderation-status").textContent = enabled ? "Chat moderator" : "";
             if (ready) renderMessages(latestMessages);
             else updateControls();
         }, () => {

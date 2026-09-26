@@ -33,7 +33,8 @@ export function mountPeople({ user, onSelect }) {
         const copy = document.createElement("span"); copy.className = "chat-choice-copy";
         const name = document.createElement("strong"); name.textContent = person.displayName + (person.uid === user.uid ? " (you)" : "");
         const detail = document.createElement("span");
-        detail.textContent = direct ? "Direct message" : friends.some(item => item.id === person.uid) ? "Saved friend" : "User · " + person.uid.slice(-6);
+        // Account suffixes distinguish people who picked the same display name.
+        detail.textContent = "@" + person.uid.slice(-6);
         copy.append(name, detail);
         button.append(personAvatar(person), copy); button.disabled = person.uid === user.uid;
         button.addEventListener("click", async () => {
@@ -64,7 +65,7 @@ export function mountPeople({ user, onSelect }) {
                 save.setAttribute("aria-busy", "true");
                 try {
                     if (saved) await people.removeFriend(user, person); else await people.saveFriend(user, person);
-                    status(saved ? "Friend removed. Your messages are kept." : `${person.displayName} saved to friends.`);
+                    status(saved ? "Removed from friends." : "Saved to friends.");
                     saved = !saved;
                     describeSave();
                     save.disabled = false;
@@ -84,21 +85,27 @@ export function mountPeople({ user, onSelect }) {
             await Promise.all([...ids].map(profile));
             if (disposed || version !== listVersion) return;
             const term = el("chat-search").value.trim().toLowerCase();
-            const matches = person => person.displayName.toLowerCase().includes(term);
             el("friends-list").replaceChildren(); el("direct-list").replaceChildren();
-            for (const friend of friends) { const person = profiles.get(friend.id); if (matches(person)) el("friends-list").appendChild(row(person)); }
+            const friendIds = new Set(friends.map(friend => friend.id));
+            for (const friend of friends) {
+                const person = profiles.get(friend.id);
+                const direct = directs.find(chat => chat.participantIds.includes(friend.id));
+                if (person && !term) el("friends-list").appendChild(row(person, direct));
+            }
             for (const chat of directs.slice().sort((a, b) => (b.lastActivityAt?.toMillis?.() || 0) - (a.lastActivityAt?.toMillis?.() || 0))) {
                 const person = profiles.get(chat.participantIds.find(uid => uid !== user.uid));
-                if (person && matches(person)) el("direct-list").appendChild(row(person, chat));
+                if (person && !term && !friendIds.has(person.uid)) el("direct-list").appendChild(row(person, chat));
             }
             el("friends-empty").hidden = el("friends-list").children.length > 0;
             el("direct-empty").hidden = el("direct-list").children.length > 0;
+            el("friends-section").hidden = !el("friends-list").children.length;
+            el("direct-section").hidden = !el("direct-list").children.length;
             renderSearch();
         } catch (error) { if (!disposed) status(error.message); }
     }
     function renderSearch() {
         el("people-results").replaceChildren();
-        for (const person of results) el("people-results").appendChild(row(person));
+        for (const person of results) el("people-results").appendChild(row(person, directs.find(chat => chat.participantIds.includes(person.uid))));
     }
     function search() {
         // Debounce remote prefix searches and discard results for old input.
@@ -114,7 +121,7 @@ export function mountPeople({ user, onSelect }) {
                 const found = await people.searchPeople(term, user.uid);
                 if (disposed || version !== searchVersion) return;
                 results = found; found.forEach(person => profiles.set(person.uid, person)); renderSearch();
-                el("people-search-status").textContent = found.length ? "Select a name to message. Showing up to 25 name matches." : "No people found. Search the beginning of a name.";
+                el("people-search-status").textContent = found.length ? (found.length === 25 ? "First 25 matches" : "") : "No matches. Try the start of a name.";
             } catch (error) { if (!disposed && version === searchVersion) el("people-search-status").textContent = error.message; }
         }, 250);
     }
@@ -135,7 +142,7 @@ export function mountPeople({ user, onSelect }) {
                 if (disposed || version !== membersVersion || current?.id !== id) return;
                 el("members-list").replaceChildren();
                 members.sort((a, b) => a.displayName.localeCompare(b.displayName)).forEach(person => el("members-list").appendChild(row(person)));
-                el("members-status").textContent = `${members.length} member${members.length === 1 ? "" : "s"}. Select a name to message.`;
+                el("members-status").textContent = `${members.length} member${members.length === 1 ? "" : "s"}`;
             } catch (error) { if (version === membersVersion) el("members-status").textContent = error.message; }
         }, error => { el("members-status").textContent = error.message; });
     });

@@ -17,13 +17,14 @@ function element() {
         replaceChildren() { this.children = []; }, focus() {}, reset() {}
     };
 }
-for (const [, id] of fs.readFileSync(path.join(root, 'mainChat.html'), 'utf8').matchAll(/id="([^"]+)"/g)) elements[id] = element();
-let postsCallback, postCallback, replyCallback, stopped = 0, sendResolve, sentTo, saves = 0;
+const templates = [path.join(root, 'mainChat.html'), path.join(root, '../fragments/forums-sidebar.html'), path.join(root, '../fragments/forums-panel.html')];
+for (const file of templates.filter(file => fs.existsSync(file))) for (const [, id] of fs.readFileSync(file, 'utf8').matchAll(/id="([^"]+)"/g)) elements[id] = element();
+let postsCallback, postsError, postCallback, replyCallback, stopped = 0, sendResolve, sentTo, saves = 0;
 let failPost = false, failReply = false;
 let composerVisible = false, alertDisabled = false, savedArgs;
 const selectedLocation = { label: 'Library', latitude: 25.75396, longitude: -80.37662 };
 const service = {
-    watchPosts(count, callback) { postsCallback = callback; return () => stopped++; },
+    watchPosts(count, callback, error) { postsCallback = callback; postsError = error; return () => stopped++; },
     watchPost(id, callback) { postCallback = callback; return () => stopped++; },
     watchReplies(id, count, callback) { replyCallback = callback; return () => stopped++; },
     async createPost(...args) { saves++; savedArgs = args; assert.equal(alertDisabled, true); if (failPost) throw Error('Offline'); return 'created'; },
@@ -36,13 +37,28 @@ const post = (id, title) => ({ id, title, body: '<script>hello</script>', catego
 (async () => {
     const controller = mount({ user: { uid: 'alice', displayName: 'Alice' } });
     controller.setActive(true);
+    assert.equal(elements['forum-list-placeholder'].hidden, false);
+    assert.equal(elements['forum-empty'].hidden, true, 'A loading list must not claim no posts exist');
+    postsCallback([], true);
+    assert.equal(elements['forum-list-placeholder'].hidden, false, 'An empty cache is not an empty server result');
+    postsCallback([], false);
+    assert.equal(elements['forum-list-placeholder'].hidden, true);
+    assert.equal(elements['forum-empty'].hidden, false);
+    postsError(Error('Offline'));
+    assert.equal(elements['forum-list-status'].dataset.state, 'error');
+    assert.equal(elements['forum-empty'].hidden, true, 'An unavailable list must not claim no posts exist');
+    assert.equal(elements['forum-retry']['aria-busy'], 'false');
+    fire('forum-retry');
     postsCallback([post('a', 'First post'), post('b', 'Second post')], false);
     const cards = elements['forum-post-list'].children;
     cards[0].listeners.click();
+    assert.equal(elements['chat-panel'].dataset.mobileView, 'conversation');
+    assert.equal(elements['forum-thread-loading'].hidden, false);
     postCallback(post('a', 'First post'));
+    assert.equal(elements['forum-thread-loading'].hidden, true);
     replyCallback([{ name: 'Bob', authorId: 'bob', body: '<img src=x onerror=alert(1)>', createdAt: null }], false);
     assert.equal(elements['forum-thread-body'].textContent, '<script>hello</script>');
-    assert.equal(elements['forum-reply-list'].children[0].children[2].textContent, '<img src=x onerror=alert(1)>');
+    assert.equal(elements['forum-reply-list'].children[0].children[1].children[1].textContent, '<img src=x onerror=alert(1)>');
     elements['forum-reply-input'].value = 'Draft A';
     failReply = true;
     await fire('forum-reply-form', 'submit');
@@ -77,6 +93,13 @@ const post = (id, title) => ({ id, title, body: '<script>hello</script>', catego
     await fire('forum-post-form', 'submit');
     assert.equal(savedArgs[3], 'Alert'); assert.equal(savedArgs[4], selectedLocation);
     assert.equal(alertDisabled, false);
+    fire('forum-new-post');
+    assert.equal(elements['forum-category-input'].value, 'Question', 'New post should not silently retain alert mode');
+    assert.equal(composerVisible, false);
+    fire('forum-cancel-post');
+    assert.equal(elements['chat-panel'].dataset.mobileView, 'list');
+    fire('forum-welcome-compose');
+    assert.equal(elements['forum-compose'].hidden, false);
     elements['forum-category-input'].value = 'Question'; fire('forum-category-input', 'change');
     assert.equal(composerVisible, false);
     elements['forum-search'].value = 'library';
@@ -90,5 +113,5 @@ const post = (id, title) => ({ id, title, body: '<script>hello</script>', catego
     controller.dispose();
     assert.equal(elements['forum-post-form'].listeners.submit, undefined);
     assert.equal(saves, 2);
-    console.log('PASS: forum safe rendering, search, failed-write draft retention, thread switching during sends, per-thread drafts, stale snapshot guards and listener cleanup.');
+    console.log('PASS: forum loading/cache/error/empty distinctions, safe rendering, mobile list/detail navigation, composer mode, search, failed-write draft retention, thread switching during sends, per-thread drafts, stale snapshot guards and listener cleanup.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
