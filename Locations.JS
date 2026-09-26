@@ -17,4 +17,4 @@ const buildings = [
         name: "Green Library",
         abbr: "GL"
     }
-]
+];
