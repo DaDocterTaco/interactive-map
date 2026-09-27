@@ -118,6 +118,15 @@
             // Auto-scroll to the bottom
             chatHistory.scrollTop = chatHistory.scrollHeight;
 
+            // --- Add a temporary 'Typing...' bubble ---
+            const typingId = 'typing-' + Date.now(); // Give it a unique ID
+            chatHistory.innerHTML += `
+                <div id="${typingId}" style="background: #e0e0e0; color: #555; padding: 8px; border-radius: 8px; align-self: flex-start; max-width: 80%; font-style: italic;">
+                    Typing...
+                </div>
+            `;
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+
             try {
                 // 2. Send the message to your Python Flask server
                 const response = await fetch('http://127.0.0.1:5000/chat', {
@@ -128,6 +137,9 @@
 
                 // Wait for Gemini to generate the answer
                 const data = await response.json();
+
+                // --- NEW: Remove the 'Typing...' bubble before showing the answer ---
+                document.getElementById(typingId).remove();
 
                 // 3. Add the AI's response to the chat window (Gray Bubble)
                 chatHistory.innerHTML += `

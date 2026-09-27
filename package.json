@@ -1,5 +1,7 @@
 {
+  "type": "module",
   "dependencies": {
-    "firebase": "^12.19.0"
+    "firebase": "^12.19.0",
+    "firebase-admin": "^13.0.0"
   }
 }
