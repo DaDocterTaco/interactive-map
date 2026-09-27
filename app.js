@@ -2,7 +2,6 @@ const assistantPanel = document.getElementById('chat-container');
 const assistantButton = document.getElementById('open-assistant');
 const assistantInput = document.getElementById('chat-input');
 const messageHistory = document.getElementById('chat-history');
-
 function setAssistantOpen(open) {
     assistantPanel.hidden = !open;
     assistantButton.setAttribute('aria-expanded', String(open));
@@ -14,16 +13,6 @@ assistantButton.addEventListener('click', () => setAssistantOpen(assistantPanel.
 document.getElementById('close-assistant').addEventListener('click', () => setAssistantOpen(false));
 document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !assistantPanel.hidden) setAssistantOpen(false);
-});
-document.querySelectorAll('.mobile-nav [data-open]').forEach(button => {
-    button.addEventListener('click', () => {
-        const target = document.getElementById(button.dataset.open);
-        if (target?.disabled) {
-            document.getElementById('chat-status').textContent = 'Live chat is still loading. Please try again in a moment.';
-            return;
-        }
-        target?.click();
-    });
 });
 
 function addMessage(text, className) {

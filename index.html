@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="LiveChat/mapWarnings.css">
     <link rel="stylesheet" href="ClassSearch/classSearch.css">
     <link rel="stylesheet" href="app.css">
+    <link rel="stylesheet" href="ActionBar/actionBar.css">
+    <script src="ActionBar/actionBar.js" defer></script>
     <script src="LiveChat/mapChat.js?v=polish-3" defer></script>
     <script src="app.js" defer></script>
 </head>
@@ -21,20 +23,8 @@
             <div class="brand-copy"><strong>FIU Navigator</strong><span>Modesto A. Maidique Campus</span></div>
             <span class="campus-pill"><span aria-hidden="true">●</span> MMC campus</span>
         </header>
-        <section class="explore-card" aria-labelledby="explore-title">
-            <div class="explore-heading"><span class="explore-icon" aria-hidden="true">⌖</span><div><p class="eyebrow">EXPLORE CAMPUS</p><h1 id="explore-title">Where to?</h1></div></div>
-            <p class="explore-intro">Find your class, explore the map, or connect with other Panthers.</p>
-            <button id="open-class" class="action action-primary" type="button" aria-haspopup="dialog" aria-controls="class-dialog"><span class="action-symbol" aria-hidden="true">▣</span><span><strong>Find a class</strong><small>Search sections and locate a building</small></span><span class="action-arrow" aria-hidden="true">›</span></button>
-            <button id="open-chat" class="action" type="button" aria-haspopup="dialog" aria-controls="chat-panel" disabled><span class="action-symbol" aria-hidden="true">◌</span><span><strong>Campus live chat</strong><small>Talk with the FIU community</small></span><span class="action-arrow" aria-hidden="true">›</span></button>
-            <button id="open-assistant" class="action" type="button" aria-controls="chat-container" aria-expanded="false"><span class="action-symbol" aria-hidden="true">✦</span><span><strong>Ask the assistant</strong><small>Questions about campus and events</small></span><span class="action-arrow" aria-hidden="true">›</span></button>
-            <p id="chat-status" role="status"></p>
-        </section>
+        <p id="chat-status" role="status"></p>
         <div class="map-hint" aria-hidden="true">Drag to explore · Select a marker for details</div>
-        <nav class="mobile-nav" aria-label="Quick actions">
-            <button type="button" data-open="open-class"><span aria-hidden="true">▣</span>Classes</button>
-            <button type="button" data-open="open-chat"><span aria-hidden="true">◌</span>Chat</button>
-            <button type="button" data-open="open-assistant"><span aria-hidden="true">✦</span>Assistant</button>
-        </nav>
     </main>
     <section id="chat-container" class="assistant-panel" aria-labelledby="assistant-title" hidden>
         <header class="assistant-header"><div><span class="assistant-spark" aria-hidden="true">✦</span><div><h2 id="assistant-title">FIU Campus Assistant</h2><p>Ask about buildings or events</p></div></div><button id="close-assistant" type="button" aria-label="Close assistant">×</button></header>
