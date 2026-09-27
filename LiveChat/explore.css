@@ -1,0 +1,41 @@
+/* Discovery shares the glass surface and keeps the conversation list personal. */
+#chat-panel #explore-panel {min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--chat-border);border-radius:22px;background:var(--chat-surface);padding:22px 26px 0;animation:explore-enter 230ms var(--chat-ease) both}
+#chat-panel .explore-header {flex-shrink:0}
+#chat-panel .explore-back {display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:6px 0;border:0;background:transparent;font-size:13px;color:var(--chat-muted)}
+#chat-panel .explore-back .icon {width:15px;height:15px}
+#chat-panel .explore-intro {margin:18px 0 22px}
+#chat-panel .explore-eyebrow {display:block;margin-bottom:10px;color:var(--chat-muted);font-size:11px;line-height:1.4;font-weight:600;letter-spacing:1.5px}
+#chat-panel #explore-title {font-size:30px;letter-spacing:-.7px;margin:0 0 9px}
+#chat-panel .explore-intro p {font-size:15px;line-height:1.5;color:var(--chat-muted);margin:0}
+#chat-panel .explore-tools {display:flex;gap:12px;flex-shrink:0;margin-bottom:18px}
+#chat-panel .explore-search-field {position:relative;flex:1;min-width:0}
+#chat-panel .explore-search-field .icon {position:absolute;left:14px;top:14px;width:18px;height:18px;color:var(--chat-muted)}
+#chat-panel #explore-search {height:46px;width:100%;padding:12px 12px 12px 42px;font-size:14px}
+#chat-panel #explore-filter {min-height:46px;min-width:130px;max-width:43%;padding:10px 32px 10px 12px;border:1px solid var(--chat-border);border-radius:13px;background:var(--chat-input);color:var(--chat-text);font:14px Arial,Helvetica,sans-serif}
+#chat-panel .explore-feedback {display:flex;gap:12px;align-items:center;flex-shrink:0}
+#chat-panel #explore-status {margin:0 0 16px;font-size:13px;color:var(--chat-danger);overflow-wrap:anywhere}
+#chat-panel #explore-retry {margin:0 0 16px;min-height:34px;padding:5px 10px;font-size:13px;white-space:nowrap}
+#chat-panel .explore-scroll {overflow-y:auto;min-height:0;flex:1;padding:0 2px 24px;scrollbar-width:thin;scrollbar-color:var(--chat-border) transparent}
+#chat-panel #explore-results {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:14px;align-content:start}
+#chat-panel .explore-card {display:flex;flex-direction:column;min-width:0;padding:20px;border:1px solid var(--chat-border);border-radius:18px;background:var(--chat-input);transition:border-color 160ms ease,box-shadow 160ms ease}
+#chat-panel .explore-card:focus-within {border-color:var(--chat-primary)}
+#chat-panel .explore-card-private {background:linear-gradient(rgb(112 124 148 / 7%),rgb(112 124 148 / 7%)),var(--chat-input)}
+#chat-panel .explore-card-heading {display:flex;align-items:center;gap:13px;min-width:0}
+#chat-panel .explore-card-heading .avatar {width:48px;height:48px;flex-basis:48px;font-size:18px}
+#chat-panel .explore-card h3 {margin:0;font-size:17px;line-height:1.4;font-weight:600;overflow-wrap:anywhere}
+#chat-panel .explore-card-detail {margin:16px 0 24px;color:var(--chat-muted);font-size:13px;line-height:1.45}
+#chat-panel .explore-card-footer {display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:auto}
+#chat-panel .explore-card-state {font-size:12px;color:var(--chat-muted)}
+#chat-panel .explore-card-action {margin-left:auto;min-height:38px;padding:8px 14px;background:var(--chat-send);border-color:transparent;color:white;font-size:13px;font-weight:600}
+#chat-panel .explore-card-action:hover:not(:disabled) {background:var(--chat-primary-hover)}
+#chat-panel .explore-empty {margin:48px auto;max-width:300px;text-align:center;color:var(--chat-muted);font-size:15px;line-height:1.65}
+@keyframes explore-enter {from {opacity:0;transform:translateY(7px)} to {opacity:1;transform:translateY(0)}}
+@media(max-width:700px) {
+ #chat-panel #explore-panel {padding:14px 18px 0;border-radius:20px;grid-column:1;grid-row:1}
+ #chat-panel .explore-intro {margin:14px 0 20px}
+ #chat-panel #explore-title {font-size:26px}
+ #chat-panel .explore-tools {gap:8px}
+ #chat-panel #explore-filter {font-size:12px;min-width:116px;padding-right:22px}
+ #chat-panel .explore-card {padding:17px}
+}
+@media(prefers-reduced-motion:reduce) {#chat-panel #explore-panel {animation:none} #chat-panel .explore-card {transition:none}}

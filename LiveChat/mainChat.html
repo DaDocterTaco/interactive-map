@@ -6,10 +6,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FIU Live Chat</title>
-    <link rel="stylesheet" href="bottomSheet.css?v=polish-3">
-    <link rel="stylesheet" href="messageRhythm.css?v=polish-3">
-    <link rel="stylesheet" href="appearance.css?v=polish-3">
-    <script src="chat.js?v=polish-3" defer></script>
+    <link rel="stylesheet" href="bottomSheet.css?v=nav-5">
+    <link rel="stylesheet" href="messageRhythm.css?v=nav-5">
+    <link rel="stylesheet" href="appearance.css?v=nav-5">
+    <link rel="stylesheet" href="chatInfo.css?v=nav-5">
+    <link rel="stylesheet" href="explore.css?v=nav-5">
+    <script src="chat.js?v=nav-5" defer></script>
 </head>
 
 <body class="chat-standalone">
@@ -52,7 +54,7 @@
             </button>
             <h3 id="pinned-heading" class="chat-section-heading" hidden>Pinned</h3><div id="pinned-groups" aria-label="Pinned groups"></div>
             <hr class="chat-divider">
-            <h3 id="other-heading" class="chat-section-heading" hidden>Other chats</h3><div id="other-groups" aria-label="Other groups"></div>
+            <h3 id="other-heading" class="chat-section-heading" hidden>Your groups</h3><div id="other-groups" aria-label="Your groups"></div>
             <p id="groups-empty">Loading groups...</p>
             <section id="people-search-section" hidden aria-label="People search results">
                 <h3 class="people-heading">People</h3>
@@ -69,6 +71,7 @@
         </nav>
         <div class="new-chat-footer">
             <p id="groups-status" role="status"></p>
+            <button id="explore-groups" type="button" aria-controls="explore-panel" aria-expanded="false" disabled><span class="icon icon-search" aria-hidden="true"></span>Explore</button>
             <button id="new-chat" type="button" disabled><span class="icon icon-plus" aria-hidden="true"></span>New chat</button>
         </div>
     </aside>
@@ -98,16 +101,16 @@
     <section id="chats-conversation" class="chat-conversation" aria-labelledby="chat-title">
     <div class="mobile-conversation-nav"><button id="back-to-chats" type="button"><span class="icon icon-chevron-left" aria-hidden="true"></span>Back to chats</button></div>
     <header class="conversation-header">
-        <span id="conversation-avatar" class="avatar campus-avatar" aria-hidden="true"><span class="icon icon-people"></span></span>
-        <div class="conversation-heading"><h2 id="chat-title">Campus Chat</h2><p id="chat-subtitle">Public · Everyone on campus</p></div>
+        <button id="open-chat-info" class="conversation-info-trigger" type="button" aria-label="About Campus Chat" aria-haspopup="dialog" aria-controls="chat-info-panel">
+            <span id="conversation-avatar" class="avatar campus-avatar" aria-hidden="true"><span class="icon icon-people"></span></span>
+            <span class="conversation-heading"><span id="chat-title" role="heading" aria-level="2">Campus Chat</span><span id="chat-subtitle">Public · Everyone on campus</span></span>
+        </button>
         <button id="chat-more" class="icon-button" type="button" aria-label="Chat options" aria-expanded="false" aria-controls="chat-options"><span class="icon icon-more" aria-hidden="true"></span></button>
         <div id="chat-options" class="chat-options" hidden>
             <p id="chat-identity"></p>
             <p id="group-expiry"></p>
+            <button id="chat-info-menu" type="button" aria-haspopup="dialog" aria-controls="chat-info-panel">Chat info</button>
             <button id="toggle-message-times" type="button" aria-pressed="false" aria-controls="message-list"><span data-message-times-label>Show message times</span></button>
-            <button id="show-members" type="button" hidden><span class="icon icon-people" aria-hidden="true"></span>Members</button>
-            <button id="customize-group" type="button" hidden>Customize chat logo</button>
-            <button id="group-settings" class="danger-button" type="button" hidden><span class="icon icon-trash" aria-hidden="true"></span>Delete group</button>
             <button id="clear-chat" class="danger-button" type="button" hidden disabled>Clear Campus Chat</button>
             <p id="moderation-status" role="status"></p>
             <small id="chat-help">Latest 100 messages</small>
@@ -130,6 +133,19 @@
     <p id="message-status" role="status"></p>
     </div>
     </section>
+
+<section id="explore-panel" aria-labelledby="explore-title" hidden>
+    <header class="explore-header">
+        <button id="close-explore" type="button" class="explore-back"><span class="icon icon-chevron-left" aria-hidden="true"></span>Back to chats</button>
+        <div class="explore-intro"><span class="explore-eyebrow">FIND YOUR PEOPLE</span><h2 id="explore-title">Explore groups</h2><p>A place for every campus conversation.</p></div>
+    </header>
+    <div class="explore-tools">
+        <div class="explore-search-field"><span class="icon icon-search" aria-hidden="true"></span><label class="community-sr-only" for="explore-search">Search groups</label><input id="explore-search" type="search" placeholder="Find a group…" autocomplete="off"></div>
+        <label class="community-sr-only" for="explore-filter">Group visibility</label><select id="explore-filter"><option value="all">All groups</option><option value="public">Public groups</option><option value="private">Private groups</option></select>
+    </div>
+    <div class="explore-feedback"><p id="explore-status" role="status"></p><button id="explore-retry" type="button" hidden>Try again</button></div>
+    <div class="explore-scroll"><div id="explore-results" aria-label="Available groups"></div><p id="explore-empty" class="explore-empty" role="status">Loading groups…</p></div>
+</section>
 
 <section id="forums-panel" aria-label="Forums" data-detail="false" hidden>
     <div id="forum-content" class="forum-content">
@@ -188,6 +204,57 @@
     </div>
 </section>
 
+<!-- CHAT INFO START -->
+    <dialog id="chat-info-panel" class="group-dialog chat-info-dialog" aria-labelledby="chat-info-title">
+        <header class="chat-info-topbar">
+            <button id="chat-info-back" class="chat-info-icon-button" type="button" aria-label="Back to chat info" hidden><span class="icon icon-chevron-left" aria-hidden="true"></span></button>
+            <h2 id="chat-info-title">Chat info</h2>
+            <button id="close-chat-info" class="chat-info-icon-button" type="button" aria-label="Close chat info"><span class="icon icon-close" aria-hidden="true"></span></button>
+        </header>
+        <section id="chat-info-overview" aria-label="Chat information">
+            <div class="chat-info-hero">
+                <span id="chat-info-avatar" class="avatar campus-avatar" aria-hidden="true"></span>
+                <h3 id="chat-info-name"></h3>
+                <p id="chat-info-description"></p>
+            </div>
+            <div class="chat-info-links">
+                <button id="show-members" class="chat-info-row" type="button" hidden>
+                    <span class="chat-info-row-symbol"><span class="icon icon-people" aria-hidden="true"></span></span>
+                    <span class="chat-info-row-copy"><strong>Members</strong><span id="chat-info-member-count">Loading members…</span></span>
+                    <span id="chat-info-member-preview" class="chat-info-member-preview" aria-hidden="true"></span>
+                    <span class="icon icon-chevron-right" aria-hidden="true"></span>
+                </button>
+                <button id="chat-info-settings" class="chat-info-row" type="button" hidden>
+                    <span class="chat-info-row-symbol"><span class="icon icon-chat-settings" aria-hidden="true"></span></span>
+                    <span class="chat-info-row-copy"><strong>Chat settings</strong><span id="chat-info-settings-hint">Group details and appearance</span></span>
+                    <span class="icon icon-chevron-right" aria-hidden="true"></span>
+                </button>
+            </div>
+            <p id="chat-info-status" class="chat-info-status" role="status"></p>
+        </section>
+        <section id="chat-info-settings-page" aria-label="Chat settings" hidden>
+            <dl class="chat-info-facts">
+                <div><dt>Access</dt><dd id="chat-info-access"></dd></div>
+                <div><dt>Created by</dt><dd id="chat-info-owner"></dd></div>
+                <div id="chat-info-created-row" hidden><dt>Created</dt><dd id="chat-info-created"></dd></div>
+            </dl>
+            <div class="chat-info-settings-actions">
+                <button id="customize-group" class="chat-info-row" type="button" hidden>
+                    <span class="chat-info-row-symbol"><span class="icon icon-chat-image" aria-hidden="true"></span></span>
+                    <span class="chat-info-row-copy"><strong>Customize chat logo</strong><span>Image, icon, or initials</span></span>
+                    <span class="icon icon-chevron-right" aria-hidden="true"></span>
+                </button>
+                <button id="group-settings" class="chat-info-row danger-button" type="button" hidden>
+                    <span class="chat-info-row-symbol"><span class="icon icon-trash" aria-hidden="true"></span></span>
+                    <span class="chat-info-row-copy"><strong>Delete group</strong><span>Remove this group for everyone</span></span>
+                    <span class="icon icon-chevron-right" aria-hidden="true"></span>
+                </button>
+            </div>
+            <p id="chat-info-owner-note" class="chat-info-status" hidden>Only the owner can change the logo or delete this group.</p>
+        </section>
+    </dialog>
+
+<!-- CHAT INFO END -->
     <dialog id="profile-panel" class="group-dialog" aria-labelledby="profile-title">
         <h2 id="profile-title">Your profile</h2>
         <p id="profile-display-name" class="profile-display-name"></p>
