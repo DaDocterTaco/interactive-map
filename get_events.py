@@ -1,3 +1,6 @@
+#WARNING: please ensure you run this file from the interactive-map directory. 
+# Otherwise, a duplicate events.json file is
+
 #This file will be used to parse the XML from Panther COnnect's RSS Feed
 import requests
 import xml.etree.ElementTree as ET

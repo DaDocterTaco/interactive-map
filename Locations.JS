@@ -586,6 +586,13 @@ const buildings = [
       "latitude": 25.758904,
       "longitude": -80.37673,
       "description": ""
+    },
+    {
+      "abbreviation": "EC",
+      "full_name": "Engineering Center",
+      "latitude": 25.770010,
+      "longitude": -80.367750,
+      "description": ""
     }
 ];
 
