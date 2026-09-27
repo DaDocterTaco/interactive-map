@@ -1,20 +1,34 @@
-# Class search on the campus map
+# Class finder
 
-**Open Class**, directly below Open chat, opens an independent modal dialog. No chat sign-in is needed.
+Responsive class search integrated with the existing Leaflet map and chat theme.
 
-Students choose **Course & professor** (course code or title; optional professor and exact starting time) or **Class ID** (the section number). Results are ordered by start time and show professor, section, class ID, meeting pattern, exact dates, assigned room, and building. Select a result, select a meeting location if it has more than one, then use **Locate class**. The dialog closes and a dedicated blue C marker identifies that building at zoom 18. The marker popup retains the selected class details. Selecting another class replaces only this marker, preserving the building and warning layers.
+Desktop uses a search/result pane, section details, an actual map preview and a **Directions** action. At widths up to 700px the selected result expands into inline details with **Show on map**; arrival reveals a compact building summary and **Directions**. Per the approved scope, Directions centers the actual building, not a walking route.
 
-Data: `classes.json`, a 1.28 MB normalized snapshot containing 1,886 sections for **Fall 2026 (1268), MMC**, checked September 26, 2026. The browser fetches this file on the first submitted search and reuses it in memory. The host can enable ordinary gzip/Brotli compression (the JSON is about 94 KB gzipped). No SQLite server, Firebase read, per-search network request, package install, or student ID login is required. Public source records are bundled; updates are not live.
+## Behavior
 
-Locations display **Assigned in FIU 25Live** only when schema version 2 includes a verified flag, check timestamp and assignment label for that section. Every retained section passed exact identity, profile, time and assigned-room checks for every active date. Older or incomplete records show **Assignment not verified**. PAD 6807 RX02 (90423) was excluded because ten dates have no public assignment. Pins identify buildings, not doors or indoor/walking routes. Exact dates are preserved, including holiday exclusions. A missing result means the section is absent from this usable-location snapshot, not that FIU does not offer it. Private, online, cancelled, ambiguous and otherwise unusable source records were excluded in the audit. Assignments can change after this snapshot.
+- One field accepts a course code, partial department/code, title, or exact numeric class ID. Search is debounced 220ms; Enter runs immediately.
+- Optional professor/start-time filters; explicit selection, local pagination, exact meeting dates and multiple-location selection.
+- Catalog loaded once, including concurrent searches. Failed loads can retry; stale asynchronous results are ignored after edits or close.
+- All catalog text is rendered with textContent. The class layer is separate from existing map markers and warnings.
+- Native dialog focus handling, Escape/backdrop dismissal, visible keyboard focus, selected/pressed state, live status feedback and small-screen scrolling.
+- Map motion interpolates center and zoom monotonically over 2.8 seconds with quintic easing. It has no fly-out arc and supports interruption. Reduced motion uses immediate placement. The target is framed above the summary, not behind it.
+- Live chat theme variables supply light/dark surfaces. The primary action color is #0449d3 from the approved mockup.
 
-Files:
+## Data and map assets
 
-- `classData.mjs`: normalization, search, grouped locations/dates, lazy loader, formatting.
-- `classSearch.js`: accessible native dialog, result selection, pagination, safe text rendering, dedicated Leaflet marker.
-- `classSearch.css`: scoped dialog, result and map marker styles.
-- `classes.json`: compact data; deploy only this copy, not the original audit/cache or SQLite file.
+`classes.json` is the existing Fall 2026 MMC snapshot, with source and verification metadata preserved. It is not live enrollment data. Catalog pins represent buildings, not verified entrances or interior room locations.
 
-Run `node --test ClassSearch/classData.test.mjs`. Serve the project root over HTTP, as for the existing map. To refresh, rebuild a newly audited dataset and replace `classes.json`; update the initial term label in `classSearch.js` if the semester changes. The source workspace retains the full audit and database build scripts.
+`buildings.geojson` is derived from the existing local OpenStreetMap campus extract, using only polygons containing the corresponding catalog pin. It covers 22 buildings, including INV1; other classes retain their catalog pin without a fabricated outline. © OpenStreetMap contributors, ODbL; attribution is retained in both maps. Tiles use the existing OpenStreetMap tile service.
 
-The UI uses the native [dialog element](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/dialog) for focus containment and Escape dismissal, and the existing [Leaflet 1.9.4 marker and map APIs](https://leafletjs.com/reference.html). All dynamic source content is rendered with `textContent`.
+`assets/` contains unmodified Bootstrap Icons 1.11.3 from https://github.com/twbs/icons/tree/v1.11.3/icons, licensed under the accompanying MIT LICENSE. Shared search/filter/close/check/chevron icons remain in LiveChat/assets/icons.
+
+## Files and checks
+
+- `classSearch.js`: responsive UI, catalog interaction, preview and map-selection lifecycle.
+- `classSearch.css`: scoped styles, theme integration and responsive/motion rules.
+- `classData.mjs`: catalog parsing, formatting and matching.
+- `classMotion.mjs`: interruptible, reduced-motion-aware camera movement.
+
+Run `node --test ClassSearch/classData.test.mjs ClassSearch/classMotion.test.mjs` from the app root. No new runtime dependency is required.
+
+Visual proof and comparison notes are linked from the app-root `design-qa.md`. Existing class files and index were backed up before installation; unrelated chat changes were preserved.

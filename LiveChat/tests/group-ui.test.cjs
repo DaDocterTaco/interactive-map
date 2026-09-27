@@ -3,7 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const root = path.join(__dirname, '..');
-const html = fs.readFileSync(path.join(root, 'mainChat.html'), 'utf8') + ['group-logo-create.html', 'group-logo-dialog.html'].map(name => fs.readFileSync(path.join(root, 'fragments', name), 'utf8')).join('');
+const mainHtml = fs.readFileSync(path.join(root, 'mainChat.html'), 'utf8');
+const html = mainHtml.includes('id="explore-panel"') ? mainHtml : mainHtml + fs.readFileSync(path.join(root, 'fragments', 'explore-panel.html'), 'utf8');
 const code = fs.readFileSync(path.join(root, 'groupUI.js'), 'utf8').replace(/^import[^\n]+\n/gm, '').replaceAll('export ', '');
 const appearanceCode = fs.readFileSync(path.join(root, 'groupAppearance.js'), 'utf8').replaceAll('export ', '');
 const user = { uid: 'alice', displayName: 'Alice' };
@@ -17,23 +18,32 @@ function element() {
         value: '', textContent: '', children: [], attributes: {}, events: {}, open: false, disabled: false,
         addEventListener(name, handler) { this.events[name] = handler; },
         setAttribute(name, value) { this.attributes[name] = value; },
-        replaceChildren() { this.children = []; },
-        append(...children) { this.children.push(...children); },
+        getAttribute(name) { return this.attributes[name] ?? null; },
+        contains(node) { return this === node || this.children.some(child => child.contains?.(node)); },
+        querySelectorAll() { return this.children.flatMap(child => [...(child.attributes?.['data-explore-group'] ? [child] : []), ...(child.querySelectorAll?.() || [])]); },
+        replaceChildren(...children) {
+            if (this.ownerDocument && this.contains(this.ownerDocument.activeElement)) this.ownerDocument.activeElement = this.ownerDocument.body;
+            this.children = []; this.append(...children);
+        },
+        append(...children) { this.children.push(...children.flatMap(child => child.isFragment ? child.children : [child])); },
         appendChild(child) { this.children.push(child); },
-        showModal() { this.open = true; }, close() { if (this.open) { this.open = false; this.events.close?.(); } },
-        focus() { this.focused = true; }, reset() {}
+        showModal() { this.open = true; }, close() { if (this.open) { this.open = false; if (this.ownerDocument) this.ownerDocument.activeElement = this.ownerDocument.body; this.events.close?.(); } },
+        focus() { this.focused = true; if (this.ownerDocument) this.ownerDocument.activeElement = this; }, reset() {}
     };
 }
-function setup(initial = [privateGroup, publicGroup]) {
+function setup(initial = [privateGroup, publicGroup], initialMembership = true) {
     const elements = {};
     for (const [, id] of html.matchAll(/id="([^"]+)"/g)) elements[id] = element();
     elements['customize-group'] ||= element();
-    let list = initial.slice(), groupsChanged, pinsChanged, requestChanged, membershipChanged;
-    const calls = { selections: [], updates: [], pins: [], creates: [], deletes: [], joins: [], logos: [], requests: 0, disposed: 0, timers: 0 };
+    elements['group-settings'] ||= element();
+    elements['explore-groups'] ||= element();
+    let list = initial.slice(), groupsChanged, groupsFailed, pinsChanged, requestChanged;
+    const membershipListeners = new Map();
+    const calls = { selections: [], updates: [], explores: [], pins: [], creates: [], deletes: [], joins: [], logos: [], requests: 0, disposed: 0, memberStops: 0, timers: 0 };
     const hooks = {};
     const groups = {
         isClosed: group => !!group.deletedAt,
-        watchGroups(callback) { groupsChanged = callback; return () => calls.disposed++; },
+        watchGroups(callback, onError) { groupsChanged = callback; groupsFailed = onError; return () => calls.disposed++; },
         watchPins(uid, callback) { assert.equal(uid, user.uid); pinsChanged = callback; return () => calls.disposed++; },
         async setPinned(uid, id, pinned) { calls.pins.push({ uid, id, pinned }); pinsChanged(new Set(pinned ? [id] : [])); },
         async isMember(...args) { return hooks.isMember ? hooks.isMember(...args) : false; },
@@ -43,7 +53,11 @@ function setup(initial = [privateGroup, publicGroup]) {
             if (group.visibility === 'private' && password !== 'correct') throw { code: 'permission-denied' };
         },
         watchMyRequest(id, uid, callback) { requestChanged = callback; return () => {}; },
-        watchMembership(id, uid, callback) { membershipChanged = callback; return () => {}; },
+        watchMembership(id, uid, callback, onError) {
+            const listener = { callback, onError }; membershipListeners.set(id, listener);
+            if (initialMembership !== null) callback(initialMembership);
+            return () => { calls.memberStops++; if (membershipListeners.get(id) === listener) membershipListeners.delete(id); };
+        },
         async requestAccess() { calls.requests++; requestChanged({ status: 'pending' }); },
         async createGroup(member, values) { calls.creates.push(values); return { ...values, id: 'new', creatorId: member.uid }; },
         async saveGroupAppearance(id, member, appearance) { calls.logos.push({ id, uid: member.uid, appearance }); if (hooks.logo) return hooks.logo(); },
@@ -57,8 +71,12 @@ function setup(initial = [privateGroup, publicGroup]) {
         }
     };
     const document = {
-        getElementById: id => { assert.ok(elements[id], 'Missing ' + id); return elements[id]; }, createElement: element
+        getElementById: id => { assert.ok(elements[id], 'Missing ' + id); return elements[id]; },
+        createElement: () => ({ ...element(), ownerDocument: document }),
+        createDocumentFragment: () => ({ ...element(), isFragment: true })
     };
+    document.body = element(); document.activeElement = document.body;
+    for (const value of Object.values(elements)) value.ownerDocument = document;
     const { renderAppearance, logoInitials } = new Function('document', appearanceCode + '\nreturn { renderAppearance, logoInitials };')(document);
     const editors = {};
     const mountAppearanceEditor = (prefix, options) => editors[prefix] = {
@@ -67,14 +85,23 @@ function setup(initial = [privateGroup, publicGroup]) {
         updateName() {}, setDisabled(value) { this.disabled = value; }, dispose() {}
     };
     const mount = new Function('groups', 'document', 'renderAppearance', 'mountAppearanceEditor', 'setInterval', 'clearInterval', code + '\nreturn mountGroups;')(groups, document, renderAppearance, mountAppearanceEditor, () => { calls.timers++; }, () => {});
-    const controller = mount({ user, onSelect: group => calls.selections.push(group), onGroupUpdated: group => calls.updates.push(group) });
+    const controller = mount({ user, onSelect: group => calls.selections.push(group), onGroupUpdated: group => calls.updates.push(group), onExplore: open => calls.explores.push(open) });
     const fire = (id, event = 'click') => elements[id].events[event]({ preventDefault() {} });
     const snapshot = groups => { list = groups; groupsChanged(groups); };
     snapshot(list);
     const rows = () => [...elements['pinned-groups'].children, ...elements['other-groups'].children];
     const choice = name => { const row = rows().find(item => item.children[0].children[1].children[0].textContent === name); assert.ok(row, 'Missing group ' + name); return row.children[0]; };
     const selected = () => calls.selections.at(-1);
-    return { elements, calls, hooks, editors, controller, fire, snapshot, rows, choice, selected, request: value => requestChanged(value), membership: value => membershipChanged(value), oldMembershipCallback: () => membershipChanged };
+    const discover = name => {
+        const card = elements['explore-results'].children.find(item => item.children[0].children[1].textContent === name);
+        assert.ok(card, 'Missing discovery card ' + name); return card.children[2].children[1];
+    };
+    return { elements, calls, hooks, editors, controller, fire, snapshot, rows, choice, discover, selected, document,
+        groupError: error => groupsFailed(error), pinSnapshot: value => pinsChanged(value), request: value => requestChanged(value),
+        membership: (value, id = 'private') => membershipListeners.get(id).callback(value),
+        memberError: (error, id) => membershipListeners.get(id).onError(error),
+        oldMembershipCallback: (id = 'private') => membershipListeners.get(id).callback,
+        membershipListeners };
 }
 (async () => {
     assert.doesNotMatch(html, /group-idle-hours|settings-idle-hours|Hours without messages|Change time limit/);
@@ -99,7 +126,9 @@ function setup(initial = [privateGroup, publicGroup]) {
     assert.equal(sidebar.elements['other-groups'].children.length, 0);
 
     // Password and request flows remain functional.
-    await sidebar.choice('Study').events.click();
+    sidebar.membership(false); sidebar.fire('explore-groups');
+    assert.equal(sidebar.rows().length, 0, 'Unjoined pinned private group is removed from personal list');
+    await sidebar.discover('Study').events.click();
     assert.equal(sidebar.elements['join-group-panel'].open, true);
     sidebar.elements['join-group-password'].value = 'wrong'; await sidebar.fire('join-group-form', 'submit');
     assert.match(sidebar.elements['join-group-status'].textContent, /Incorrect password/);
@@ -176,8 +205,8 @@ function setup(initial = [privateGroup, publicGroup]) {
     }
 
     // Deleted private groups close their request dialog; a queued approval cannot reopen them.
-    const privateDeletion = setup([privateGroup]);
-    await privateDeletion.choice('Study').events.click();
+    const privateDeletion = setup([privateGroup], false);
+    await privateDeletion.discover('Study').events.click();
     const oldApproval = privateDeletion.oldMembershipCallback();
     privateDeletion.snapshot([{ ...privateGroup, deletedAt: {} }]); oldApproval(true);
     assert.equal(privateDeletion.elements['join-group-panel'].open, false);
@@ -234,9 +263,99 @@ function setup(initial = [privateGroup, publicGroup]) {
     assert.equal(logos.elements['appearance-panel'].open, false); assert.equal(logos.selected(), null);
     logos.controller.dispose();
 
+    // Discovery waits for confirmed membership, keeps pins separate, filters
+    // public/private groups, and tolerates listener errors and stale retries.
+    const discovery = setup([privateGroup, publicGroup, anotherOwner], null);
+    assert.equal(discovery.elements['explore-groups'].disabled, false, 'Explore becomes available after authenticated mount');
+    assert.equal(discovery.rows().length, 0);
+    assert.match(discovery.elements['groups-empty'].textContent, /Loading/);
+    assert.equal(discovery.discover('Football').disabled, true);
+    discovery.pinSnapshot(new Set(['private']));
+    discovery.membership(false, 'private'); discovery.membership(false, 'public'); discovery.membership(false, 'other-owner');
+    assert.equal(discovery.rows().length, 0, 'An unjoined pinned group stays in discovery');
+    assert.equal(discovery.discover('Study').textContent, 'Request to join');
+    assert.equal(discovery.discover('Football').textContent, 'Join group');
+    discovery.fire('explore-groups'); assert.equal(discovery.controller.isExploring(), true);
+    assert.equal(discovery.elements['explore-search'].focused, true);
+    discovery.elements['explore-filter'].value = 'private'; discovery.fire('explore-filter', 'change');
+    assert.equal(discovery.elements['explore-results'].children.length, 1);
+    discovery.elements['explore-search'].value = 'STUD'; discovery.fire('explore-search', 'input');
+    assert.equal(discovery.elements['explore-results'].children.length, 1);
+    discovery.elements['explore-search'].value = '<missing>'; discovery.fire('explore-search', 'input');
+    assert.equal(discovery.elements['explore-empty'].hidden, false);
+    assert.match(discovery.elements['explore-empty'].textContent, /No groups match/);
+    discovery.elements['explore-search'].value = ''; discovery.elements['explore-filter'].value = 'all'; discovery.fire('explore-filter', 'change');
+    const staleMembership = discovery.oldMembershipCallback('public');
+    discovery.memberError(Error('Offline'), 'public');
+    assert.equal(discovery.discover('Football').textContent, 'Retry');
+    assert.equal(discovery.elements['explore-retry'].hidden, false);
+    discovery.discover('Football').events.click();
+    assert.equal(discovery.discover('Football').textContent, 'Checking…');
+    staleMembership(true); assert.equal(discovery.rows().length, 0, 'A superseded listener cannot create membership');
+    discovery.membership(false, 'public');
+    const confirmed = deferred(); discovery.hooks.join = () => confirmed.promise;
+    const waitingJoin = discovery.discover('Football').events.click(); await tick();
+    assert.equal(discovery.discover('Football').textContent, 'Opening…');
+    assert.equal(discovery.rows().length, 0, 'Joining is not optimistic');
+    confirmed.resolve(); await waitingJoin;
+    assert.equal(discovery.rows().length, 1); assert.equal(discovery.selected().id, 'public');
+    assert.equal(discovery.controller.isExploring(), false);
+    assert.equal(discovery.discover('Football').textContent, 'Open chat');
+    assert.deepEqual(discovery.calls.explores, [true, false]);
+    discovery.membership(true, 'private');
+    assert.equal(discovery.elements['pinned-groups'].children.length, 1, 'An external approval joins a pinned group');
+    discovery.membership(false, 'public');
+    assert.equal(discovery.selected(), null, 'Revoked membership returns to Campus');
+    discovery.fire('explore-groups'); discovery.fire('close-explore');
+    assert.equal(discovery.elements['explore-groups'].focused, true);
+    discovery.groupError(Error('Connection lost'));
+    assert.match(discovery.elements['explore-status'].textContent, /Connection lost/);
+    discovery.fire('explore-retry'); discovery.snapshot([privateGroup, publicGroup, anotherOwner]);
+    assert.equal(discovery.elements['explore-retry'].hidden, true);
+    const beforeRemoval = discovery.calls.memberStops;
+    discovery.snapshot([publicGroup, anotherOwner]);
+    assert.equal(discovery.calls.memberStops, beforeRemoval + 1);
+    const lateMembership = discovery.oldMembershipCallback('public');
+    discovery.controller.dispose(); lateMembership(true);
+    assert.equal(discovery.elements['explore-groups'].disabled, true, 'Explore is disabled after session disposal');
+    assert.equal(discovery.membershipListeners.size, 0);
+    assert.equal(discovery.calls.selections.at(-1), null);
+
+    // Returning from discovery cancels pending navigation, without pretending
+    // an already submitted join was cancelled on the server.
+    const returnFromExplore = setup([publicGroup], false), pendingMembership = deferred();
+    returnFromExplore.hooks.isMember = () => pendingMembership.promise;
+    returnFromExplore.fire('explore-groups');
+    const pendingOpen = returnFromExplore.discover('Football').events.click();
+    returnFromExplore.fire('close-explore'); pendingMembership.resolve(false); await pendingOpen;
+    assert.equal(returnFromExplore.calls.selections.length, 0);
+    assert.equal(returnFromExplore.calls.joins.length, 0);
+    returnFromExplore.controller.dispose();
+
+    // Keyboard focus returns to the current card after loading nodes are
+    // replaced, failed joins, private cancellation, and membership retries.
+    const keyboard = setup([publicGroup, privateGroup], null);
+    keyboard.membership(false, 'public'); keyboard.membership(false, 'private'); keyboard.fire('explore-groups');
+    keyboard.hooks.join = async () => { throw Error('Connection lost'); };
+    keyboard.discover('Football').focus(); await keyboard.discover('Football').events.click();
+    assert.equal(keyboard.document.activeElement, keyboard.discover('Football'));
+    keyboard.discover('Study').focus(); await keyboard.discover('Study').events.click();
+    assert.equal(keyboard.elements['join-group-panel'].open, true);
+    keyboard.fire('cancel-join-group');
+    assert.equal(keyboard.document.activeElement, keyboard.discover('Study'));
+    keyboard.memberError(Error('Offline'), 'public'); keyboard.discover('Football').focus(); keyboard.discover('Football').events.click();
+    assert.equal(keyboard.discover('Football').textContent, 'Checking…');
+    keyboard.membership(false, 'public');
+    assert.equal(keyboard.document.activeElement, keyboard.discover('Football'));
+    const failingJoin = deferred(); keyboard.hooks.join = () => failingJoin.promise;
+    keyboard.discover('Football').focus(); const waitingFailure = keyboard.discover('Football').events.click(); await tick();
+    keyboard.elements['explore-search'].focus(); failingJoin.reject(Error('Offline')); await waitingFailure;
+    assert.equal(keyboard.document.activeElement, keyboard.elements['explore-search'], 'Late errors do not steal a new focus target');
+    keyboard.controller.dispose();
+
     // Disposed controllers cannot select a group after a late network completion.
     const disposal = setup([publicGroup]), late = deferred(); disposal.hooks.isMember = () => late.promise;
     const lateOpen = disposal.choice('Football').events.click(); disposal.controller.dispose(); late.resolve(false); await lateOpen;
     assert.equal(disposal.calls.selections.length, 0);
-    console.log('PASS: persistent legacy/new groups, search/pins/private access, owner-only deletion, cancel/busy/failure/retry, cross-client removal, stale async guards, password cleanup and listener disposal.');
+    console.log('PASS: joined-only groups, discovery/search/filter, confirmed joins, membership retry/revocation/disposal, private approval, persistent groups, owner logo/deletion, and stale navigation guards.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

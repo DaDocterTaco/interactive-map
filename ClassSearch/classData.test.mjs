@@ -7,6 +7,18 @@ import {createCatalog,createCatalogLoader,formatTime,formatDays} from './classDa
 const data=JSON.parse(readFileSync(new URL('./classes.json',import.meta.url)));
 const catalog=createCatalog(data);
 
+test('unified search handles IDs, department prefixes and partial numbers with filters',()=>{
+    const expected=catalog.search({mode:'id',classId:'84848'});
+    assert.deepEqual(catalog.search({mode:'auto',course:'84848'}),expected);
+    assert.deepEqual(catalog.search({mode:'auto',course:'84848',professor:'nobody'}),[]);
+    for(const course of ['COT','cot 3','cot-31']) {
+        const results=catalog.search({mode:'auto',course});
+        assert.ok(results.some(row=>row.class_id==='84848'));
+        assert.ok(results.every(row=>row.course_code.startsWith('COT')));
+    }
+    assert.deepEqual(catalog.search({mode:'auto',course:'COT 3100',professor:'WHITTAKER',time:'08:00'}),expected);
+});
+
 test('class ID and course/professor/time find the same verified COT section',()=>{
     const id=catalog.search({mode:'id',classId:' 84848 '});
     assert.equal(id.length,1);

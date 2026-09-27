@@ -45,7 +45,7 @@ function node(tag = 'div') { return {
     querySelectorAll() { return controls; }
 }; }
 const nodes = {}, controls = [];
-const fragment = await fs.readFile(new URL('../fragments/group-logo-create.html', import.meta.url), 'utf8');
+const fragment = await fs.readFile(new URL('../mainChat.html', import.meta.url), 'utf8');
 for (const [, id] of fragment.matchAll(/id="([^"]+)"/g)) nodes[id] = node();
 controls.push(nodes['create-logo-kind'], nodes['create-logo-text'], nodes['create-logo-file']);
 globalThis.document = { getElementById: id => { assert.ok(nodes[id], id); return nodes[id]; }, createElement: tag => { const element = node(tag); if (tag === 'button') controls.push(element); return element; } };

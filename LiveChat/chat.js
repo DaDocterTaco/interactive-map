@@ -22,7 +22,9 @@ let groupService;
 let groupController;
 let peopleController;
 let forumController;
+let infoController;
 let activeSection = "chats";
+let chatView = "conversation";
 let currentGroup = null;
 let stopRequests;
 const drafts = new Map();
@@ -230,8 +232,12 @@ function connectionMessage(text, state) {
     connectionStatus.textContent = text;
     connectionStatus.dataset.state = state;
 }
+function canFocusComposer() {
+    return activeSection === "chats" && chatView === "conversation"
+        && !["chat-info-panel", "members-panel", "appearance-panel", "create-group-panel", "join-group-panel", "profile-panel", "group-settings-panel", "moderation-panel"].some(id => el(id)?.open);
+}
 function focusComposer() {
-    if (activeSection === "chats" && !window.matchMedia("(max-width: 700px)").matches) messageInput.focus({ preventScroll: true });
+    if (canFocusComposer() && !window.matchMedia("(max-width: 700px)").matches) messageInput.focus({ preventScroll: true });
 }
 function scrollToLatest() {
     messageList.scrollTo({ top: messageList.scrollHeight, behavior: reducedMotion.matches ? "instant" : "smooth" });
@@ -285,7 +291,25 @@ function disconnectModerator() {
     updateControls();
 }
 
+function renderChatView() {
+    const forums = activeSection === "forums";
+    el("chats-conversation").hidden = forums || chatView === "explore";
+    el("explore-panel").hidden = forums || chatView !== "explore";
+    chatPanel.dataset.chatView = chatView;
+    el("explore-groups").setAttribute("aria-expanded", String(!forums && chatView === "explore"));
+}
+function selectExplore(open) {
+    chatView = open ? "explore" : "conversation";
+    setMenu(false); stopTimeGesture();
+    el("chat-info-panel")?.close();
+    if (open) setMobileView("conversation", false);
+    else if (window.matchMedia("(max-width: 700px)").matches) setMobileView("list", false);
+    renderChatView();
+}
 function selectSection(section) {
+    groupController?.closeExplore?.({ focus: false });
+    chatView = "conversation";
+    el("chat-info-panel")?.close();
     activeSection = section;
     chatPanel.dataset.section = section;
     setMenu(false);
@@ -294,7 +318,7 @@ function selectSection(section) {
     document.getElementById("chats-tab").setAttribute("aria-pressed", String(!forums));
     document.getElementById("forums-tab").setAttribute("aria-pressed", String(forums));
     document.getElementById("chats-sidebar").hidden = forums;
-    document.getElementById("chats-conversation").hidden = forums;
+    renderChatView();
     document.getElementById("forums-panel").hidden = !forums;
     document.getElementById("forums-sidebar").hidden = !forums;
     forumController?.setActive(forums);
@@ -590,6 +614,7 @@ function updateGroup(group) {
     if (group.visibility === "direct") return;
     if (currentGroup?.id !== group.id) return;
     currentGroup = group;
+    infoController?.refresh(group);
     const closed = groupService.isClosed(group);
     document.getElementById("group-settings").hidden = closed || group.creatorId !== currentUser.uid;
     el("customize-group").hidden = closed || group.creatorId !== currentUser.uid;
@@ -637,10 +662,14 @@ function renderRequests(requests, group, version) {
 }
 
 function selectConversation(group, { reveal = true } = {}) {
+    groupController?.closeExplore?.({ focus: false });
+    chatView = "conversation";
+    renderChatView();
     drafts.set(currentGroup?.id || "Campus Chat", messageInput.value);
     disconnectMessages();
     const version = viewVersion;
     currentGroup = group;
+    infoController?.setConversation(group);
     setMenu(false);
     if (reveal) setMobileView("conversation");
     peopleController?.setConversation(group);
@@ -697,9 +726,10 @@ function selectConversation(group, { reveal = true } = {}) {
 }
 
 async function showChat(user) {
+    infoController?.dispose(); infoController = null;
     disconnectModerator();
     disconnectMessages();
-    groupController?.dispose();
+    groupController?.dispose(); groupController = null;
     peopleController?.dispose(); peopleController = null;
     forumController?.dispose();
     forumController = null;
@@ -716,7 +746,7 @@ async function showChat(user) {
     discardOldLocalHistory();
     if (!chatPanel.open) chatPanel.showModal();
     try {
-        const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js"), import("./forums/forumUI.js"), import("./people.js"), import("./peopleUI.js")]);
+        const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js?v=nav-5"), import("./forums/forumUI.js?v=forum-approved-4"), import("./people.js"), import("./peopleUI.js?v=nav-5"), import("./chatInfoUI.js?v=nav-5")]);
         await modules[4].saveProfile(user);
         if (version !== viewVersion || !chatPanel.open) return;
         [chatService, groupService] = modules;
@@ -731,11 +761,13 @@ async function showChat(user) {
             if (!disposed && chatPanel.open) document.getElementById("moderation-status").textContent = "Moderator access could not be checked. Reopen chat to retry.";
         });
         stopModerator = () => { disposed = true; stop(); };
-        groupController = modules[2].mountGroups({ user, onSelect: selectConversation, onGroupUpdated: updateGroup });
+        groupController = modules[2].mountGroups({ user, onSelect: selectConversation, onGroupUpdated: updateGroup, onExplore: selectExplore });
         peopleController = modules[5].mountPeople({ user, onSelect: chat => groupController.selectExternal(chat) });
+        infoController = modules[6].mountChatInfo({ user });
         forumController = modules[3].mountForums({ user });
         forumController.setActive(activeSection === "forums");
         selectConversation(null, { reveal: false });
+        if (new URL(location.href).searchParams.has("forum")) selectSection("forums");
     } catch (error) {
         if (version === viewVersion) {
             connectionMessage(errorMessage(error), "error");
@@ -768,6 +800,9 @@ openButton.addEventListener("click", async () => {
 });
 
 nameInput.addEventListener("input", () => nameInput.setCustomValidity(""));
+// Standalone shared links open their discussion after restoring the current account.
+// The map loader handles this itself once the open button has been enabled.
+if (new URL(location.href).searchParams.has("forum") && !openButton.disabled) openButton.click();
 nameForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (joining) return;
@@ -828,6 +863,7 @@ chatPanel.addEventListener("close", () => {
     drafts.set(currentGroup?.id || "Campus Chat", messageInput.value);
     setMenu(false); finishModeration();
     if (el("profile-panel")?.open) el("profile-panel").close();
+    infoController?.dispose(); infoController = null;
     disconnectModerator();
     disconnectMessages(); groupController?.dispose(); groupController = null;
     peopleController?.dispose(); peopleController = null;
@@ -866,7 +902,7 @@ messageForm.addEventListener("submit", async (event) => {
     } finally {
         sending = false;
         updateControls();
-        if (version === viewVersion) messageInput.focus({ preventScroll: true });
+        if (version === viewVersion && canFocusComposer()) messageInput.focus({ preventScroll: true });
     }
 });
 

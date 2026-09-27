@@ -1,196 +1,276 @@
+import { locateOnMap } from './classMotion.mjs';
 import { createCatalogLoader, formatDays, formatTime, formatDate, dateRange } from './classData.mjs';
 
-// Build the search dialog when the feature mounts; class data loads on the
-// first search. Its pin stays separate from building and warning layers.
-const element = (tag, text, className) => {
+const el = (tag, text, className) => {
     const node = document.createElement(tag);
     if (text != null) node.textContent = text;
     if (className) node.className = className;
     return node;
 };
+const icon = name => `<span class="cs-icon cs-${name}" aria-hidden="true"></span>`;
+const schedule = section => {
+    let start = formatTime(section.start_time), end = formatTime(section.end_time);
+    if (start.slice(-2) === end.slice(-2)) start = start.slice(0,-3);
+    return `${formatDays(section.days)} · ${start}–${end}`;
+};
 
 export function mountClassSearch({ map, L }) {
     const openButton = document.getElementById('open-class');
-    const dialog = document.createElement('dialog');
-    dialog.id = 'class-dialog';
-    dialog.setAttribute('aria-labelledby', 'class-title');
+    if (!openButton || document.getElementById('class-dialog')) return;
+    const mobile = matchMedia('(max-width: 700px)');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    const dialog = el('dialog');
+    dialog.id = 'class-dialog'; dialog.setAttribute('aria-labelledby','class-title');
     dialog.innerHTML = `
-        <header class="class-header">
-            <div><p class="class-eyebrow">FIND YOUR WAY</p><h2 id="class-title">Open Class</h2><p class="class-subtitle">Find your section, then locate its building.</p></div>
-            <button type="button" class="class-close" aria-label="Close class search">×</button>
-        </header>
-        <div class="class-body">
-            <p class="class-term" id="class-term">Fall 2026 · MMC</p>
-            <form id="class-search-form">
-                <fieldset class="class-modes"><legend>Search by</legend>
-                    <label><input type="radio" name="class-mode" value="course" checked> Course & professor</label>
-                    <label><input type="radio" name="class-mode" value="id"> Class ID</label>
-                </fieldset>
-                <div id="class-course-fields" class="class-fields">
-                    <label class="class-course-label">Course name or code<input id="class-course" placeholder="e.g. COT 3100 or Discrete Structures" autocomplete="off" maxlength="100" required></label>
-                    <label>Professor <span class="class-optional">(optional)</span><input id="class-professor" placeholder="e.g. Whittaker" autocomplete="off" maxlength="100"></label>
-                    <label>Start time <span class="class-optional">(optional)</span><input id="class-time" type="time"></label>
-                </div>
-                <div id="class-id-fields" hidden>
-                    <label>Class ID<input id="class-id" placeholder="e.g. 84848" inputmode="numeric" pattern="[0-9]+" maxlength="12" autocomplete="off" disabled></label>
-                    <p class="class-help">Use the section’s class number from your schedule, such as 84848.</p>
-                </div>
-                <button type="submit" class="class-search-button">Search classes</button>
-            </form>
-            <p id="class-results-status" role="status" aria-live="polite">Search by course and professor, or use a class ID.</p>
-            <div id="class-results" role="group" aria-label="Matching class sections"></div>
-            <button type="button" id="class-more" hidden>Show more classes</button>
-            <p class="class-data-note" id="class-data-note">Room assignments are checked against FIU 25Live. Only classes with usable MMC location data are included.</p>
+      <button type="button" class="class-close cs-icon-button" aria-label="Close class search">${icon('close')}</button>
+      <section class="class-sidebar">
+        <header class="class-header"><span class="class-book">${icon('book')}</span><div><h2 id="class-title">Find a class</h2><p id="class-term">Fall 2026 · MMC</p></div></header>
+        <form id="class-search-form" role="search" aria-label="Find a class">
+          <div class="class-search-line"><div class="class-search-input">${icon('search')}<input id="class-query" aria-label="Course, title or class ID" placeholder="Course, title or class ID" maxlength="100" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="button" class="cs-icon-button" id="class-clear-query" aria-label="Clear search" hidden>${icon('close')}</button></div>
+          <button type="button" id="class-filter-toggle" aria-expanded="false" aria-controls="class-filters">${icon('filters')}<span>Filters</span><span id="class-filter-count" hidden></span>${icon('right')}</button></div>
+          <div id="class-filters" hidden><label>Professor<input id="class-professor" placeholder="e.g. Whittaker" maxlength="100" autocomplete="off"></label><label>Start time<input id="class-time" type="time"></label><button type="button" id="class-reset-filters">Reset filters</button></div>
+          <button type="submit" class="cs-sr-only">Search classes</button>
+        </form>
+        <div class="class-results-heading"><h3>Results</h3><span id="class-count"></span></div>
+        <p id="class-status" class="cs-sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+        <div class="class-results-scroll"><div id="class-feedback"><strong>Find your section</strong><p>Search by course, title or class ID.</p><button id="class-retry" type="button" hidden>Try again</button></div><div id="class-results" role="group" aria-label="Matching class sections"></div><button id="class-more" type="button" hidden>Show more sections</button></div>
+        <button type="button" class="class-search-help">${icon('search')}<span>Search another course<small>Try a different course name or code.</small></span></button>
+      </section>
+      <section class="class-detail-pane" aria-label="Selected section">
+        <div class="class-detail-empty">${icon('book')}<h3>Your class, in focus.</h3><p>Choose a section to see its meeting time,<br>room and building.</p></div>
+        <div class="class-detail-content" hidden>
+          <div class="class-detail-grid"><div class="class-detail-info">
+            <header class="class-detail-header"><p>Selected section</p><h3 id="class-course-code"></h3><h4 id="class-course-name"></h4><span id="class-section"></span></header>
+            <dl class="class-facts">
+              <div>${icon('person')}<div><dt>Professor</dt><dd id="class-instructor"></dd></div></div>
+              <div>${icon('id')}<div><dt>Class ID</dt><dd id="class-id"></dd></div></div>
+              <div>${icon('clock')}<div><dt>Meeting time</dt><dd id="class-schedule"></dd></div></div>
+              <div>${icon('geo')}<div><dt>Location</dt><dd><span id="class-room"></span><span id="class-building"></span></dd></div></div>
+            </dl>
+            <label id="class-location-label" hidden>Meeting location<select id="class-location-choice"></select></label>
+            <details class="class-dates"><summary>${icon('calendar')}<span>Meeting dates</span>${icon('down')}</summary><div><p id="class-date-range"></p><p id="class-dates-list"></p><p id="class-data-note"></p></div></details>
+          </div><div class="class-map-preview" role="img" aria-label="Selected building on the campus map"><div id="class-preview-map"></div><span class="class-preview-unavailable" hidden>Map preview unavailable. You can still view the building location.</span></div></div>
+          <footer class="class-footer"><button type="button" id="class-clear-selection">Clear selection</button><button type="button" id="locate-class" class="cs-primary">${icon('directions')}<span>Directions</span></button></footer>
         </div>
-        <footer class="class-footer"><p id="class-selection">Select a class to locate it.</p><button id="locate-class" type="button" disabled>Locate class</button></footer>`;
+      </section>`;
     document.body.append(dialog);
-    const find = selector => dialog.querySelector(selector);
-    const form = find('#class-search-form'), results = find('#class-results'), status = find('#class-results-status');
-    const locate = find('#locate-class'), selectionText = find('#class-selection'), more = find('#class-more');
-    const loadCatalog = createCatalogLoader(new URL('./classes.json?v=assigned-20260926', import.meta.url));
-    // revision invalidates any fetch result after edits, mode changes, or close.
-    let catalog, mode = 'course', selected, selectedRadio, marker, matches = [], shown = 0, revision = 0;
-
-    function clearResults() {
-        revision++;
-        results.replaceChildren(); matches = []; shown = 0; selected = null; selectedRadio = null;
-        more.hidden = true; locate.disabled = true;
-        selectionText.textContent = 'Select a class to locate it.';
-        results.removeAttribute('aria-busy');
+    const journey = el('section',null,'class-journey'); journey.hidden=true;
+    journey.setAttribute('aria-label','Class location');
+    journey.innerHTML=`<div class="class-journey-handle" aria-hidden="true"></div><button type="button" class="class-dismiss cs-icon-button" aria-label="Dismiss class location">${icon('close')}</button>
+      <p class="class-journey-state" role="status" aria-live="polite" aria-atomic="true">${icon('check-circle')}<span></span></p>
+      <h2 class="class-journey-room"></h2><p class="class-journey-building"></p>
+      <div class="class-journey-course">${icon('book')}<div><strong></strong><span></span></div></div>
+      <p class="class-journey-time">${icon('calendar')}<span></span></p>
+      <button type="button" class="class-stop">Stop movement</button><button type="button" class="class-directions cs-primary">${icon('directions')}<span>Directions</span></button>`;
+    const mapNav = el('nav',null,'class-map-nav'); mapNav.hidden=true; mapNav.setAttribute('aria-label','Class map navigation');
+    mapNav.innerHTML=`<button type="button" class="class-return">${icon('left')}Class details</button><span>MMC</span>`;
+    document.body.append(journey,mapNav);
+    const $ = selector => dialog.querySelector(selector);
+    const query=$('#class-query'), results=$('#class-results'), status=$('#class-status'), pane=$('.class-detail-pane');
+    const detail=$('.class-detail-content'), feedback=$('#class-feedback'), more=$('#class-more');
+    const loadCatalog=createCatalogLoader(new URL('./classes.json',import.meta.url));
+    let catalog, matches=[], shown=0, selected=null, revision=0, searchTimer, exitTimer;
+    let preview, previewPin, previewShape, marker, shape, cancelJourney, observer;
+    let footprints, footprintPromise, openingForMap=false;
+    const locationLayer=L.layerGroup().addTo(map);
+    const loadFootprints=()=>footprintPromise ||= fetch(new URL('./buildings.geojson',import.meta.url))
+        .then(r=>r.ok?r.json():null).then(data=>{footprints=data;return data;}).catch(()=>null);
+    const announce = message => { status.textContent=message; };
+    const coordinates = location => [location.building.latitude,location.building.longitude];
+    function pinIcon(size=42) {
+        return L.divIcon({className:'class-map-pin',html:icon('pin'),iconSize:[size,size],iconAnchor:[size/2,size]});
     }
-    function choose(section, location, radio) {
-        selected = { section, location };
-        selectedRadio?.closest('.class-card').classList.remove('is-selected');
-        selectedRadio = radio; radio.checked = true;
-        radio.closest('.class-card').classList.add('is-selected');
-        locate.disabled = false;
-        selectionText.textContent = `${section.course_code} · ${location.building.code}, room ${location.room}`;
+    function addShape(target, location) {
+        const feature=footprints?.features.find(f=>f.properties.code===location.building.code);
+        return feature ? L.geoJSON(feature,{style:{color:'#0863ff',weight:2,fillColor:'#0863ff',fillOpacity:.17},interactive:false}).addTo(target):null;
     }
-    function card(section) {
-        // Render source data through textContent so names and room labels are
-        // treated as text even if the dataset contains markup characters.
-        const article = element('article', null, 'class-card');
-        const label = element('label', null, 'class-card-heading');
-        const radio = document.createElement('input');
-        radio.type = 'radio'; radio.name = 'class-result'; radio.value = section.class_id;
-        const heading = element('span');
-        heading.append(element('strong', `${section.course_code} · ${section.section}`), element('span', section.course_name, 'class-course-name'));
-        const badge = element('span', section.location_status, section.assignment_verified ? 'class-requested class-assigned' : 'class-requested');
-        if (section.assignment_verified) badge.title = `Every meeting matched FIU's assigned room. Checked ${formatDate(section.assignment_checked_at.slice(0, 10))}.`;
-        label.append(radio, heading, badge);
-        article.append(label, element('p', `${section.instructor} · Class ID ${section.class_id}`, 'class-professor'),
-            element('p', `${formatDays(section.days)} · ${formatTime(section.start_time)} – ${formatTime(section.end_time)}`, 'class-schedule'));
-        let location = section.locations[0];
-        const locationText = element('p', null, 'class-location');
-        const dates = element('p', null, 'class-date-range');
-        const detail = element('details', null, 'class-dates');
-        const datesList = element('p');
-        detail.append(element('summary', 'Meeting dates'), datesList);
-        function updateLocation() {
-            locationText.textContent = `${location.building.name} (${location.building.code}) · Room ${location.room}`;
-            dates.textContent = `${dateRange(location.dates)} · ${location.dates.length} ${location.dates.length === 1 ? 'meeting' : 'meetings'}`;
-            datesList.textContent = location.dates.map(formatDate).join(' · ');
+    function resetPreview() { previewPin?.remove(); previewShape?.remove(); previewPin=previewShape=null; }
+    function framePreview() {
+        if (!preview || !selected) return;
+        if (previewShape) preview.fitBounds(previewShape.getBounds(),{padding:[28,44],maxZoom:18,animate:false});
+        else preview.setView(coordinates(selected.location),$('#class-preview-map').clientWidth<300?17:18,{animate:false});
+    }
+    function updatePreview() {
+        if (!selected || mobile.matches || !dialog.open) return;
+        if (!preview) {
+            preview=L.map('class-preview-map',{zoomControl:false,attributionControl:true,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,zoomAnimation:false,fadeAnimation:false});
+            preview.attributionControl.setPrefix(false);
+            const tiles=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(preview);
+            tiles.on('tileerror',()=>$('.class-preview-unavailable').hidden=false);
+            tiles.on('tileload',()=>$('.class-preview-unavailable').hidden=true);
+            observer=new ResizeObserver(()=>{if(dialog.open&&!mobile.matches){preview.invalidateSize({pan:false});framePreview();}});
+            observer.observe($('#class-preview-map'));
         }
-        if (section.locations.length > 1) {
-            const locationLabel = element('label', 'Meeting location', 'class-location-choice');
-            const select = document.createElement('select');
-            section.locations.forEach((item, i) => {
-                const option = element('option', `${item.building.code} ${item.room} · ${dateRange(item.dates)}`);
-                option.value = String(i); select.append(option);
-            });
-            select.addEventListener('change', () => { location = section.locations[Number(select.value)]; updateLocation(); choose(section, location, radio); });
-            locationLabel.append(select); article.append(locationLabel);
+        preview.invalidateSize({pan:false}); resetPreview();
+        const {location}=selected;
+        preview.setView(coordinates(location),18,{animate:false});
+        previewPin=L.marker(coordinates(location),{icon:pinIcon(),keyboard:false,interactive:false}).addTo(preview)
+            .bindTooltip(el('span',location.building.code),{permanent:true,direction:'top',className:'class-building-label',offset:[0,-44]}).openTooltip();
+        previewShape=addShape(preview,location);
+        framePreview();
+        loadFootprints().then(()=>{if(selected?.location===location && preview && !previewShape){previewShape=addShape(preview,location);framePreview();}});
+    }
+    function placeDetails() {
+        const article=selected && results.querySelector(`[data-class-id="${CSS.escape(selected.section.class_id)}"]`);
+        if(mobile.matches&&article) article.append(pane); else dialog.append(pane);
+        $('#locate-class').innerHTML=icon(mobile.matches?'pin':'directions')+`<span>${mobile.matches?'Show on map':'Directions'}</span>`;
+        requestAnimationFrame(updatePreview);
+    }
+    function hideJourney(removePin=false) {
+        cancelJourney?.(); journey.hidden=true; mapNav.hidden=true;
+        document.body.classList.remove('class-location-active');
+        map.getContainer().classList.remove('class-map-focused');
+        map.zoomControl?.setPosition('topleft');
+        if(removePin) {locationLayer.clearLayers();marker=shape=null;}
+    }
+    function clearSelection() {
+        dialog.append(pane); selected=null;
+        results.querySelectorAll('.class-result').forEach(row=>{row.classList.remove('is-selected'); const b=row.querySelector('button');b.setAttribute('aria-pressed','false');b.setAttribute('aria-expanded','false');});
+        detail.hidden=true; $('.class-detail-empty').hidden=false; dialog.classList.remove('has-selection');
+        resetPreview(); hideJourney(true);
+    }
+    function choose(section,location=section.locations[0]) {
+        const changed=selected?.section!==section;
+        selected={section,location}; detail.hidden=false; $('.class-detail-empty').hidden=true; dialog.classList.add('has-selection');
+        results.querySelectorAll('.class-result').forEach(row=>{const chosen=row.dataset.classId===section.class_id;row.classList.toggle('is-selected',chosen);row.querySelector('button').setAttribute('aria-pressed',String(chosen));row.querySelector('button').setAttribute('aria-expanded',String(chosen));});
+        $('#class-course-code').textContent=section.course_code; $('#class-course-name').textContent=section.course_name;
+        $('#class-section').textContent=`Section ${section.section}`; $('#class-instructor').textContent=section.instructor;
+        $('#class-id').textContent=section.class_id; $('#class-schedule').textContent=schedule(section);
+        $('#class-room').textContent=`${location.building.code} · Room ${location.room}`;
+        $('#class-building').textContent=location.building.name.replace(/Building (\d+)/g,'Building\u00a0$1');
+        $('#class-date-range').textContent=`${dateRange(location.dates)} · ${location.dates.length} meetings`;
+        $('#class-dates-list').textContent=location.dates.map(formatDate).join(' · ');
+        const checked=section.assignment_checked_at;
+        $('#class-data-note').textContent=checked?`Room assignment checked ${formatDate(checked.slice(0,10))}, ${checked.slice(0,4)}. Schedules may change. Building pin, not a verified entrance.`:'Room assignment unverified. Building pin, not a verified entrance.';
+        const locationChoice=$('#class-location-choice'); locationChoice.replaceChildren();
+        section.locations.forEach((loc,index)=>{const option=el('option',`${loc.building.code} · Room ${loc.room} · ${dateRange(loc.dates)}`);option.value=index;option.selected=loc===location;locationChoice.append(option);});
+        $('#class-location-label').hidden=section.locations.length<2;
+        if(changed) $('.class-dates').open=false;
+        placeDetails(); announce(`${section.course_code}, section ${section.section} selected. ${location.building.code}, room ${location.room}.`);
+    }
+    function showFeedback(title,message,retry=false) {
+        feedback.hidden=false;feedback.querySelector('strong').textContent=title;feedback.querySelector('p').textContent=message;$('#class-retry').hidden=!retry;
+    }
+    function renderMore() {
+        const end=Math.min(shown+12,matches.length);
+        for(;shown<end;shown++) {
+            const section=matches[shown], row=el('article',null,'class-result');row.dataset.classId=section.class_id;
+            const button=el('button',null,'class-result-choice');button.type='button';button.setAttribute('aria-pressed','false');button.setAttribute('aria-expanded','false');
+            button.setAttribute('aria-label',`${section.course_code}, section ${section.section}, ${section.instructor}, ${schedule(section)}`);
+            button.innerHTML=`<span class="class-result-check">${icon('check')}</span><span class="class-result-copy"></span>${icon('right')}`;
+            const copy=button.querySelector('.class-result-copy');
+            const meta=el('small');meta.append(el('span',`${section.section} · ${formatDays(section.days)}`,'class-result-desktop-meta'),el('span',`Section ${section.section}`,'class-result-mobile-meta'));
+            copy.append(el('strong',section.course_code),el('span',section.course_name),meta);
+            button.addEventListener('click',()=>{if(mobile.matches&&selected?.section===section){clearSelection();announce('Selection cleared.');}else choose(section);});
+            row.append(button);results.append(row);
         }
-        updateLocation(); article.append(locationText, dates, detail);
-        radio.addEventListener('change', () => choose(section, location, radio));
-        return article;
+        more.hidden=shown>=matches.length;more.textContent=`Show more sections (${matches.length-shown} remaining)`;
     }
-    function showMore() {
-        // Paginate DOM nodes locally; the catalog itself was fetched once.
-        const end = Math.min(shown + 30, matches.length);
-        const fragment = document.createDocumentFragment();
-        for (; shown < end; shown++) fragment.append(card(matches[shown]));
-        results.append(fragment); more.hidden = shown === matches.length;
-        status.textContent = `${matches.length} ${matches.length === 1 ? 'class matches' : 'classes match'}. ${shown < matches.length ? `Showing ${shown}. ` : ''}Select your section below.`;
+    function invalidateSearch() {
+        revision++; clearTimeout(searchTimer); clearSelection();results.replaceChildren();matches=[];shown=0;more.hidden=true;
+        $('.class-results-scroll').removeAttribute('aria-busy');dialog.classList.remove('is-searching');
     }
-    openButton.addEventListener('click', () => {
-        if (!dialog.open) dialog.showModal();
-        find(mode === 'id' ? '#class-id' : '#class-course').focus();
-    });
-    find('.class-close').addEventListener('click', () => dialog.close());
-    dialog.addEventListener('click', event => {
-        if (event.target !== dialog) return;
-        const rect = dialog.getBoundingClientRect();
-        if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
-    });
-    dialog.addEventListener('close', () => {
-        revision++;
-        if (results.hasAttribute('aria-busy')) status.textContent = 'Press Search classes to see matching sections.';
-        results.removeAttribute('aria-busy'); openButton.focus();
-    });
-    form.addEventListener('change', event => {
-        if (event.target.name !== 'class-mode') return;
-        mode = event.target.value;
-        find('#class-course-fields').hidden = mode !== 'course'; find('#class-id-fields').hidden = mode !== 'id';
-        for (const input of find('#class-course-fields').querySelectorAll('input')) input.disabled = mode !== 'course';
-        find('#class-id').disabled = mode !== 'id'; find('#class-id').required = mode === 'id';
-        clearResults(); status.textContent = mode === 'id' ? 'Enter the class number from your schedule.' : 'Enter a course; add a professor or time to narrow it down.';
-        find(mode === 'id' ? '#class-id' : '#class-course').focus();
-    });
-    form.addEventListener('input', event => {
-        if (event.target.name === 'class-mode') return;
-        clearResults(); status.textContent = 'Press Search classes to see matching sections.';
-    });
-    form.addEventListener('submit', async event => {
-        event.preventDefault(); clearResults();
-        const current = revision;
-        const query = { mode, course: find('#class-course').value.trim(), professor: find('#class-professor').value.trim(), time: find('#class-time').value, classId: find('#class-id').value.trim() };
-        if (!(mode === 'id' ? /^\d+$/.test(query.classId) : query.course)) { status.textContent = 'Enter a course or a numeric class ID.'; return; }
-        status.textContent = 'Loading classes…'; results.setAttribute('aria-busy', 'true');
+    async function search() {
+        invalidateSearch(); const current=revision, value=query.value.trim();
+        $('#class-clear-query').hidden=!value; $('#class-count').textContent='';
+        if(!value){showFeedback('Find your section','Search by course, title or class ID.');announce('Enter a course, title or class ID.');return;}
+        dialog.classList.add('is-searching');$('.class-results-scroll').setAttribute('aria-busy','true');
+        showFeedback('Finding your class…','Checking sections and meeting times.');announce('Searching the MMC class catalog.');
         try {
-            catalog = await loadCatalog();
-            if (current !== revision || !dialog.open) return;
-            const metadata = catalog.metadata;
-            find('#class-term').textContent = `${metadata.term_name} · ${metadata.campus}`;
-            const checked = metadata.assignment_checked_at || metadata.checked_at;
-            find('#class-data-note').textContent = `Room assignments checked ${formatDate(checked.slice(0, 10))}, ${checked.slice(0, 4)}. Schedules may change. Only classes with usable MMC location data are included.`;
-            matches = catalog.search({ ...query, term: metadata.term_code });
-            results.removeAttribute('aria-busy');
-            if (!matches.length) {
-                status.textContent = mode === 'id'
-                    ? `No class with that ID is in the ${metadata.term_name} MMC dataset. Check the class number and semester. Online classes and unavailable locations are excluded.`
-                    : 'No matching classes. Try the course code, a shorter professor name, or remove the time filter. Online classes and unavailable locations are excluded.';
-                return;
-            }
-            showMore();
-            results.firstElementChild?.scrollIntoView({ block: 'nearest' });
-        } catch {
-            if (current !== revision) return;
-            results.removeAttribute('aria-busy');
-            status.textContent = 'Classes could not load. Check your connection and press Search classes to retry.';
-        }
-    });
-    more.addEventListener('click', showMore);
-    locate.addEventListener('click', () => {
-        if (!selected) return;
-        const { section, location } = selected;
-        const coordinates = [location.building.latitude, location.building.longitude];
-        const popup = element('div', null, 'class-map-popup');
-        popup.append(element('span', section.location_status, section.assignment_verified ? 'class-requested class-assigned' : 'class-requested'), element('h3', `${section.course_code} · ${section.section}`),
-            element('p', section.course_name), element('p', `${section.instructor} · Class ID ${section.class_id}`),
-            element('p', `${formatDays(section.days)} · ${formatTime(section.start_time)} – ${formatTime(section.end_time)}`),
-            element('strong', `${location.building.name} (${location.building.code}) · Room ${location.room}`),
-            element('p', `${catalog.metadata.term_name} · ${dateRange(location.dates)}`),
-            element('p', section.assignment_verified ? `Building location · Room assignment checked ${formatDate(section.assignment_checked_at.slice(0, 10))}.` : 'Building location · Room assignment not verified.', 'class-map-note'));
-        const reopen = element('button', 'Choose another class');
-        reopen.type = 'button'; reopen.addEventListener('click', () => openButton.click()); popup.append(reopen);
-        if (marker) marker.remove();
-        marker = L.marker(coordinates, {
-            icon: L.divIcon({ className: 'class-map-marker', html: '<span aria-hidden="true">C</span>', iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -20] }),
-            title: `${section.course_code}, ${location.building.code} room ${location.room}`, zIndexOffset: 1500
-        }).addTo(map).bindPopup(popup, { maxWidth: 310 });
-        dialog.close();
-        map.setView(coordinates, 18, { animate: !window.matchMedia('(prefers-reduced-motion: reduce)').matches });
-        marker.openPopup();
-    });
+            catalog=await loadCatalog();if(current!==revision||!dialog.open)return;
+            $('#class-term').textContent=`${catalog.metadata.term_name} · ${catalog.metadata.campus}`;
+            matches=catalog.search({mode:'auto',course:value,professor:$('#class-professor').value,time:$('#class-time').value});
+            $('#class-count').textContent=`${matches.length} ${matches.length===1?'result':'results'}`;
+            if(matches.length){feedback.hidden=true;renderMore();announce(`${matches.length} matching sections. Choose a section.`);}
+            else{showFeedback('No matching sections','Try a shorter course name or remove a filter. Only mapped MMC classes are included.');announce('No matching sections. Try another search or remove a filter.');}
+        }catch{
+            if(current!==revision||!dialog.open)return;
+            showFeedback('Couldn’t load classes','Your search is saved. Check your connection and try again.',true);announce('Could not load classes. Try again.');
+        }finally{if(current===revision){dialog.classList.remove('is-searching');$('.class-results-scroll').removeAttribute('aria-busy');}}
+    }
+    function onInput() {
+        invalidateSearch();$('#class-clear-query').hidden=!query.value;
+        const filters=[$('#class-professor').value.trim(),$('#class-time').value].filter(Boolean).length;
+        $('#class-filter-count').hidden=!filters;$('#class-filter-count').textContent=filters;
+        $('#class-count').textContent='';
+        showFeedback(query.value?'Finding your class…':'Find your section',query.value?'Checking sections and meeting times.':'Search by course, title or class ID.');
+        searchTimer=setTimeout(search,220);
+    }
+    $('#class-search-form').addEventListener('submit',event=>{event.preventDefault();search();});
+    for(const input of [query,$('#class-professor'),$('#class-time')])input.addEventListener('input',onInput);
+    $('#class-clear-query').addEventListener('click',()=>{query.value='';onInput();query.focus();});
+    $('#class-filter-toggle').addEventListener('click',()=>{const expanded=$('#class-filters').hidden;$('#class-filters').hidden=!expanded;$('#class-filter-toggle').setAttribute('aria-expanded',String(expanded));});
+    $('#class-reset-filters').addEventListener('click',()=>{$('#class-professor').value='';$('#class-time').value='';onInput();});
+    $('#class-retry').addEventListener('click',search);more.addEventListener('click',renderMore);
+    $('#class-location-choice').addEventListener('change',event=>{if(selected)choose(selected.section,selected.section.locations[Number(event.target.value)]);});
+    $('#class-clear-selection').addEventListener('click',()=>{const row=results.querySelector('.is-selected button');clearSelection();row?.focus();announce('Selection cleared. Choose a section.');});
+    $('.class-search-help').addEventListener('click',()=>{query.focus();query.select();});
+    function open() {
+        clearTimeout(exitTimer);dialog.classList.remove('is-closing');hideJourney();
+        if(!dialog.open)dialog.showModal();
+        placeDetails();
+        if(selected)results.querySelector('.is-selected button')?.focus({preventScroll:true});else query.focus({preventScroll:true});
+        if(!selected&&query.value&&!matches.length)search();
+    }
+    function close() {
+        if(!dialog.open)return;
+        revision++;clearTimeout(searchTimer);
+        dialog.classList.add('is-closing');
+        exitTimer=setTimeout(()=>{dialog.close();dialog.classList.remove('is-closing');},reduced.matches?0:180);
+    }
+    openButton.addEventListener('click',open);$('.class-close').addEventListener('click',close);
+    dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
+    dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)close();});
+    dialog.addEventListener('close',()=>{revision++;clearTimeout(searchTimer);if(!openingForMap)openButton.focus({preventScroll:true});});
+    function finishJourney(state,message) {
+        const focusOnStop=document.activeElement===journey.querySelector('.class-stop');
+        journey.dataset.state=state;journey.querySelector('.class-journey-state span:last-child').textContent=message;
+        journey.querySelector('.class-stop').hidden=true;journey.querySelector('.class-directions').hidden=false;
+        if(focusOnStop)journey.querySelector('.class-directions').focus({preventScroll:true});
+        if(state==='arrived')marker?.getElement()?.classList.add('has-arrived');
+    }
+    function locate() {
+        if(!selected)return;
+        cancelJourney?.();map.closePopup();
+        const {section,location}=selected;
+        locationLayer.clearLayers();shape=null;
+        marker=L.marker(coordinates(location),{icon:pinIcon(mobile.matches?42:46),title:`${location.building.name}, ${location.building.code}`,zIndexOffset:1500}).addTo(locationLayer)
+            .bindTooltip(el('span',location.building.code),{permanent:true,direction:'bottom',className:'class-building-label',offset:[0,6]});
+        marker.on('click',()=>journey.querySelector('.class-directions').focus());
+        shape=addShape(locationLayer,location);
+        loadFootprints().then(()=>{if(selected?.location===location&&!shape&&!journey.hidden)shape=addShape(locationLayer,location);});
+        journey.querySelector('.class-journey-room').textContent=`${location.building.code} · Room ${location.room}`;
+        journey.querySelector('.class-journey-building').textContent=location.building.name;
+        journey.querySelector('.class-journey-course strong').textContent=`${section.course_code} · ${section.section}`;
+        journey.querySelector('.class-journey-course div > span').textContent=section.course_name;
+        journey.querySelector('.class-journey-time > span:last-child').textContent=schedule(section);
+        openingForMap=true;dialog.close();openingForMap=false;
+        journey.hidden=false;mapNav.hidden=false;document.body.classList.add('class-location-active');
+        map.getContainer().classList.add('class-map-focused');map.zoomControl?.setPosition('topright');
+        journey.dataset.state='moving';journey.querySelector('.class-journey-state span:last-child').textContent='Locating building…';
+        journey.querySelector('.class-stop').hidden=false;journey.querySelector('.class-directions').hidden=true;
+        mapNav.querySelector('button').focus({preventScroll:true});
+        requestAnimationFrame(()=>{
+            if(journey.hidden)return;
+            map.invalidateSize({pan:false});
+            const height=map.getSize().y, sheet=journey.getBoundingClientRect().height;
+            const zoom=mobile.matches?17.5:18, dest=map.project(coordinates(location),zoom);
+            const top=mobile.matches?70:60, bottom=sheet+(mobile.matches?10:30);
+            // Center in the unobstructed area, not behind the summary sheet.
+            const visibleCenter=(top+Math.max(top+80,height-bottom))/2;
+            const center=map.unproject([dest.x,dest.y+(height/2-visibleCenter)],zoom);
+            cancelJourney=locateOnMap({map,coordinates:coordinates(location),center,zoom,reducedMotion:reduced.matches,
+                onArrival:()=>finishJourney('arrived','Building located'),
+                onCancel:()=>finishJourney('paused','Movement paused')});
+        });
+    }
+    $('#locate-class').addEventListener('click',locate);
+    journey.querySelector('.class-stop').addEventListener('click',()=>{cancelJourney?.();journey.querySelector('.class-directions').focus();});
+    // Routing is intentionally deferred: Directions locates the actual building.
+    journey.querySelector('.class-directions').addEventListener('click',locate);
+    journey.querySelector('.class-dismiss').addEventListener('click',()=>{hideJourney(true);openButton.focus();});
+    mapNav.querySelector('.class-return').addEventListener('click',open);
+    mobile.addEventListener('change',()=>{if(dialog.open)placeDetails();});
+    reduced.addEventListener('change',()=>{if(reduced.matches&&journey.dataset.state==='moving'&&!journey.hidden)locate();});
+    window.addEventListener('resize',()=>{if(!journey.hidden){cancelJourney?.();finishJourney('paused','Map resized · tap Directions to center');}});
 }

@@ -122,7 +122,8 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
     }
     const get = id => { const element = document.getElementById(id); assert.ok(element, `Missing HTML element ${id}`); return element; };
     // Only menu/theme child nesting affects the behaviors exercised here.
-    for (const id of ['clear-chat', 'group-settings', 'show-members', 'toggle-message-times']) get('chat-options').append(get(id));
+    for (const id of ['clear-chat', 'chat-info-menu', 'toggle-message-times']) get('chat-options').append(get(id));
+    for (const id of ['group-settings', 'show-members', 'customize-group']) get('chat-info-panel').append(get(id));
     const themeLabel = new Element('span'); themeLabel.setAttribute('data-theme-label', ''); get('theme-toggle').append(themeLabel);
     const timesLabel = new Element('span'); timesLabel.setAttribute('data-message-times-label', ''); get('toggle-message-times').append(timesLabel);
     const media = {
@@ -131,7 +132,7 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
         '(max-width: 700px)': { matches: mobile, addEventListener() {} }
     };
     const state = { sends: [], clears: 0, removals: [], messageStops: 0, roleStops: 0, forumDisposals: 0,
-        forumsActive: false, failSend: null, failClear: false, sendWait: null };
+        forumsActive: false, failSend: null, failClear: false, sendWait: null, infoDisposals: 0, exploring: false };
     const user = { uid: 'alice', displayName };
     const modules = {
         'chatAuth.js': { restoreUser: async () => user, watchUser(callback) { state.authChanged = callback; } },
@@ -152,20 +153,31 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
         },
         'groups.js': { isClosed: group => !!group.deletedAt,
             watchRequests(id, callback) { state.requests = callback; return () => {}; } },
-        'groupUI.js': { mountGroups({ onSelect, onGroupUpdated }) { state.selectGroup = onSelect; state.groupUpdated = onGroupUpdated; return { dispose() {}, selectExternal: onSelect }; } },
+        'groupUI.js': { mountGroups({ onSelect, onGroupUpdated, onExplore }) {
+            state.selectGroup = onSelect; state.groupUpdated = onGroupUpdated;
+            state.openExplore = () => { state.exploring = true; onExplore(true); };
+            const closeExplore = () => { if (state.exploring) { state.exploring = false; onExplore(false); } };
+            state.closeExplore = closeExplore;
+            return { dispose() { closeExplore(); }, selectExternal: onSelect, closeExplore };
+        } },
+        'chatInfoUI.js': { mountChatInfo: () => ({
+            setConversation(group) { state.infoGroup = group; get('chat-info-panel').close(); },
+            refresh(group) { state.infoGroup = group; },
+            dispose() { state.infoDisposals++; get('chat-info-panel').close(); }
+        }) },
         'people.js': { saveProfile: async () => {} },
         'peopleUI.js': { mountPeople: () => ({ setConversation() {}, dispose() {} }) },
         'forums/forumUI.js': { mountForums: () => ({ setActive(value) { state.forumsActive = value; }, dispose() { state.forumDisposals++; } }) }
     };
-    vm.runInNewContext(code, { document, Date, console,
+    vm.runInNewContext(code, { document, Date, console, URL,
         window: { matchMedia: query => { assert.ok(media[query], query); return media[query]; } },
         localStorage: { getItem: key => preferences.get(key) ?? null, setItem: (key, value) => preferences.set(key, value), removeItem: key => preferences.delete(key) },
-        location: { protocol: 'http:' }, loadModule: async file => { assert.ok(modules[file], file); return modules[file]; },
+        location: { protocol: 'http:', href: 'http://localhost/LiveChat/mainChat.html' }, loadModule: async file => { assert.ok(modules[file], file); return modules[file]; },
         setTimeout(fn, delay) { const id = ++timerId; timers.set(id, { fn, delay }); return id; }, clearTimeout: id => timers.delete(id),
         CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options?.detail; } }
     });
     return { get, state, media, preferences, document, documentEvents,
-        fire: (id, type = 'click', extra) => get(id).fire(type, extra), open: () => get('open-chat').fire('click'),
+        fire: (id, type = 'click', extra) => get(id).fire(type, extra), open: async () => { await get('open-chat').fire('click'); assert.ok(state.receive, 'Chat startup: ' + get('chat-status').textContent + ' / ' + get('connection-status').textContent); },
         rows: () => get('message-list').children.filter(child => child.classList.contains('message-row')),
         row: id => get('message-list').children.find(child => child.dataset.messageId === id),
         flushTimers(maxDelay = 300) { for (const [id, timer] of [...timers]) if (timer.delay <= maxDelay) { timers.delete(id); timer.fn(); } },
@@ -281,6 +293,58 @@ test('mobile list/conversation navigation is remembered; forum tabs switch the a
     await app.fire('forums-tab'); assert.equal(app.state.forumsActive, true); assert.equal(app.get('chats-sidebar').hidden, true);
     assert.equal(app.get('forums-panel').hidden, false); assert.equal(app.get('chat-panel').dataset.section, 'forums');
     await app.fire('chats-tab'); assert.equal(app.state.forumsActive, false); assert.equal(app.get('forums-panel').hidden, true);
+});
+
+test('Explore preserves an open conversation, draft and scroll; selecting a group exits discovery', async () => {
+    const app = createApp(); await app.open(); app.state.receive([message()], false);
+    app.get('message-input').value = 'Keep this draft'; app.get('message-list').scrollTop = 45;
+    const row = app.row('message-1'), stopped = app.state.messageStops;
+    app.state.openExplore();
+    assert.equal(app.get('explore-panel').hidden, false);
+    assert.equal(app.get('chats-conversation').hidden, true);
+    assert.equal(app.get('chat-panel').dataset.section, 'chats');
+    assert.equal(app.state.messageStops, stopped);
+    assert.equal(app.get('message-input').value, 'Keep this draft');
+    app.state.closeExplore();
+    assert.equal(app.row('message-1'), row); assert.equal(app.get('message-list').scrollTop, 45);
+    app.state.openExplore(); app.state.selectGroup({ id: 'Study', name: 'Study', creatorId: 'alice', visibility: 'public' });
+    assert.equal(app.get('explore-panel').hidden, true); assert.equal(app.state.watchedGroup, 'Study');
+    assert.equal(app.state.infoGroup.id, 'Study');
+    app.state.selectGroup(null); assert.equal(app.get('message-input').value, 'Keep this draft');
+});
+
+test('mobile Explore and section transitions expose exactly the requested pane', async () => {
+    const app = createApp({ mobile: true }); await app.open();
+    app.state.openExplore(); assert.equal(app.get('chat-panel').dataset.mobileView, 'conversation');
+    app.state.closeExplore(); assert.equal(app.get('chat-panel').dataset.mobileView, 'list');
+    app.state.openExplore(); await app.fire('forums-tab');
+    assert.equal(app.get('explore-panel').hidden, true); assert.equal(app.state.forumsActive, true);
+    await app.fire('chats-tab'); assert.equal(app.get('chats-conversation').hidden, false);
+    assert.equal(app.get('forums-panel').hidden, true); assert.equal(app.get('explore-panel').hidden, true);
+});
+
+test('send completion cannot steal focus from Explore or a chat-info dialog', async () => {
+    for (const view of ['explore', 'info', 'forums']) {
+        const app = createApp(); await app.open(); app.state.receive([], false);
+        let finish; app.state.sendWait = new Promise(resolve => { finish = resolve; });
+        app.get('message-input').value = 'In flight'; const sending = app.fire('message-form', 'submit');
+        if (view === 'explore') app.state.openExplore();
+        else if (view === 'info') app.get('chat-info-panel').showModal();
+        else await app.fire('forums-tab');
+        const focus = app.get(view === 'explore' ? 'explore-search' : view === 'info' ? 'close-chat-info' : 'forum-search'); focus.focus();
+        finish(); await sending;
+        assert.equal(app.document.activeElement, focus, view);
+    }
+});
+
+test('contact navigation and chat close dismiss and dispose chat info', async () => {
+    const app = createApp({ reduced: true }); await app.open();
+    app.get('chat-info-panel').showModal();
+    app.state.selectGroup({ id: 'dm:alice:bob', name: 'Bob', visibility: 'direct' });
+    assert.equal(app.get('chat-info-panel').open, false);
+    assert.equal(app.state.infoGroup.visibility, 'direct');
+    app.get('chat-info-panel').showModal(); await app.fire('close-chat');
+    assert.equal(app.state.infoDisposals, 1); assert.equal(app.get('chat-info-panel').open, false);
 });
 
 test('menu dismisses outside or on Escape; animated chat close cleans up subscriptions', async () => {

@@ -68,7 +68,8 @@ service cloud.firestore {
       function validPost() {
         let data = request.resource.data;
         return data.keys().hasAll(['authorId', 'name', 'title', 'body', 'category', 'createdAt', 'lastActivityAt', 'replyCount', 'lastReplyId'])
-          && ((data.category != 'Alert' && data.keys().hasOnly(['authorId', 'name', 'title', 'body', 'category', 'createdAt', 'lastActivityAt', 'replyCount', 'lastReplyId']))
+          && ((data.category != 'Alert' && data.keys().hasOnly(['authorId', 'name', 'title', 'body', 'category', 'createdAt', 'lastActivityAt', 'replyCount', 'lastReplyId', 'topic'])
+              && (!('topic' in data) || data.topic in ['Classes', 'Study spaces', 'Campus life', 'Parking & transit', 'Housing', 'Other']))
             || (data.category == 'Alert' && data.keys().hasOnly(['authorId', 'name', 'title', 'body', 'category', 'createdAt', 'lastActivityAt', 'replyCount', 'lastReplyId', 'location', 'confirmationCount', 'lastConfirmationBy'])
               && validLocation(data.location) && data.confirmationCount == 0 && data.lastConfirmationBy == ''))
           && validAuthor(data) && validText(data.title, 140) && validText(data.body, 5000)
@@ -106,9 +107,28 @@ service cloud.firestore {
           && getAfter(replyPath).data.authorId == request.auth.uid
           && getAfter(replyPath).data.createdAt == request.time;
       }
+      function matchingAnswer(data) {
+        let path = /databases/$(database)/documents/forums/$(postId)/replies/$(data.acceptedReplyId);
+        let answer = data.acceptedAnswer;
+        return exists(path) && answer is map
+          && answer.keys().hasAll(['replyId', 'name', 'body', 'authorId'])
+          && answer.keys().hasOnly(['replyId', 'name', 'body', 'authorId'])
+          && answer.replyId == data.acceptedReplyId
+          && answer.name == get(path).data.name && answer.body == get(path).data.body
+          && answer.authorId == get(path).data.authorId;
+      }
+      function acceptedAnswer() {
+        let data = request.resource.data;
+        return resource.data.category == 'Question' && resource.data.authorId == request.auth.uid
+          && data.diff(resource.data).affectedKeys().hasOnly(['acceptedReplyId', 'acceptedAnswer'])
+          && data.keys().hasAll(['acceptedReplyId', 'acceptedAnswer'])
+          && data.acceptedReplyId is string
+          && ((data.acceptedReplyId == '' && data.acceptedAnswer == null)
+            || (data.acceptedReplyId.matches('^[A-Za-z0-9_-]{1,128}$') && matchingAnswer(data)));
+      }
       allow read: if signedIn();
       allow create: if signedIn() && validPost();
-      allow update: if signedIn() && (replyActivity() || confirmationActivity() || verifierApproval() || resolveWarning());
+      allow update: if signedIn() && (replyActivity() || confirmationActivity() || verifierApproval() || resolveWarning() || acceptedAnswer());
       allow delete: if false;
 
       match /confirmations/{uid} {
@@ -132,8 +152,11 @@ service cloud.firestore {
           let data = request.resource.data;
           let parent = /databases/$(database)/documents/forums/$(postId);
           return data.keys().hasAll(['authorId', 'name', 'body', 'createdAt'])
-            && data.keys().hasOnly(['authorId', 'name', 'body', 'createdAt'])
+            && data.keys().hasOnly(['authorId', 'name', 'body', 'createdAt', 'parentId'])
             && validAuthor(data) && validText(data.body, 2000) && data.createdAt == request.time
+            && (!('parentId' in data) || (data.parentId is string
+              && data.parentId.matches('^[A-Za-z0-9_-]{1,128}$') && data.parentId != replyId
+              && exists(/databases/$(database)/documents/forums/$(postId)/replies/$(data.parentId))))
             && exists(parent)
             && getAfter(parent).data.lastReplyId == replyId
             && getAfter(parent).data.replyCount == get(parent).data.replyCount + 1
@@ -146,6 +169,14 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
+      match /savedForums/{postId} {
+        allow read, delete: if signedIn() && request.auth.uid == uid;
+        allow create, update: if signedIn() && request.auth.uid == uid
+          && exists(/databases/$(database)/documents/forums/$(postId))
+          && request.resource.data.keys().hasAll(['postId', 'savedAt'])
+          && request.resource.data.keys().hasOnly(['postId', 'savedAt'])
+          && request.resource.data.postId == postId && request.resource.data.savedAt == request.time;
+      }
       // Provisioned only by a trusted project administrator, never by app clients.
       match /roles/verifier {
         allow get: if signedIn() && request.auth.uid == uid;

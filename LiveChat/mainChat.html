@@ -6,10 +6,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FIU Live Chat</title>
-    <link rel="stylesheet" href="bottomSheet.css?v=polish-3">
-    <link rel="stylesheet" href="messageRhythm.css?v=polish-3">
-    <link rel="stylesheet" href="appearance.css?v=polish-3">
-    <script src="chat.js?v=polish-3" defer></script>
+    <link rel="stylesheet" href="bottomSheet.css?v=forum-approved-4">
+    <link rel="stylesheet" href="messageRhythm.css?v=nav-5">
+    <link rel="stylesheet" href="appearance.css?v=nav-5">
+    <link rel="stylesheet" href="chatInfo.css?v=nav-5">
+    <link rel="stylesheet" href="explore.css?v=nav-5">
+    <script src="chat.js?v=forum-approved-4" defer></script>
 </head>
 
 <body class="chat-standalone">
@@ -52,7 +54,7 @@
             </button>
             <h3 id="pinned-heading" class="chat-section-heading" hidden>Pinned</h3><div id="pinned-groups" aria-label="Pinned groups"></div>
             <hr class="chat-divider">
-            <h3 id="other-heading" class="chat-section-heading" hidden>Other chats</h3><div id="other-groups" aria-label="Other groups"></div>
+            <h3 id="other-heading" class="chat-section-heading" hidden>Your groups</h3><div id="other-groups" aria-label="Your groups"></div>
             <p id="groups-empty">Loading groups...</p>
             <section id="people-search-section" hidden aria-label="People search results">
                 <h3 class="people-heading">People</h3>
@@ -69,26 +71,23 @@
         </nav>
         <div class="new-chat-footer">
             <p id="groups-status" role="status"></p>
+            <button id="explore-groups" type="button" aria-controls="explore-panel" aria-expanded="false" disabled><span class="icon icon-search" aria-hidden="true"></span>Explore</button>
             <button id="new-chat" type="button" disabled><span class="icon icon-plus" aria-hidden="true"></span>New chat</button>
         </div>
     </aside>
 
 <aside id="forums-sidebar" class="forums-list-pane" hidden aria-label="Campus forums">
     <h2 class="community-sr-only">Campus forums</h2>
-    <div class="forum-search-field"><span class="icon icon-search" aria-hidden="true"></span><label class="community-sr-only" for="forum-search">Search posts</label><input id="forum-search" type="search" placeholder="Search posts…" autocomplete="off"></div>
-    <div class="forum-sidebar-heading"><div class="forum-filter-field"><label class="community-sr-only" for="forum-filter">Post type</label><select id="forum-filter"><option value="">All posts</option><option>Question</option><option>Comment</option><option>Concern</option><option>Alert</option><option>Other</option></select></div><button id="forum-retry" class="forum-icon-button" type="button" aria-label="Refresh posts" title="Refresh posts"><span class="icon icon-refresh" aria-hidden="true"></span></button></div>
-    <p id="forum-list-status" class="forum-feedback" role="status"></p>
-    <div id="forum-list-placeholder" class="forum-list-skeleton" hidden aria-hidden="true"><span></span><span></span><span></span></div>
-    <div id="forum-post-list" aria-label="Forum posts"></div>
-    <p id="forum-empty" class="forum-list-empty" hidden>No posts yet.</p>
-    <button id="forum-load-more" class="forum-quiet-button" type="button" hidden>Load more posts</button>
+    <div class="forum-search-field"><span class="icon icon-search" aria-hidden="true"></span><label class="community-sr-only" for="forum-search">Search discussions</label><input id="forum-search" type="search" placeholder="Search discussions…" autocomplete="off"></div>
+    <nav id="forum-topic-nav" aria-label="Forum topics"></nav>
+    <button id="forum-sidebar-saved" class="forum-nav-button" type="button" aria-pressed="false"><span class="icon icon-bookmark" aria-hidden="true"></span>Saved</button>
     <div class="forum-list-footer">
         <button id="forum-new-post" class="forum-primary" type="button"><span class="icon icon-plus" aria-hidden="true"></span>New post</button>
         <button id="forum-new-alert" class="forum-alert-button" type="button"><span class="icon icon-alert" aria-hidden="true"></span>Report alert</button>
     </div>
 </aside>
 
-    <button id="profile-button" type="button" aria-haspopup="dialog" class="profile-button">
+    <button id="profile-button" type="button" aria-haspopup="dialog" aria-label="View your profile" class="profile-button">
         <span id="profile-initials" class="avatar profile-avatar" aria-hidden="true"></span>
         <span class="profile-copy"><span id="profile-name"></span><span>View profile</span></span>
         <span class="icon icon-chevron-right" aria-hidden="true"></span>
@@ -98,16 +97,16 @@
     <section id="chats-conversation" class="chat-conversation" aria-labelledby="chat-title">
     <div class="mobile-conversation-nav"><button id="back-to-chats" type="button"><span class="icon icon-chevron-left" aria-hidden="true"></span>Back to chats</button></div>
     <header class="conversation-header">
-        <span id="conversation-avatar" class="avatar campus-avatar" aria-hidden="true"><span class="icon icon-people"></span></span>
-        <div class="conversation-heading"><h2 id="chat-title">Campus Chat</h2><p id="chat-subtitle">Public · Everyone on campus</p></div>
+        <button id="open-chat-info" class="conversation-info-trigger" type="button" aria-label="About Campus Chat" aria-haspopup="dialog" aria-controls="chat-info-panel">
+            <span id="conversation-avatar" class="avatar campus-avatar" aria-hidden="true"><span class="icon icon-people"></span></span>
+            <span class="conversation-heading"><span id="chat-title" role="heading" aria-level="2">Campus Chat</span><span id="chat-subtitle">Public · Everyone on campus</span></span>
+        </button>
         <button id="chat-more" class="icon-button" type="button" aria-label="Chat options" aria-expanded="false" aria-controls="chat-options"><span class="icon icon-more" aria-hidden="true"></span></button>
         <div id="chat-options" class="chat-options" hidden>
             <p id="chat-identity"></p>
             <p id="group-expiry"></p>
+            <button id="chat-info-menu" type="button" aria-haspopup="dialog" aria-controls="chat-info-panel">Chat info</button>
             <button id="toggle-message-times" type="button" aria-pressed="false" aria-controls="message-list"><span data-message-times-label>Show message times</span></button>
-            <button id="show-members" type="button" hidden><span class="icon icon-people" aria-hidden="true"></span>Members</button>
-            <button id="customize-group" type="button" hidden>Customize chat logo</button>
-            <button id="group-settings" class="danger-button" type="button" hidden><span class="icon icon-trash" aria-hidden="true"></span>Delete group</button>
             <button id="clear-chat" class="danger-button" type="button" hidden disabled>Clear Campus Chat</button>
             <p id="moderation-status" role="status"></p>
             <small id="chat-help">Latest 100 messages</small>
@@ -131,20 +130,37 @@
     </div>
     </section>
 
+<section id="explore-panel" aria-labelledby="explore-title" hidden>
+    <header class="explore-header">
+        <button id="close-explore" type="button" class="explore-back"><span class="icon icon-chevron-left" aria-hidden="true"></span>Back to chats</button>
+        <div class="explore-intro"><span class="explore-eyebrow">FIND YOUR PEOPLE</span><h2 id="explore-title">Explore groups</h2><p>A place for every campus conversation.</p></div>
+    </header>
+    <div class="explore-tools">
+        <div class="explore-search-field"><span class="icon icon-search" aria-hidden="true"></span><label class="community-sr-only" for="explore-search">Search groups</label><input id="explore-search" type="search" placeholder="Find a group…" autocomplete="off"></div>
+        <label class="community-sr-only" for="explore-filter">Group visibility</label><select id="explore-filter"><option value="all">All groups</option><option value="public">Public groups</option><option value="private">Private groups</option></select>
+    </div>
+    <div class="explore-feedback"><p id="explore-status" role="status"></p><button id="explore-retry" type="button" hidden>Try again</button></div>
+    <div class="explore-scroll"><div id="explore-results" aria-label="Available groups"></div><p id="explore-empty" class="explore-empty" role="status">Loading groups…</p></div>
+</section>
+
 <section id="forums-panel" aria-label="Forums" data-detail="false" hidden>
     <div id="forum-content" class="forum-content">
-        <section id="forum-welcome" class="forum-welcome">
-            <span class="forum-welcome-icon"><span class="icon icon-chat" aria-hidden="true"></span></span>
-            <h2>Campus conversations,<br>all in one place.</h2>
-            <p>Ask a question, share an idea, or check what's happening nearby.</p>
-            <button id="forum-welcome-compose" class="forum-primary" type="button"><span class="icon icon-plus" aria-hidden="true"></span>Start a discussion</button>
-            <span class="forum-welcome-hint">Choose a post to join the conversation.</span>
-        </section>
+        <section id="forum-welcome" aria-labelledby="forum-feed-title">
+    <header class="forum-feed-header"><h2 id="forum-feed-title">Campus forums</h2><div class="forum-desktop-sort"><label class="community-sr-only" for="forum-sort">Sort discussions</label><select id="forum-sort"><option value="newest">Latest</option><option value="active">Recently active</option><option value="helpful">Helpful answers</option></select><button id="forum-retry" class="forum-icon-button" type="button" aria-label="Refresh discussions"><span class="icon icon-refresh" aria-hidden="true"></span></button></div></header>
+    <div class="forum-mobile-browse"><div class="forum-search-field"><span class="icon icon-search" aria-hidden="true"></span><label class="community-sr-only" for="forum-mobile-search">Search discussions</label><input id="forum-mobile-search" type="search" placeholder="Search discussions…" autocomplete="off"></div><nav id="forum-mobile-topics" aria-label="Filter by topic"></nav><div class="forum-mobile-toolbar"><label class="community-sr-only" for="forum-mobile-sort">Sort discussions</label><select id="forum-mobile-sort"><option value="newest">Latest</option><option value="active">Recently active</option><option value="helpful">Helpful answers</option></select><button id="forum-mobile-saved" type="button" aria-pressed="false"><span class="icon icon-bookmark" aria-hidden="true"></span>Saved</button></div></div>
+    <p id="forum-search-scope" class="community-sr-only">Searches all post titles, details, authors and topics</p><p id="forum-result-count" class="community-sr-only" role="status"></p>
+    <p id="forum-list-status" class="forum-feedback" role="status"></p><button id="forum-error-retry" class="forum-quiet-button" type="button" hidden>Try again</button>
+    <div id="forum-list-placeholder" class="forum-list-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div id="forum-post-list" aria-label="Forum posts"></div>
+    <div id="forum-empty" hidden><span class="icon icon-chat" aria-hidden="true"></span><h3 id="forum-empty-title"></h3><p id="forum-empty-description"></p><button id="forum-welcome-compose" class="forum-primary" type="button">Start a discussion</button><button id="forum-empty-clear" class="forum-quiet-button" type="button" hidden>Clear search</button></div>
+    <button id="forum-load-more" class="forum-quiet-button" type="button" hidden>Show more discussions</button>
+</section>
         <section id="forum-compose" aria-labelledby="forum-compose-title" hidden>
-            <button id="forum-cancel-post" class="forum-back" type="button"><span class="icon icon-chevron-left" aria-hidden="true"></span>Back to forums</button>
+            <button id="forum-cancel-post" class="forum-back" type="button"><span class="icon icon-chevron-left" aria-hidden="true"></span>Back to discussions</button>
             <header class="forum-compose-header"><span class="forum-eyebrow">CAMPUS FORUMS</span><h2 id="forum-compose-title">New post</h2><p id="forum-compose-description">Visible to everyone on campus.</p></header>
             <form id="forum-post-form">
-                <div class="forum-type-field"><label for="forum-category-input">Post type</label><select id="forum-category-input"><option>Question</option><option>Comment</option><option>Concern</option><option>Alert</option><option>Other</option></select></div>
+                <div class="forum-type-field"><label for="forum-category-input">Post type</label><select id="forum-category-input"><option>Question</option><option value="Comment">Discussion</option><option>Concern</option><option>Alert</option><option>Other</option></select></div>
+                <div id="forum-topic-field"><label for="forum-topic-input">Topic <span class="forum-label-optional">(optional)</span></label><select id="forum-topic-input"><option value="">Choose a topic</option></select></div>
                 <label for="forum-title-input">Title</label><input id="forum-title-input" maxlength="140" placeholder="What would you like to share?" required>
                 <label for="forum-body-input">Details</label><textarea id="forum-body-input" rows="4" maxlength="5000" placeholder="Add a little context…" required></textarea>
                 <fieldset id="alert-location-fields" hidden>
@@ -162,13 +178,14 @@
             </form>
         </section>
         <section id="forum-thread" aria-labelledby="forum-thread-title" hidden>
-            <button id="forum-back" class="forum-back" type="button"><span class="icon icon-chevron-left" aria-hidden="true"></span>Back to forums</button>
+            <button id="forum-back" class="forum-back" type="button"><span class="icon icon-chevron-left" aria-hidden="true"></span>Back to discussions</button>
             <article class="forum-article">
                 <p id="forum-thread-category" class="forum-category"></p>
                 <h2 id="forum-thread-title" tabindex="-1"></h2>
-                <p id="forum-thread-meta" class="forum-meta"></p>
+                <div class="forum-author-line"><span id="forum-thread-avatar" class="forum-avatar" aria-hidden="true"></span><strong id="forum-thread-author"></strong><span id="forum-thread-meta" class="forum-meta"></span></div>
                 <div id="forum-thread-loading" class="forum-thread-skeleton" hidden aria-hidden="true"><span></span><span></span><span></span></div>
                 <p id="forum-thread-body" class="forum-body"></p>
+            <div class="forum-thread-actions"><button id="forum-save" class="forum-text-button" type="button" aria-pressed="false"><span class="icon icon-bookmark" aria-hidden="true"></span><span>Save</span></button><button id="forum-copy-link" class="forum-text-button" type="button"><span class="icon icon-share" aria-hidden="true"></span>Share</button></div><input id="forum-share-link" readonly aria-label="Copy discussion link" hidden><p id="forum-action-status" class="forum-feedback" role="status"></p>
             </article>
             <section id="alert-details" class="alert-details" aria-label="Alert status" hidden>
                 <div class="alert-summary-top"><p id="alert-location-display"></p><p id="alert-verification" class="alert-verification" role="status"></p></div>
@@ -180,14 +197,72 @@
                 <p id="alert-resolution-status" class="forum-feedback" role="status"></p>
             </section>
             <p id="forum-thread-status" class="forum-feedback" role="status"></p>
-            <section class="forum-replies" aria-labelledby="forum-reply-heading"><div class="forum-replies-heading"><h3 id="forum-reply-heading">Replies</h3><button id="forum-older-replies" class="forum-quiet-button" type="button" hidden>Earlier replies</button></div>
-                <ol id="forum-reply-list" aria-label="Replies"></ol><p id="forum-replies-status" class="forum-feedback" role="status"></p>
-                <form id="forum-reply-form"><label class="community-sr-only" for="forum-reply-input">Your reply</label><textarea id="forum-reply-input" rows="2" maxlength="2000" placeholder="Join the conversation…" required></textarea><div class="forum-submit-row"><p id="forum-reply-status" class="forum-feedback" role="status"></p><button id="forum-reply-submit" class="forum-primary" type="submit" disabled>Reply</button></div></form>
+            <section class="forum-replies" aria-labelledby="forum-reply-heading">
+                <div class="forum-replies-heading"><h3 id="forum-reply-heading">Replies</h3><label class="community-sr-only" for="forum-reply-sort">Sort replies</label><select id="forum-reply-sort"><option value="helpful">Most helpful</option><option value="oldest">Oldest first</option><option value="newest">Newest first</option></select></div>
+                <p id="forum-replies-status" class="forum-feedback" role="status"></p><button id="forum-replies-retry" class="forum-quiet-button" type="button" hidden>Retry replies</button><ol id="forum-reply-list" aria-label="Replies"></ol><button id="forum-older-replies" class="forum-quiet-button" type="button" hidden>Show more replies</button>
             </section>
         </section>
     </div>
+    <div id="forum-reply-dock" hidden><form id="forum-reply-form">
+        <div id="forum-reply-target" hidden><span id="forum-reply-target-name"></span><button id="forum-cancel-reply" type="button" aria-label="Cancel reply to comment"><span class="icon icon-close" aria-hidden="true"></span></button></div>
+        <div class="forum-reply-entry"><span id="forum-compose-avatar" class="forum-avatar" aria-hidden="true"></span><label class="community-sr-only" for="forum-reply-input">Your reply</label><textarea id="forum-reply-input" rows="1" maxlength="2000" placeholder="Add a reply…" required></textarea><button id="forum-reply-submit" type="submit" aria-label="Send reply" disabled><span class="icon icon-send" aria-hidden="true"></span></button></div>
+        <p id="forum-reply-status" class="forum-feedback" role="status"></p>
+    </form></div>
+    <div id="forum-mobile-actions"><button id="forum-mobile-new" class="forum-primary" type="button"><span class="icon icon-plus" aria-hidden="true"></span>New post</button><button id="forum-mobile-alert" class="forum-alert-button" type="button"><span class="icon icon-alert" aria-hidden="true"></span>Report alert</button></div>
+    <div id="forum-toast" role="status" aria-live="polite" hidden></div>
 </section>
 
+<!-- CHAT INFO START -->
+    <dialog id="chat-info-panel" class="group-dialog chat-info-dialog" aria-labelledby="chat-info-title">
+        <header class="chat-info-topbar">
+            <button id="chat-info-back" class="chat-info-icon-button" type="button" aria-label="Back to chat info" hidden><span class="icon icon-chevron-left" aria-hidden="true"></span></button>
+            <h2 id="chat-info-title">Chat info</h2>
+            <button id="close-chat-info" class="chat-info-icon-button" type="button" aria-label="Close chat info"><span class="icon icon-close" aria-hidden="true"></span></button>
+        </header>
+        <section id="chat-info-overview" aria-label="Chat information">
+            <div class="chat-info-hero">
+                <span id="chat-info-avatar" class="avatar campus-avatar" aria-hidden="true"></span>
+                <h3 id="chat-info-name"></h3>
+                <p id="chat-info-description"></p>
+            </div>
+            <div class="chat-info-links">
+                <button id="show-members" class="chat-info-row" type="button" hidden>
+                    <span class="chat-info-row-symbol"><span class="icon icon-people" aria-hidden="true"></span></span>
+                    <span class="chat-info-row-copy"><strong>Members</strong><span id="chat-info-member-count">Loading members…</span></span>
+                    <span id="chat-info-member-preview" class="chat-info-member-preview" aria-hidden="true"></span>
+                    <span class="icon icon-chevron-right" aria-hidden="true"></span>
+                </button>
+                <button id="chat-info-settings" class="chat-info-row" type="button" hidden>
+                    <span class="chat-info-row-symbol"><span class="icon icon-chat-settings" aria-hidden="true"></span></span>
+                    <span class="chat-info-row-copy"><strong>Chat settings</strong><span id="chat-info-settings-hint">Group details and appearance</span></span>
+                    <span class="icon icon-chevron-right" aria-hidden="true"></span>
+                </button>
+            </div>
+            <p id="chat-info-status" class="chat-info-status" role="status"></p>
+        </section>
+        <section id="chat-info-settings-page" aria-label="Chat settings" hidden>
+            <dl class="chat-info-facts">
+                <div><dt>Access</dt><dd id="chat-info-access"></dd></div>
+                <div><dt>Created by</dt><dd id="chat-info-owner"></dd></div>
+                <div id="chat-info-created-row" hidden><dt>Created</dt><dd id="chat-info-created"></dd></div>
+            </dl>
+            <div class="chat-info-settings-actions">
+                <button id="customize-group" class="chat-info-row" type="button" hidden>
+                    <span class="chat-info-row-symbol"><span class="icon icon-chat-image" aria-hidden="true"></span></span>
+                    <span class="chat-info-row-copy"><strong>Customize chat logo</strong><span>Image, icon, or initials</span></span>
+                    <span class="icon icon-chevron-right" aria-hidden="true"></span>
+                </button>
+                <button id="group-settings" class="chat-info-row danger-button" type="button" hidden>
+                    <span class="chat-info-row-symbol"><span class="icon icon-trash" aria-hidden="true"></span></span>
+                    <span class="chat-info-row-copy"><strong>Delete group</strong><span>Remove this group for everyone</span></span>
+                    <span class="icon icon-chevron-right" aria-hidden="true"></span>
+                </button>
+            </div>
+            <p id="chat-info-owner-note" class="chat-info-status" hidden>Only the owner can change the logo or delete this group.</p>
+        </section>
+    </dialog>
+
+<!-- CHAT INFO END -->
     <dialog id="profile-panel" class="group-dialog" aria-labelledby="profile-title">
         <h2 id="profile-title">Your profile</h2>
         <p id="profile-display-name" class="profile-display-name"></p>

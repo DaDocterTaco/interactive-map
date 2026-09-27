@@ -16,7 +16,7 @@ export function mountPeople({ user, onSelect }) {
     const el = id => document.getElementById(id);
     const events = new AbortController();
     const listen = (id, event, fn) => el(id).addEventListener(event, fn, { signal: events.signal });
-    let disposed = false, searchVersion = 0, listVersion = 0, membersVersion = 0;
+    let disposed = false, searchVersion = 0, listVersion = 0, membersVersion = 0, membersGeneration = 0;
     let friends = [], directs = [], results = [], current = null, stopMembers, timer;
     let busy = false;
     const profiles = new Map();
@@ -127,7 +127,7 @@ export function mountPeople({ user, onSelect }) {
     }
     listen("chat-search", "input", search);
     listen("close-members", "click", () => el("members-panel").close());
-    listen("members-panel", "close", () => { stopMembers?.(); stopMembers = null; membersVersion++; });
+    listen("members-panel", "close", () => { stopMembers?.(); stopMembers = null; membersGeneration++; membersVersion++; });
     listen("show-members", "click", () => {
         if (!current || current.visibility === "direct") return;
         const id = current.id;
@@ -135,16 +135,26 @@ export function mountPeople({ user, onSelect }) {
         el("members-list").replaceChildren(); el("members-status").textContent = "Loading members...";
         el("members-panel").showModal();
         stopMembers?.();
+        // A listener belongs to one opening of this dialog. Reopening the same
+        // group must not let its previous listener invalidate a newer snapshot.
+        const generation = ++membersGeneration;
+        const active = () => !disposed && el("members-panel").open
+            && generation === membersGeneration && current?.id === id;
         stopMembers = people.watchMembers(id, async ids => {
+            if (!active()) return;
             const version = ++membersVersion;
             try {
                 const members = await Promise.all(ids.map(profile));
-                if (disposed || version !== membersVersion || current?.id !== id) return;
+                if (!active() || version !== membersVersion) return;
                 el("members-list").replaceChildren();
                 members.sort((a, b) => a.displayName.localeCompare(b.displayName)).forEach(person => el("members-list").appendChild(row(person)));
                 el("members-status").textContent = `${members.length} member${members.length === 1 ? "" : "s"}`;
-            } catch (error) { if (version === membersVersion) el("members-status").textContent = error.message; }
-        }, error => { el("members-status").textContent = error.message; });
+            } catch (error) { if (active() && version === membersVersion) el("members-status").textContent = error.message; }
+        }, error => {
+            if (!active()) return;
+            membersVersion++;
+            el("members-status").textContent = error.message;
+        });
     });
     const stops = [
         people.watchFriends(user.uid, data => { friends = data; renderLists(); }, error => status(error.message)),

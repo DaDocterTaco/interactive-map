@@ -6,13 +6,14 @@
     <meta name="theme-color" content="#071d4b">
     <title>FIU Navigator · Modesto A. Maidique Campus</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-    <link rel="stylesheet" href="LiveChat/bottomSheet.css?v=polish-3">
+    <link rel="stylesheet" href="LiveChat/bottomSheet.css?v=forum-approved-4">
     <link rel="stylesheet" href="LiveChat/mapWarnings.css">
-    <link rel="stylesheet" href="ClassSearch/classSearch.css">
+    <link rel="stylesheet" href="ClassSearch/classSearch.css?v=class-refined-20260927">
+    <link rel="stylesheet" href="locationservices/locationservices.css">
     <link rel="stylesheet" href="app.css">
     <link rel="stylesheet" href="ActionBar/actionBar.css">
     <script src="ActionBar/actionBar.js" defer></script>
-    <script src="LiveChat/mapChat.js?v=polish-3" defer></script>
+    <script src="LiveChat/mapChat.js?v=forum-approved-4" defer></script>
     <script src="app.js" defer></script>
 </head>
 <body class="map-page">
@@ -44,107 +45,11 @@
     <script type="module" src="firebase.js"></script>
     <script type="module">
         import { mountMapWarnings } from './LiveChat/mapWarnings.js';
-        import { mountClassSearch } from './ClassSearch/classSearch.js';
+        import { mountClassSearch } from './ClassSearch/classSearch.js?v=class-refined-20260927';
+        import { mountLocationServices } from './locationservices/leafletLocation.js';
         mountMapWarnings({ map, L });
         mountClassSearch({ map, L });
+        mountLocationServices({ map, L });
     </script>
-
-
-    <!-- This will be for the AI Chatbot functionality-->
-     <!-- Chat UI -->
-    <div id="chat-container" style="position: fixed; bottom: 25px; right: 15px; width: 400px; height: 500px; background: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); display: flex; flex-direction: column; z-index: 1000; font-family: sans-serif;">
-    
-    <!-- Header -->
-    <div style="background: #081e3f; color: white; padding: 10px; border-radius: 10px 10px 0 0; font-weight: bold; text-align: center;">
-        FIU Campus Assistant
-    </div>
-    
-    <!-- Message History -->
-    <div id="chat-history" style="flex: 1; padding: 10px; overflow-y: auto; background: #f9f9f9; display: flex; flex-direction: column; gap: 8px;">
-        <div style="background: #e0e0e0; padding: 8px; border-radius: 8px; align-self: flex-start; max-width: 80%;">
-            Hello! Ask me about buildings or events on campus.
-        </div>
-    </div>
-    
-    <!-- Input Area -->
-    <div style="padding: 10px; border-top: 1px solid #ddd; display: flex; gap: 5px;">
-        <input type="text" id="chat-input" placeholder="Type a question..." style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-        <button onclick="sendMessage()" style="background: #cc9900; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Send</button>
-    </div>
-    </div>
-
-    <script>
-        async function sendMessage() {
-            const inputField = document.getElementById('chat-input');
-            const message = inputField.value.trim();
-            
-            // Don't send empty messages
-            if (!message) return;
-
-            const chatHistory = document.getElementById('chat-history');
-
-            // 1. Add the User's message to the chat window (Blue Bubble)
-            chatHistory.innerHTML += `
-                <div style="background: #081e3f; color: white; padding: 8px; border-radius: 8px; align-self: flex-end; max-width: 80%;">
-                    ${message}
-                </div>
-            `;
-            
-            // Clear the input box
-            inputField.value = '';
-            // Auto-scroll to the bottom
-            chatHistory.scrollTop = chatHistory.scrollHeight;
-
-            // --- Add a temporary 'Typing...' bubble ---
-            const typingId = 'typing-' + Date.now(); // Give it a unique ID
-            chatHistory.innerHTML += `
-                <div id="${typingId}" style="background: #e0e0e0; color: #555; padding: 8px; border-radius: 8px; align-self: flex-start; max-width: 80%; font-style: italic;">
-                    Typing...
-                </div>
-            `;
-            chatHistory.scrollTop = chatHistory.scrollHeight;
-
-            try {
-                // 2. Send the message to your Python Flask server
-                const response = await fetch('http://127.0.0.1:5000/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: message })
-                });
-
-                // Wait for Gemini to generate the answer
-                const data = await response.json();
-
-                // --- NEW: Remove the 'Typing...' bubble before showing the answer ---
-                document.getElementById(typingId).remove();
-
-                // 3. Add the AI's response to the chat window (Gray Bubble)
-                chatHistory.innerHTML += `
-                    <div style="background: #e0e0e0; color: black; padding: 8px; border-radius: 8px; align-self: flex-start; max-width: 80%;">
-                        ${marked.parse(data.reply)}
-                    </div>
-        `;
-                
-                // Auto-scroll to the bottom again
-                chatHistory.scrollTop = chatHistory.scrollHeight;
-
-            } catch (error) {
-                console.error("Error connecting to chat server:", error);
-                
-                // Fallback error message if the Python server isn't running
-                chatHistory.innerHTML += `
-                    <div style="background: #ffcccc; color: #900; padding: 8px; border-radius: 8px; align-self: flex-start; max-width: 80%;">
-                        Connection error. Make sure your Python server is running!
-                    </div>
-                `;
-            }
-        }
-
-        // Bonus: Allow pressing the "Enter" key to send the message
-        document.getElementById('chat-input').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') sendMessage();
-        });
-    </script>
-
 </body>
 </html>

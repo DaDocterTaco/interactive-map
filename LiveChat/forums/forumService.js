@@ -8,6 +8,7 @@ import {
 // the same author, verifier, counter, and lifecycle constraints on the server.
 const db = getFirestore(app);
 export const categories = ["Question", "Comment", "Concern", "Alert", "Other"];
+const forumTopics = ["Classes", "Study spaces", "Campus life", "Parking & transit", "Housing", "Other"];
 const posts = collection(db, "forums");
 const record = snapshot => ({ id: snapshot.id, ...snapshot.data({ serverTimestamps: "estimate" }), pending: snapshot.metadata.hasPendingWrites });
 
@@ -29,6 +30,13 @@ export function watchPosts(count, onPosts, onError) {
         snapshot => onPosts(snapshot.docs.map(record), snapshot.metadata.fromCache), onError);
 }
 
+// One listener supplies archive-wide search, topic filters, and answer previews.
+// Render the results in pages in the UI; do not attach a reply listener per card.
+export function watchAllPosts(onPosts, onError) {
+    return onSnapshot(query(posts, orderBy("createdAt", "desc")), { includeMetadataChanges: true },
+        snapshot => onPosts(snapshot.docs.map(record), snapshot.metadata.fromCache), onError);
+}
+
 export function watchPost(id, onPost, onError) {
     return onSnapshot(doc(posts, id), { includeMetadataChanges: true },
         snapshot => onPost(snapshot.exists() ? record(snapshot) : null), onError);
@@ -39,13 +47,34 @@ export function watchReplies(id, count, onReplies, onError) {
         { includeMetadataChanges: true }, snapshot => onReplies(snapshot.docs.map(record), snapshot.metadata.fromCache), onError);
 }
 
-export async function createPost(user, title, body, category, location = null) {
+export function watchAllReplies(id, onReplies, onError) {
+    return onSnapshot(query(collection(posts, id, "replies"), orderBy("createdAt")),
+        { includeMetadataChanges: true }, snapshot => onReplies(snapshot.docs.map(record), snapshot.metadata.fromCache), onError);
+}
+
+export function watchSavedPosts(uid, onSaved, onError) {
+    return onSnapshot(collection(db, "users", uid, "savedForums"), { includeMetadataChanges: true },
+        snapshot => onSaved(snapshot.docs.map(item => item.id), snapshot.metadata.fromCache), onError);
+}
+
+export async function setSavedPost(user, postId, saved) {
+    identity(user);
+    const reference = doc(db, "users", user.uid, "savedForums", postId);
+    const batch = writeBatch(db);
+    if (saved) batch.set(reference, { postId, savedAt: serverTimestamp() });
+    else batch.delete(reference);
+    await batch.commit();
+}
+
+export async function createPost(user, title, body, category, location = null, topic = "") {
     if (!categories.includes(category)) throw new Error("Choose a discussion type.");
+    if (topic && !forumTopics.includes(topic)) throw new Error("Choose a valid topic.");
     const reference = doc(posts);
     const alert = category === "Alert" ? { location: validateLocation(location), confirmationCount: 0, lastConfirmationBy: "" } : {};
     await setDoc(reference, {
         ...identity(user), title: text(title, 140, "Title"), body: text(body, 5000, "Post"), category,
-        createdAt: serverTimestamp(), lastActivityAt: serverTimestamp(), replyCount: 0, lastReplyId: "", ...alert
+        createdAt: serverTimestamp(), lastActivityAt: serverTimestamp(), replyCount: 0, lastReplyId: "", ...alert,
+        ...(category !== "Alert" && topic ? { topic } : {})
     });
     return reference.id;
 }
@@ -148,11 +177,37 @@ export async function resolveReport(user, postId, note = "") {
     }
 }
 
-export async function sendReply(user, postId, body) {
+export async function setAcceptedAnswer(user, postId, replyId) {
+    identity(user);
+    if (typeof replyId !== "string" || (replyId && !/^[A-Za-z0-9_-]{1,128}$/.test(replyId))) {
+        throw new Error("Choose a valid reply.");
+    }
+    const parent = doc(posts, postId);
+    await runTransaction(db, async transaction => {
+        const post = await transaction.get(parent);
+        if (!post.exists() || post.data().category !== "Question") throw new Error("This question is unavailable.");
+        if (post.data().authorId !== user.uid) throw new Error("Only the question author can choose a helpful reply.");
+        let answer = null;
+        if (replyId) {
+            const reply = await transaction.get(doc(parent, "replies", replyId));
+            if (!reply.exists()) throw new Error("This reply is unavailable.");
+            const data = reply.data();
+            answer = { replyId, name: data.name, body: data.body, authorId: data.authorId };
+        }
+        // Immutable reply content is mirrored for safe, inexpensive feed previews.
+        // Rules verify this map against the same-thread reply on every change.
+        transaction.update(parent, { acceptedReplyId: replyId, acceptedAnswer: answer });
+    });
+}
+
+export async function sendReply(user, postId, body, parentId = "") {
+    if (typeof parentId !== "string" || (parentId && !/^[A-Za-z0-9_-]{1,128}$/.test(parentId))) {
+        throw new Error("Choose a valid reply to respond to.");
+    }
     const parent = doc(posts, postId);
     const reply = doc(collection(parent, "replies"));
     const batch = writeBatch(db);
-    batch.set(reply, { ...identity(user), body: text(body, 2000, "Reply"), createdAt: serverTimestamp() });
+    batch.set(reply, { ...identity(user), body: text(body, 2000, "Reply"), createdAt: serverTimestamp(), ...(parentId ? { parentId } : {}) });
     // Save the reply and count together, including when two people reply at once.
     batch.update(parent, { replyCount: increment(1), lastReplyId: reply.id, lastActivityAt: serverTimestamp() });
     await batch.commit();
