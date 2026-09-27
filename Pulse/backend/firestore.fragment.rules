@@ -1,50 +1,182 @@
-    // Pulse is excluded from the application's unrelated-data fallback.
+    // PULSE MANAGED RULES BEGIN
     match /pulse/{campusId} {
-      function pulseSignedIn() { return request.auth != null; }
-      function pulseMember(meetupId) {
-        return pulseSignedIn()
-          && request.auth.uid in get(/databases/$(database)/documents/pulse/$(campusId)/meetups/$(meetupId)).data.participantIds;
+      function signedIn() { return request.auth != null; }
+      function campusOpen() { return get(/databases/$(database)/documents/pulse/$(campusId)).data.enabled == true; }
+      function ticketPath(uid) { return /databases/$(database)/documents/pulse/$(campusId)/availability/$(uid); }
+      function planPath(id) { return /databases/$(database)/documents/pulse/$(campusId)/proposals/$(id); }
+      function spotPath(id) { return /databases/$(database)/documents/pulse/$(campusId)/spots/$(id); }
+      function member(p) {
+        return signedIn() && request.auth.uid in p.participantIds && !(request.auth.uid in p.departedIds);
       }
-      function pulseChatOpen(meetupId) {
-        let meetup = get(/databases/$(database)/documents/pulse/$(campusId)/meetups/$(meetupId)).data;
-        return meetup.status in ['confirmed', 'ended'] && request.time < meetup.chatClosesAt;
+      function groupOpen(p) {
+        return p.status == 'confirmed' && p.participantIds.size() - p.departedIds.size() >= 2;
       }
-      allow read: if pulseSignedIn();
+      function chatOpen(id) {
+        let p = get(planPath(id)).data;
+        return member(p) && groupOpen(p) && request.time < p.chatClosesAt;
+      }
+      function released(a) {
+        let p = get(planPath(a.proposalId)).data;
+        return p.status == 'expired' || p.responses.get(a.uid, {}).get('decision', '') == 'decline'
+          || (p.status == 'confirmed' && (!(a.uid in p.participantIds) || a.uid in p.departedIds
+            || p.participantIds.size() - p.departedIds.size() < 2 || request.time >= p.endsAt));
+      }
+      function free(a) { return a.status in ['waiting', 'closed'] || (a.proposalId != null && released(a)); }
+      function validTicket(a, uid) {
+        return a.keys().hasOnly(['uid', 'displayName', 'requestId', 'version', 'activities', 'walks',
+            'status', 'proposalId', 'createdAt', 'updatedAt', 'expiresAt'])
+          && a.uid == uid && a.displayName is string && a.displayName.size() > 0 && a.displayName.size() <= 40
+          && a.requestId is string && a.requestId.size() >= 8 && a.requestId.size() <= 128
+          && a.version is string && a.version.size() >= 8 && a.version.size() <= 128
+          && a.activities is list && a.activities.size() >= 1 && a.activities.size() <= 3
+          && a.activities.toSet().size() == a.activities.size() && a.activities.hasOnly(['coffee', 'food', 'chat'])
+          && a.walks is map && a.walks.size() > 0 && a.walks.size() <= 50
+          && a.status == 'waiting' && a.proposalId == null
+          && a.createdAt == request.time && a.updatedAt == request.time
+          && a.expiresAt is timestamp && a.expiresAt >= request.time + duration.value(14, 'm')
+          && a.expiresAt <= request.time + duration.value(121, 'm');
+      }
+      function reserve(a, next, uid) {
+        let p = getAfter(planPath(next.proposalId)).data;
+        return a.status == 'waiting' && a.proposalId == null && request.time < a.expiresAt
+          && next.diff(a).affectedKeys().hasOnly(['status', 'proposalId', 'updatedAt'])
+          && next.status == 'reserved' && next.updatedAt == request.time
+          && p.status == 'pending' && p.createdAt == request.time && uid in p.candidateIds
+          && a.version == p.availabilityVersions[uid] && a.displayName == p.participantNames[uid]
+          && p.activity in a.activities && a.walks[p.spotId] is int && a.walks[p.spotId] >= 1 && a.walks[p.spotId] <= 20
+          && p.walkingMinutes[uid] == a.walks[p.spotId]
+          && p.startsAt >= p.responseDeadline + duration.value(a.walks[p.spotId] * 60 + 60, 's')
+          && p.endsAt <= a.expiresAt - duration.value(5, 'm');
+      }
+      allow read: if signedIn();
       allow write: if false;
       match /spots/{spotId} {
-        allow read: if pulseSignedIn();
+        allow read: if signedIn();
         allow write: if false;
       }
       match /availability/{uid} {
-        allow get: if pulseSignedIn() && request.auth.uid == uid;
-        allow list, write: if false;
+        // Only names, interests, time windows and coarse walk estimates are discoverable.
+        allow get: if signedIn() && (request.auth.uid == uid || resource.data.status == 'waiting'
+          || request.auth.uid in get(planPath(resource.data.proposalId)).data.candidateIds);
+        allow list: if signedIn() && resource.data.status == 'waiting'
+          && request.query.limit != null && request.query.limit <= 100;
+        allow create: if signedIn() && request.auth.uid == uid && campusOpen() && validTicket(request.resource.data, uid);
+        allow update: if signedIn() && (
+          (request.resource.data.status == 'reserved' && reserve(resource.data, request.resource.data, uid)) ||
+          (request.auth.uid == uid && free(resource.data) && (
+            (request.resource.data.status == 'waiting' && campusOpen() && validTicket(request.resource.data, uid)
+              && request.resource.data.requestId != resource.data.requestId
+              && request.resource.data.version != resource.data.version)
+            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+              && request.resource.data.status == 'closed' && request.resource.data.updatedAt == request.time)))
+          );
+        allow delete: if signedIn() && request.auth.uid == uid && free(resource.data);
       }
-      match /memberState/{uid} {
-        allow get: if pulseSignedIn() && request.auth.uid == uid;
-        allow list, write: if false;
-      }
-      match /proposals/{proposalId} {
-        allow read: if pulseSignedIn() && request.auth.uid in resource.data.candidateIds;
-        allow write: if false;
-      }
-      match /meetups/{meetupId} {
-        allow read: if pulseSignedIn() && request.auth.uid in resource.data.participantIds;
-        allow write: if false;
+      match /proposals/{id} {
+        function spotMatches(p) {
+          let s = get(spotPath(p.spotId)).data;
+          return s.enabled == true && s.verified == true && p.activity in s.activities
+            && p.spot == { 'name': s.name, 'instruction': s.instruction, 'latitude': s.latitude, 'longitude': s.longitude };
+        }
+        function candidate(p, index) {
+          let uid = p.candidateIds[index];
+          let next = getAfter(ticketPath(uid)).data;
+          return next.status == 'reserved' && next.proposalId == id;
+        }
+        function validProposal(p) {
+          return p.keys().hasOnly(['candidateIds', 'participantNames', 'availabilityVersions', 'activity', 'spotId', 'spot',
+              'walkingMinutes', 'walkingEstimate', 'minimumAcceptances', 'startsAt', 'endsAt', 'chatClosesAt',
+              'responseDeadline', 'deleteAfter', 'status', 'responses', 'participantIds', 'departedIds', 'createdAt', 'updatedAt'])
+            && p.candidateIds is list && p.candidateIds.size() >= 2 && p.candidateIds.size() <= 4
+            && p.candidateIds.toSet().size() == p.candidateIds.size() && request.auth.uid in p.candidateIds
+            && p.participantNames is map && p.participantNames.keys().hasOnly(p.candidateIds)
+            && p.availabilityVersions is map && p.availabilityVersions.keys().hasOnly(p.candidateIds)
+            && p.walkingMinutes is map && p.walkingMinutes.keys().hasOnly(p.candidateIds)
+            && p.activity in ['coffee', 'food', 'chat'] && p.spotId is string && spotMatches(p)
+            && p.status == 'pending' && p.responses == {} && p.participantIds == [] && p.departedIds == []
+            && p.walkingEstimate == true && p.minimumAcceptances == 2
+            && p.createdAt == request.time && p.updatedAt == request.time
+            && p.responseDeadline is timestamp
+            && p.responseDeadline >= request.time + duration.value(25, 's')
+            && p.responseDeadline <= request.time + duration.value(65, 's')
+            && p.startsAt is timestamp && p.endsAt is timestamp
+            && p.endsAt - p.startsAt >= duration.value(10, 'm') && p.endsAt - p.startsAt <= duration.value(25, 'm')
+            && p.chatClosesAt == p.endsAt + duration.value(10, 'm')
+            && p.deleteAfter == p.endsAt + duration.value(24, 'h')
+            && candidate(p, 0) && candidate(p, 1)
+            && (p.candidateIds.size() < 3 || candidate(p, 2))
+            && (p.candidateIds.size() < 4 || candidate(p, 3));
+        }
+        function ownResponse(p, next) {
+          let uid = request.auth.uid;
+          let r = next.responses.get(uid, {});
+          return p.status == 'pending' && request.time < p.responseDeadline
+            && next.diff(p).affectedKeys().hasOnly(['responses', 'updatedAt'])
+            && next.responses.diff(p.responses).affectedKeys().hasOnly([uid])
+            && p.responses.get(uid, {}).get('decision', '') != 'decline'
+            && r.keys().hasOnly(['decision', 'respondedAt']) && r.decision in ['accept', 'decline']
+            && r.respondedAt == request.time;
+        }
+        function accepts(p, i) {
+          return p.candidateIds.size() > i && p.responses.get(p.candidateIds[i], {}).get('decision', '') == 'accept';
+        }
+        function accepted(p) {
+          return (accepts(p, 0) ? [p.candidateIds[0]] : [])
+            .concat(accepts(p, 1) ? [p.candidateIds[1]] : [])
+            .concat(accepts(p, 2) ? [p.candidateIds[2]] : [])
+            .concat(accepts(p, 3) ? [p.candidateIds[3]] : []);
+        }
+        function walk(p, i) { return accepts(p, i) ? p.walkingMinutes[p.candidateIds[i]] : 0; }
+        function maximum(a, b) { return a > b ? a : b; }
+        function longestWalk(p) { return maximum(maximum(walk(p, 0), walk(p, 1)), maximum(walk(p, 2), walk(p, 3))); }
+        function settle(p, next) {
+          let ids = accepted(p);
+          let earliest = request.time + duration.value(longestWalk(p) * 60 + 60, 's');
+          return p.status == 'pending' && (request.time >= p.responseDeadline || p.responses.keys().hasAll(p.candidateIds))
+            && next.resolvedAt == request.time
+            && (
+              (next.status == 'confirmed' && ids.size() >= 2 && spotMatches(p)
+                && next.diff(p).affectedKeys().hasOnly(['status', 'participantIds', 'startsAt', 'confirmedAt', 'resolvedAt', 'updatedAt'])
+                && next.participantIds == ids && next.confirmedAt == request.time
+                && next.startsAt >= p.startsAt && next.startsAt >= earliest - duration.value(5, 's')
+                && next.endsAt - next.startsAt >= duration.value(10, 'm')
+                && next.endsAt - next.startsAt <= duration.value(25, 'm'))
+              || (next.status == 'expired'
+                && next.diff(p).affectedKeys().hasOnly(['status', 'resolvedAt', 'updatedAt'])
+                && (ids.size() < 2 || !spotMatches(p) || earliest + duration.value(10, 'm') >= p.endsAt - duration.value(3, 's')))
+            );
+        }
+        function leave(p, next) {
+          return p.status == 'confirmed' && request.auth.uid in p.participantIds && !(request.auth.uid in p.departedIds)
+            && next.diff(p).affectedKeys().hasOnly(['departedIds', 'updatedAt'])
+            && next.departedIds == p.departedIds.concat([request.auth.uid]);
+        }
+        allow read: if signedIn() && request.auth.uid in resource.data.candidateIds;
+        allow create: if signedIn() && campusOpen() && validProposal(request.resource.data);
+        allow update: if signedIn() && request.auth.uid in resource.data.candidateIds
+          && request.resource.data.updatedAt == request.time
+          && (ownResponse(resource.data, request.resource.data) || settle(resource.data, request.resource.data) || leave(resource.data, request.resource.data));
+        // Admin cleanup removes children before the parent; clients cannot orphan messages.
+        allow delete: if false;
         match /messages/{messageId} {
-          allow read: if pulseMember(meetupId) && pulseChatOpen(meetupId);
-          allow create: if pulseMember(meetupId) && pulseChatOpen(meetupId)
-            && request.resource.data.keys().hasAll(['senderId', 'text', 'createdAt'])
+          allow read: if chatOpen(id);
+          allow create: if chatOpen(id)
             && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt'])
-            && request.resource.data.senderId == request.auth.uid
-            && request.resource.data.text is string
-            && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
-            && request.resource.data.text.matches('[\\s\\S]*\\S[\\s\\S]*')
-            && request.resource.data.createdAt == request.time;
+            && request.resource.data.senderId == request.auth.uid && request.resource.data.createdAt == request.time
+            && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+            && request.resource.data.text.matches('[\\s\\S]*\\S[\\s\\S]*');
           allow update, delete: if false;
         }
         match /checkIns/{uid} {
-          allow read: if pulseMember(meetupId) && pulseChatOpen(meetupId);
-          allow write: if false;
+          allow read: if chatOpen(id);
+          // Arrival is self-reported. GPS checks run on-device and never upload fixes.
+          allow create: if signedIn() && request.auth.uid == uid && chatOpen(id)
+            && request.time < get(planPath(id)).data.endsAt
+            && request.resource.data.keys().hasOnly(['uid', 'method', 'checkedInAt'])
+            && request.resource.data.uid == uid && request.resource.data.method in ['manual', 'automatic']
+            && request.resource.data.checkedInAt == request.time;
+          allow update, delete: if false;
         }
       }
     }
+    // PULSE MANAGED RULES END

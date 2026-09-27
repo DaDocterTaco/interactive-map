@@ -6,9 +6,20 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
-ROOT_FILES = {
+PUBLIC_FILES = {
     "index.html", "app.css", "app.js", "Locations.JS", "firebase.js",
     "Buildings.json", "events.json", "forum_alerts.json",
+    "navigation/classNavigation.js", "navigation/classNavigation.css",
+    "navigation/classNavigationSession.js", "navigation/index.js",
+    "navigation/geometry.js", "navigation/locations.js",
+    "navigation/graphProvider.js", "navigation/leafletRenderer.js",
+    "navigation/liveNavigation.js", "navigation/routeProgress.js",
+    "navigation/browserLocationSource.js",
+    "navigation/data/campus-places.json", "navigation/data/campus-graph.json",
+    "Events/events.js", "Events/events.css", "Events/event-data.mjs",
+    "Events/data/events.current.json",
+    "Campus3D/experience.mjs", "Campus3D/experience.css",
+    "Campus3D/campus3d-projection.mjs", "Campus3D/fiu-mmc-simple.glb",
 }
 APP_FOLDERS = {"ActionBar", "ClassSearch", "LiveChat", "locationservices"}
 ASSET_TYPES = {
@@ -34,7 +45,7 @@ class AppHandler(SimpleHTTPRequestHandler):
 
         parts = relative.parts
         allowed = (
-            len(parts) == 1 and parts[0] in ROOT_FILES
+            relative.as_posix() in PUBLIC_FILES
         ) or (
             len(parts) > 1
             and parts[0] in APP_FOLDERS
@@ -47,6 +58,11 @@ class AppHandler(SimpleHTTPRequestHandler):
             and parts[1] in {"client", "shared"}
             and candidate.suffix.lower() in {".js", ".css"}
             and not any(part.startswith(".") for part in parts)
+        )
+        allowed = allowed or (
+            len(parts) == 3 and parts[:2] == ("Events", "icons")
+            and candidate.suffix.lower() == ".svg"
+            and not parts[2].startswith(".")
         )
         if not allowed or not candidate.is_file():
             self.send_error(404)

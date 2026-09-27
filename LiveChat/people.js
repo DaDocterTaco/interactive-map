@@ -1,4 +1,5 @@
 import { app } from "../firebase.js";
+import { normalizeProfile } from "./profileModel.js";
 import { getFirestore, doc, collection, getDoc, getDocs, query, where, orderBy, startAt, endAt, limit, onSnapshot, serverTimestamp, runTransaction, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 // Public profiles support name search; friends are private to their owner.
@@ -14,8 +15,25 @@ export async function saveProfile(user) {
         const saved = await transaction.get(reference);
         if (saved.exists() && saved.data().displayName === displayName) return;
         transaction.set(reference, { uid: user.uid, displayName, searchName: displayName.toLowerCase(),
-            createdAt: saved.exists() ? saved.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp() });
+            createdAt: saved.exists() ? saved.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
     });
+}
+export async function saveProfileDetails(user, input) {
+    const profile = normalizeProfile(input);
+    const reference = doc(db, "users", user.uid);
+    await runTransaction(db, async transaction => {
+        const saved = await transaction.get(reference);
+        transaction.set(reference, { ...profile, uid: user.uid, searchName: profile.displayName.toLowerCase(),
+            createdAt: saved.exists() ? saved.data().createdAt : serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+    });
+    return { ...profile, uid: user.uid };
+}
+export function watchProfile(uid, callback, onError) {
+    return onSnapshot(doc(db, "users", uid), snapshot => callback(snapshot.exists() ? { ...snapshot.data(), uid } : null), onError);
+}
+export async function discoverPeople(self) {
+    const result = await getDocs(query(collection(db, "users"), where("meetupOpen", "==", true), limit(60)));
+    return result.docs.filter(item => item.id !== self).map(item => ({ ...item.data(), uid: item.id }));
 }
 export async function getProfile(uid) {
     const result = await getDoc(doc(db, "users", uid));

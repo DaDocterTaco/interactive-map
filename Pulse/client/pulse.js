@@ -7,7 +7,7 @@ const activities = { coffee: 'Coffee', food: 'Food', chat: 'Hang out' };
 const clock = value => new Date(millis(value)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 const el = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; };
 
-export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = '' }) {
+export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = '', getProfile, openProfile }) {
   if (document.getElementById('pulse-dialog')) throw Error('Pulse is already mounted.');
   const client = createPulseClient(app, campusId);
   const launch = el('button', 'pulse-launch');
@@ -54,6 +54,21 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
   document.body.append(dialog);
   const $ = name => dialog.querySelector(`[data-${name}]`);
   const optinForm = $('optin'), signinForm = $('signin'), compose = $('compose');
+  let preferencesEdited = false, preferenceRequest = 0;
+  optinForm.addEventListener('change', event => { if (event.target.name === 'activity') { preferencesEdited = true; preferenceRequest++; } });
+  async function prefillPreferences() {
+    if (!getProfile || preferencesEdited || activePulseState(state)) return;
+    const version = ++preferenceRequest;
+    try {
+      const account = await auth.restore();
+      if (!account) return;
+      const profile = await getProfile(account.uid);
+      if (disposed || version !== preferenceRequest || preferencesEdited || activePulseState(state) || user?.uid !== account.uid) return;
+      if (profile.meetupActivities?.length) for (const input of optinForm.querySelectorAll('[name=activity]')) input.checked = profile.meetupActivities.includes(input.value);
+    } catch { /* Saved preferences are optional; the availability form still works. */ }
+  }
+  const onProfileUpdate = event => { if (event.detail.uid === user?.uid) { preferencesEdited = false; void prefillPreferences(); } };
+  window.addEventListener('campus-profile-updated', onProfileUpdate);
   let user = null, state = null, campus = null, availability = null, proposal = null, meetup = null, spots = [], checkIns = [], messages = [];
   let signedReady = false, stateReady = false, spotsReady = false, busy = false, disposed = false, epoch = 0, currentStage = '';
   let primaryUnsubs = [], memberUnsubs = [], groupUnsubs = [], proposalId = null, meetupId = null, marker = null, markerKey = '', recent = true;
@@ -112,7 +127,7 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
     }
     return result;
   });
-  function open(event) { lastOpener = event?.currentTarget || launch; if (!dialog.open) dialog.showModal(); render(); void poll(true); }
+  function open(event) { lastOpener = event?.currentTarget || launch; if (!dialog.open) dialog.showModal(); render(); void poll(true); void prefillPreferences(); }
   const restoreFocus = () => {
     const target = lastOpener === action && !document.getElementById('action-bar')?.classList.contains('is-expanded') ? launch : lastOpener;
     target?.focus();
@@ -147,7 +162,9 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
     const rows = ids.map(uid => {
       const name = plan.participantNames?.[uid] || 'Student', row = el('li', 'pulse-person');
       const status = isProposal ? ({ accept: 'Accepted', decline: 'Passed' }[plan.responses?.[uid]?.decision] || 'Considering') : (checkIns.some(c => c.uid === uid) ? 'Here ✓' : 'On the way');
-      row.append(el('span', 'pulse-avatar', Array.from(name)[0]?.toUpperCase() || 'P'), el('span', 'pulse-person-name', `${name}${uid === user?.uid ? ' (you)' : ''}`), el('small', '', status)); return row;
+      const nameNode = el(openProfile ? 'button' : 'span', 'pulse-person-name', `${name}${uid === user?.uid ? ' (you)' : ''}`);
+      if (openProfile) { nameNode.type = 'button'; nameNode.style.cssText = 'border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;text-decoration:underline'; nameNode.setAttribute('aria-label', `View ${name}'s profile`); nameNode.addEventListener('click', () => void openProfile(uid)); }
+      row.append(el('span', 'pulse-avatar', Array.from(name)[0]?.toUpperCase() || 'P'), nameNode, el('small', '', status)); return row;
     }); container.replaceChildren(...rows);
   }
   function renderMessages() {
@@ -258,6 +275,7 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
   }
   function subscribeUser(next) {
     signedReady = true;
+    if (user?.uid !== next?.uid) { preferencesEdited = false; preferenceRequest++; for (const input of optinForm.querySelectorAll('[name=activity]')) input.checked = input.value === 'coffee'; }
     if (user?.uid === next?.uid && stateReady) { user = next; render(); return; }
     epoch++; busy = false; primaryUnsubs.forEach(fn => fn()); primaryUnsubs = []; memberUnsubs.forEach(fn => fn()); memberUnsubs = []; clearGroup();
     user = next; state = null; campus = null; availability = null; stateReady = false; spotsReady = false; spots = []; serverStale = false; requestId = null; clearError();
@@ -284,7 +302,7 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
     memberUnsubs.push(client.watchSpots(value => {
       if (epoch !== ownEpoch) return; spots = value; spotsReady = true;
       const select = optinForm.elements.startingSpot, previous = select.value;
-      const valid = spots.filter(usableSpot);
+      const valid = spots.filter(usableSpot).sort((a, b) => a.name.localeCompare(b.name));
       select.replaceChildren(...valid.map(spot => { const option = el('option', '', spot.name); option.value = spot.id; return option; }));
       if (!valid.length) { const option = el('option', '', 'Meeting spots are being prepared'); option.value = ''; select.append(option); }
       if (valid.some(s => s.id === previous)) select.value = previous;
@@ -345,5 +363,5 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
   const unwatchAuth = auth.watch(subscribeUser);
   Promise.resolve(auth.restore()).then(account => { if (!disposed) subscribeUser(account); }).catch(error => { signedReady = true; showError(error); render(); });
   render();
-  return { open, dispose() { disposed = true; epoch++; clearInterval(interval); unwatchAuth?.(); primaryUnsubs.forEach(fn => fn()); memberUnsubs.forEach(fn => fn()); clearGroup(); marker?.remove(); document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('online', onNetwork); window.removeEventListener('offline', onNetwork); dialog.remove(); launch.remove(); action.remove(); } };
+  return { open, dispose() { disposed = true; epoch++; clearInterval(interval); unwatchAuth?.(); primaryUnsubs.forEach(fn => fn()); memberUnsubs.forEach(fn => fn()); clearGroup(); marker?.remove(); document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('online', onNetwork); window.removeEventListener('offline', onNetwork); window.removeEventListener('campus-profile-updated', onProfileUpdate); dialog.remove(); launch.remove(); action.remove(); } };
 }

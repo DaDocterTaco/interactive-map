@@ -1,4 +1,6 @@
 import * as people from "./people.js";
+import { openProfile } from "./profileUI.js";
+import { paintAvatar } from "./profileView.js";
 
 function personAvatar(person) {
     const avatar = document.createElement("span");
@@ -6,7 +8,7 @@ function personAvatar(person) {
     const initials = words.length > 1 ? words[0][0] + words[words.length - 1][0] : person.displayName.slice(0, 2);
     const tone = Array.from(person.uid).reduce((sum, character) => sum + character.charCodeAt(0), 0) % 5;
     avatar.className = `avatar avatar-tone-${tone}`;
-    avatar.textContent = initials.toUpperCase();
+    paintAvatar(avatar, person);
     avatar.setAttribute("aria-hidden", "true");
     return avatar;
 }
@@ -34,7 +36,7 @@ export function mountPeople({ user, onSelect }) {
         const name = document.createElement("strong"); name.textContent = person.displayName + (person.uid === user.uid ? " (you)" : "");
         const detail = document.createElement("span");
         // Account suffixes distinguish people who picked the same display name.
-        detail.textContent = "@" + person.uid.slice(-6);
+        detail.textContent = person.major || "@" + person.uid.slice(-6);
         copy.append(name, detail);
         button.append(personAvatar(person), copy); button.disabled = person.uid === user.uid;
         button.addEventListener("click", async () => {
@@ -50,6 +52,9 @@ export function mountPeople({ user, onSelect }) {
             finally { busy = false; button.disabled = person.uid === user.uid; button.setAttribute("aria-busy", "false"); }
         });
         wrapper.appendChild(button);
+        const view = document.createElement("button"); view.type = "button"; view.className = "friend-button";
+        view.textContent = "Profile"; view.setAttribute("aria-label", `View ${person.displayName}'s profile`);
+        view.addEventListener("click", () => void openProfile(person.uid)); wrapper.append(view);
         if (person.uid !== user.uid) {
             const save = document.createElement("button"); save.type = "button"; save.className = "friend-button";
             let saved = friends.some(item => item.id === person.uid);

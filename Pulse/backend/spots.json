@@ -1,0 +1,52 @@
+{
+  "campusId": "mmc",
+  "enabled": true,
+  "demoMode": true,
+  "displayName": "FIU Modesto A. Maidique Campus",
+  "bounds": [25.748, -80.387, 25.765, -80.364],
+  "schemaVersion": 2,
+  "spots": [
+    {
+      "id": "gc-cafe-bustelo",
+      "name": "Café Bustelo · Graham Center",
+      "instruction": "Meet beside the Café Bustelo counter, clear of the ordering line. Check café hours before going.",
+      "activities": ["coffee"],
+      "latitude": 25.7565323,
+      "longitude": -80.3723891,
+      "enabled": true,
+      "verified": true,
+      "coordinatePrecision": "mapped-venue",
+      "onSiteRehearsed": false,
+      "verificationNote": "Venue confirmed by Victor on 2026-09-27. Mapped venue point; indoor GPS may require manual arrival.",
+      "source": "https://www.openstreetmap.org/node/3404110005"
+    },
+    {
+      "id": "chick-fil-a",
+      "name": "Chick-fil-A · PG5 Market Station",
+      "instruction": "Meet by the ground-floor Chick-fil-A entrance in PG5 Market Station, clear of the ordering line. Closed Sundays; check hours before going.",
+      "activities": ["food"],
+      "latitude": 25.76012,
+      "longitude": -80.37164073,
+      "enabled": true,
+      "verified": true,
+      "coordinatePrecision": "mapped-venue",
+      "onSiteRehearsed": false,
+      "verificationNote": "Victor confirmed PG5 on 2026-09-27. Coordinates come from the restaurant's published directions link, consistent with the campus PG5 pin; exact door GPS is not surveyed.",
+      "source": "https://www.chick-fil-a.com/locations/fl/florida-international-university"
+    },
+    {
+      "id": "pond-benches",
+      "name": "Kissing Pond benches",
+      "instruction": "Meet at the benches east of Kissing Pond, west of Green Library. Use the southern bench of the cluster as the meeting point.",
+      "activities": ["chat"],
+      "latitude": 25.7568537,
+      "longitude": -80.3750515,
+      "enabled": true,
+      "verified": true,
+      "coordinatePrecision": "mapped-bench",
+      "onSiteRehearsed": false,
+      "verificationNote": "Existence confirmed by Victor on 2026-09-27; mapped bench point. Phone arrival accuracy still needs an on-site rehearsal.",
+      "source": "https://www.openstreetmap.org/node/6301910957"
+    }
+  ]
+}

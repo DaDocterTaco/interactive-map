@@ -12,12 +12,15 @@
     <link rel="stylesheet" href="navigation/classNavigation.css?v=class-route-1">
     <link rel="stylesheet" href="app.css?v=header-removed-2">
     <link rel="stylesheet" href="ActionBar/actionBar.css?v=location-menu-2">
-    <script src="ActionBar/actionBar.js?v=location-menu-2" defer></script>
+    <script src="ActionBar/actionBar.js?v=location-feedback-20260927-1" defer></script>
     <script src="LiveChat/mapChat.js?v=polish-20260927-1" defer></script>
     <script src="app.js" defer></script>
+    <script type="module" src="LiveChat/profileUI.js"></script>
     <!-- Campus Pulse styles -->
     <link rel="stylesheet" href="Pulse/client/pulse.css?v=pulse-1">
     <link rel="stylesheet" href="Events/events.css?v=events-20260927-2">
+<link rel="stylesheet" href="Campus3D/experience.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
 </head>
 <body class="map-page">
     <main class="app-shell">
@@ -66,5 +69,8 @@
         import { mountEvents } from './Events/events.js?v=events-20260927-2';
         mountEvents({ map, L, dataUrl: './Events/data/events.current.json', autoOpen: new URLSearchParams(location.search).has('events') });
     </script>
-</body>
+<script type="module">
+import {mountExperience} from './Campus3D/experience.mjs';
+mountExperience({map,L});
+</script></body>
 </html>

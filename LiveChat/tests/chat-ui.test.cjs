@@ -161,6 +161,7 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
             return { dispose() { closeExplore(); }, selectExternal: onSelect, closeExplore };
         } },
         'chatViewport.js': { mountChatViewport: () => { state.viewportMounts = (state.viewportMounts || 0) + 1; return { dispose() { state.viewportDisposals = (state.viewportDisposals || 0) + 1; } }; } },
+        'profileUI.js': { async openProfile(uid) { state.profileOpened = uid; } },
         'chatInfoUI.js': { mountChatInfo: () => ({
             setConversation(group) { state.infoGroup = group; get('chat-info-panel').close(); },
             refresh(group) { state.infoGroup = group; },
@@ -171,7 +172,7 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
         'forums/forumUI.js': { mountForums: () => ({ setActive(value) { state.forumsActive = value; }, dispose() { state.forumDisposals++; } }) }
     };
     vm.runInNewContext(code, { document, Date, console, URL,
-        window: { matchMedia: query => { assert.ok(media[query], query); return media[query]; } },
+        window: { matchMedia: query => { assert.ok(media[query], query); return media[query]; }, addEventListener() {}, removeEventListener() {} },
         localStorage: { getItem: key => preferences.get(key) ?? null, setItem: (key, value) => preferences.set(key, value), removeItem: key => preferences.delete(key) },
         location: { protocol: 'http:', href: 'http://localhost/LiveChat/mainChat.html' }, loadModule: async file => { assert.ok(modules[file], file); return modules[file]; },
         setTimeout(fn, delay) { const id = ++timerId; timers.set(id, { fn, delay }); return id; }, clearTimeout: id => timers.delete(id),
@@ -281,9 +282,8 @@ test('theme follows the system until chosen, persists, and profile shows the sig
     assert.match(app.get('theme-toggle').getAttribute('aria-label'), /Switch to light/);
     app.media['(prefers-color-scheme: dark)'].onChange({ matches: false }); assert.equal(app.document.documentElement.dataset.chatTheme, 'dark');
     const restored = createApp({ stored: Object.fromEntries(app.preferences), dark: false }); assert.equal(restored.document.documentElement.dataset.chatTheme, 'dark');
-    await app.open(); await app.fire('profile-button'); assert.equal(app.get('profile-panel').open, true);
-    assert.equal(app.get('profile-display-name').textContent, 'TheGambler101'); assert.equal(app.get('profile-initials').textContent, 'TG');
-    assert.equal(app.get('profile-user-id').textContent, 'alice'); await app.fire('close-profile'); assert.equal(app.get('profile-panel').open, false);
+    await app.open(); await app.fire('profile-button'); assert.equal(app.state.profileOpened, 'alice');
+    assert.equal(app.get('profile-name').textContent, 'TheGambler101'); assert.equal(app.get('profile-initials').textContent, 'TG');
 });
 
 test('mobile list/conversation navigation is remembered; forum tabs switch the active pane', async () => {

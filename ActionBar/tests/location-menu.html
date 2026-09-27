@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Location menu regression — simulated GPS</title>
+  <link rel="stylesheet" href="../../app.css">
+  <link rel="stylesheet" href="../actionBar.css">
+  <style>
+    .test-controls { position: absolute; z-index: 600; top: 12px; left: 12px; right: 12px; padding: 12px; background: white; border-radius: 12px; }
+    .test-controls p { margin: 0 0 8px; font-size: 13px; }
+    .test-controls button { min-height: 44px; margin: 3px; }
+  </style>
+  <script src="../actionBar.js" defer></script>
+</head>
+<body class="map-page">
+  <main class="app-shell">
+    <div class="test-controls">
+      <p>Simulated GPS only. This test never reads your device location.</p>
+      <button id="gps-success">Simulate campus position</button>
+      <button id="gps-denied">Simulate permission denied</button>
+      <button id="gps-outside">Simulate outside campus</button>
+    </div>
+  </main>
+  <script type="module">
+    import { mountLocationServices } from '../../locationservices/leafletLocation.js';
+    let receive, fail;
+    const layers = new Set();
+    const layer = () => ({ setLatLng() {}, setRadius() {}, addTo() { layers.add(this); return this; } });
+    const map = { on() {}, off() {}, hasLayer: value => layers.has(value), removeLayer: value => layers.delete(value),
+      getMaxZoom: () => 19, getZoom: () => 16, setView() {}, panTo() {} };
+    const location = mountLocationServices({
+      map, L: { circle: layer, circleMarker: layer },
+      locateButton: document.getElementById('open-location'),
+      stopButton: document.getElementById('stop-location'),
+      statusElement: document.getElementById('location-status'),
+      secureContext: true,
+      geolocation: {
+        watchPosition(success, error) { receive = success; fail = error; return 1; },
+        clearWatch() { receive = null; fail = null; },
+      },
+    });
+    document.getElementById('gps-success').onclick = () => receive?.({
+      coords: { latitude: 25.75396, longitude: -80.37662, accuracy: 8 }, timestamp: Date.now(),
+    });
+    document.getElementById('gps-outside').onclick = () => receive?.({
+      coords: { latitude: 0, longitude: 0, accuracy: 8 }, timestamp: Date.now(),
+    });
+    document.getElementById('gps-denied').onclick = () => fail?.({ code: 1 });
+    window.addEventListener('pagehide', () => location.dispose());
+  </script>
+</body>
+</html>

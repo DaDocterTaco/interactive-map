@@ -202,13 +202,29 @@ chatOptions?.addEventListener("click", event => {
 el("back-to-chats")?.addEventListener("click", () => {
     setMenu(false); setMobileView("list"); el("chat-search").focus({ preventScroll: true });
 });
-el("profile-button")?.addEventListener("click", () => {
+el("profile-button")?.addEventListener("click", async () => {
     if (!currentUser) return;
-    el("profile-display-name").textContent = currentUser.displayName;
-    el("profile-user-id").textContent = currentUser.uid;
-    el("profile-panel").showModal();
+    try { const module = await import("./profileUI.js"); await module.openProfile(currentUser.uid); }
+    catch { chatStatus.textContent = "Profile could not load. Please try again."; }
 });
 el("close-profile")?.addEventListener("click", () => el("profile-panel").close());
+window.addEventListener("campus-profile-updated", event => {
+    if (event.detail.uid !== currentUser?.uid) return;
+    if (el("profile-name")) el("profile-name").textContent = event.detail.displayName;
+    if (el("profile-initials")) el("profile-initials").textContent = initials(event.detail.displayName);
+});
+window.addEventListener("campus-message-user", event => {
+    event.preventDefault();
+    const { person, resolve, reject } = event.detail;
+    (async () => {
+        const firebase = await loadAuth(), user = await firebase.restoreUser();
+        if (!user?.displayName) throw Error("Create your profile before messaging someone.");
+        if (!chatPanel.open || currentUser?.uid !== user.uid) await showChat(user);
+        if (!groupController || currentUser?.uid !== user.uid || !chatPanel.open) throw Error("Chat could not open. Please try again.");
+        const people = await import("./people.js"), direct = await people.openDirect(user, person);
+        el("members-panel")?.close(); selectSection("chats"); groupController.selectExternal(direct); setMobileView("conversation");
+    })().then(resolve, reject);
+});
 
 function initials(name) {
     const value = String(name || "?").trim() || "?";

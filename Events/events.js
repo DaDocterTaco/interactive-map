@@ -127,7 +127,7 @@ export function mountEvents({map,L,dataUrl='../data/events.current.json',buildin
         const names={food:{available:'Food available',free:'Free food',refreshments:'Refreshments'}[state.food],category:state.category,campus:state.campus,source:sourceName(state.source),free:'Free admission',cancelled:'Including cancelled'};
         for(const k of filterKeys.filter(k=>state[k])){const chip=button('','ev-chip');chip.append(el('span',names[k],'ev-chip-label'),icon('x'));chip.setAttribute('aria-label',`Remove filter: ${names[k]}`);chip.addEventListener('click',()=>{state[k]=typeof state[k]==='boolean'?false:'';syncControls();change();$('.ev-filter-button').focus({preventScroll:true});});chipline.append(chip);}
         chipline.hidden=!count;$('.ev-clear-all').hidden=!(count||state.query||state.period!=='upcoming');
-        $('#ev-sort').options[0].textContent=state.period==='past'?'Most recent':'Soonest';
+        $('#ev-sort').options[0].textContent=state.period==='past'?(matchMedia('(max-width:420px)').matches?'Recent':'Most recent'):'Soonest';
     }
     function badge(label,cls='',name='tools-kitchen-2'){const b=el('span',label,'ev-badge '+cls);b.prepend(icon(name));return b;}
     function fact(name,title,value){const n=el('div',null,'ev-fact'),body=el('div');body.append(el('small',title),el('span',value,'ev-fact-value'));n.append(icon(name),body);return n;}
@@ -191,9 +191,9 @@ export function mountEvents({map,L,dataUrl='../data/events.current.json',buildin
     $('.ev-more').addEventListener('click',()=>{const old=limit;limit+=24;render();const next=list.querySelectorAll('.ev-card')[old];next?.querySelector('button').focus({preventScroll:true});});
     setInterval(()=>{if(dialog.open&&feed&&!loading&&!openId&&!query.matches(':focus'))render();},60000);
     mobile.addEventListener('change',()=>{if(feed)render();});
-    const narrow=matchMedia('(max-width:360px)');
-    const dateLabels=()=>{$('#ev-period').options[0].textContent=narrow.matches?'Next 3 wk':'Next 3 weeks';$('#ev-period').options[2].textContent=narrow.matches?'Next 7 d':'Next 7 days';$('#ev-period').options[3].textContent=narrow.matches?'Past 7 d':'Past 7 days';};
-    narrow.addEventListener('change',dateLabels);dateLabels();
+    const narrow=matchMedia('(max-width:360px)'),compactLabels=matchMedia('(max-width:420px)');
+    const dateLabels=()=>{$('#ev-period').options[0].textContent=narrow.matches?'Next 3 wk':'Next 3 weeks';$('#ev-period').options[2].textContent=narrow.matches?'Next 7 d':'Next 7 days';$('#ev-period').options[3].textContent=narrow.matches?'Past 7 d':'Past 7 days';$('#ev-sort').options[0].textContent=state.period==='past'?(compactLabels.matches?'Recent':'Most recent'):'Soonest';$('#ev-sort').options[1].textContent=compactLabels.matches?'Relevant':'Best match';};
+    narrow.addEventListener('change',dateLabels);compactLabels.addEventListener('change',dateLabels);dateLabels();
     if(autoOpen)open();
     return {open,close};
 }

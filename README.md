@@ -10,6 +10,8 @@ For a phone on the same Wi-Fi, run `python tools/serve_lan.py` and open `http://
 
 Phone location access requires a trusted HTTPS connection; it will not work through the HTTP Wi-Fi address above. On the phone, open an HTTPS preview and choose **Locate me**, then allow location access when Safari asks. The location marker appears only when the reported position is within the campus boundary.
 
+For a temporary HTTPS preview, keep the server above running and, with `cloudflared` installed and available on your PATH, run `cloudflared tunnel --url http://127.0.0.1:8080` in another terminal. Open the generated `https://...trycloudflare.com` address on your phone. Anyone with that address can access the app while the tunnel runs. Keep both processes running and the computer awake; stop the tunnel with Ctrl+C when finished. A new tunnel creates a new address.
+
 - **Find a class** opens the existing search dialog. Search a course code or class ID, select a section, and locate its building on the map. See `ClassSearch/README.md` for data limits.
 - **Campus live chat** opens the existing community chat. Its configuration and setup are documented in `LiveChat/README.md`.
 - **Ask the assistant** opens a small question panel. Its Python endpoint is `http://127.0.0.1:5000/chat`; run `campus_ai.py` and configure its dependencies/API key to use it locally. The rest of the map still runs if the assistant server is unavailable.

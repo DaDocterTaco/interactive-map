@@ -1,43 +1,38 @@
-# Campus Pulse
+# Campus Pulse — Firebase Spark demo
 
-This folder contains Pulse's interface, Firebase backend, shared matching rules, tests, and rehearsal instructions.
+Pulse now uses Firebase Authentication and Cloud Firestore directly. It does not deploy Cloud Functions, Cloud Scheduler, or TTL policies and does not require a Blaze upgrade.
 
-**Current status:** interface and backend implemented and tested locally, with a small integration into the campus map. Availability, shared proposals, confirmation, participant-only chat, map pins, manual/automatic arrival, expiry, and cleanup are implemented. The Firebase deployment, verified real spot catalog, HTTPS hosting, and three-phone field rehearsal remain pending. No production Firebase data has been created or changed.
+The existing interface supports availability, 2–4 person proposals, individual acceptance, private group chat, a destination pin, manual arrival, and optional automatic arrival while the page is visible. Exact starting coordinates and GPS fixes stay on the device. Only activity choices, a time window, a display name and coarse walking estimates enter the matching pool.
 
-- [Demo scope, selected meeting spots, and acceptance checks](docs/demo-plan.md)
-- [Database layout, ownership, permissions, and cleanup](docs/data-model.md)
-- [Local setup, API, validation results, and deployment handoff](docs/backend-setup.md)
-- [Browser rehearsal and app integration](docs/interface-setup.md)
+## Start here
 
-## Feature layout
+- [Demo walkthrough and confirmed places](docs/demo-plan.md)
+- [Database layout and access rules](docs/data-model.md)
+- [Setup, tests and deployment](docs/backend-setup.md)
+- [Browser and phone rehearsal](docs/interface-setup.md)
 
-```text
-Pulse/
-  README.md
-  docs/
-    demo-plan.md
-    data-model.md
-  client/        # Responsive Pulse dialog, Firebase adapter, arrival watcher, app mount
-  backend/       # Trusted matching, acceptance, lifecycle, and check-in functions
-  shared/        # Activity IDs, validation, timing and distance calculations
-  tests/         # Matching, concurrency, permissions, and arrival tests
-  scripts/       # Emulator seed, local preview, app integration and rule merger
-  preview/       # Local-only rehearsal; separate from the production entrypoint
-  firebase.json
-  package.json
-  package-lock.json
-```
+## One feature folder
 
-The catalog in `backend/spots.draft.json` is intentionally disabled pending location verification. Automated tests use an explicitly synthetic emulator-only spot, never pretend campus participants or unverified production pins.
+    Pulse/
+      client/     Interface, direct Firestore engine, adapter and arrival watcher
+      shared/     Timing, distance and input validation
+      backend/    Security Rules fragment and approved demo spot catalog
+      scripts/    Rule deployment, catalog import, maintenance, preview and installer
+      tests/      Policy, arrival, readiness and real SDK/rules integration tests
+      preview/    Explicitly local emulator rehearsal
+      docs/       Setup, data model and demo instructions
+      firebase.json
+      package.json
+      package-lock.json
 
-The app integration reuses the existing Firebase instance, chat identity, and Leaflet map. Pulse's small participant chat renderer lives in its dialog; ordinary campus chat keeps its own renderer and data. Entry-point edits load the feature and permit only `Pulse/client` and `Pulse/shared` browser assets through the app's local server.
+Runtime data stays under pulse/mmc in the existing Firebase project. The catalog contains Café Bustelo in Graham Center, Chick-fil-A in PG5 Market Station, and Kissing Pond benches. Victor confirmed the locations on 2026-09-27; mapped coordinates are not surveyed door positions, and on-site phone rehearsal remains necessary.
 
-The production Firestore rules must be merged into the app's one deployed ruleset. A separate Pulse rule file would not automatically apply or override the current open fallback. Tests should exercise the combined ruleset. Browser hosting must publish only client assets and intentionally shared browser modules; backend code, test fixtures, local configuration, and credentials must be excluded from the hosting output.
+The installed campus app reuses its existing Firebase app, sign-in identity and Leaflet map. Pulse is excluded from the application's unrelated-data rules fallback. Combined rules preserve the existing chat, profile and forum policies.
 
-## Storage approach
+## Spark limits and operational differences
 
-Keep Pulse's runtime records in Cloud Firestore under `pulse/{campusId}`. Start with `pulse/mmc`. This parent document stores campus metadata, not growing arrays of students, messages, or meetups. Subcollections provide the expandable hierarchy.
+Matching and deadline settlement run while an opted-in app is open; everyone closing the app pauses processing until somebody returns. Server rules still reject late acceptance and expired chat writes. Automatic arrival is self-reported and checks fresh device readings locally; it is not proof of physical attendance.
 
-Reuse existing Firebase Authentication accounts and `users/{uid}` profiles. Pulse refers to user IDs and does not create another account system. Pulse meetup messages belong to their meetup and appear inside the Pulse dialog, with no duplicate copy in the ordinary chats collection.
+Expiration blocks further activity. Physical deletion is a separate manual maintenance step with scripts/cleanup-spark.mjs. Its default is a dry-run, and --apply removes only expired MMC Pulse records, including nested messages/check-ins before deleting a proposal. There is no promise of automatic deletion exactly 24 hours later.
 
-The deployed spot catalog is the runtime source for matching and destination pins. Initial import data can be versioned with code, but must not become a second independently edited live catalog. Add new spots as documents; additional campuses receive their own campus document and corresponding subcollections.
+The app must be reachable over HTTPS for location access from real phones. Website hosting is separate from the Firebase database deployment. Firestore quotas are shared with the rest of the project.

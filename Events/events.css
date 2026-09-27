@@ -105,6 +105,8 @@
 .ev-map-return button{border:0;border-radius:9px;background:#0450ef;color:white;display:flex;align-items:center;gap:7px;min-height:44px;padding:9px 13px;font:700 13px Arial;cursor:pointer;flex:none}
 .ev-map-return strong{display:block;font-size:14px}.ev-map-return small{color:#50648e;font-size:12px}
 .action-bar #open-events .ev-icon{width:23px;height:23px}
+/* Keep map zoom buttons and alert badges behind the open campus-action sheet. */
+.map-page .action-bar:is(.is-expanded,.is-dragging){z-index:1050}
 @keyframes ev-enter{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
 @keyframes ev-leave{to{opacity:0;transform:translateY(8px) scale(.99)}}
 @keyframes ev-fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
@@ -129,7 +131,7 @@
 .ev-countline{align-items:flex-start}.ev-countline>span{min-width:0;overflow-wrap:anywhere}.ev-clear-all{flex:none;white-space:nowrap}
 .ev-chip{min-width:0;text-align:left}.ev-chip-label{min-width:0;overflow-wrap:anywhere}
 .ev-badge{max-width:100%;white-space:normal;overflow-wrap:anywhere}
-.ev-filters label,.ev-filters select{min-width:0}.ev-filters select{font-weight:400;text-overflow:ellipsis;padding-right:24px}
+.ev-filters label,.ev-filters select{min-width:0}.ev-filters select{text-overflow:ellipsis;padding-right:24px}#events-dialog .ev-filters select{font-weight:400}
 .ev-filters label:has(#ev-category){grid-column:span 2}
 .ev-footer{flex-wrap:wrap}.ev-footer>span{min-width:0;overflow-wrap:anywhere}.ev-footer button{flex:none;min-height:32px}
 .ev-read-more{min-height:36px}.ev-search .ev-icon-button{width:36px;height:36px}

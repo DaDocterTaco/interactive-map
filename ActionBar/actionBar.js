@@ -72,7 +72,9 @@ actionBarHandle.addEventListener('click', () => {
     if (!ignoreHandleClick) setActionBarOpen(!actionBar.classList.contains('is-expanded'));
 });
 actionBar.querySelector('.action-bar-actions').addEventListener('click', event => {
-    if (event.target.closest('button')) setActionBarOpen(false);
+    const button = event.target.closest('button');
+    // Keep permission, GPS progress, and error feedback visible while locating.
+    if (button && !['open-location', 'stop-location'].includes(button.id)) setActionBarOpen(false);
 });
 window.addEventListener('resize', () => {
     if (!actionBar.classList.contains('is-expanded')) collapsedBarHeight = actionBar.offsetHeight;

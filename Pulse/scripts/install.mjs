@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -48,7 +48,18 @@ async function collect(relative) {
   }
 }
 for (const entry of roots) await collect(entry);
+const removed = [];
+for (const [relative, digest] of Object.entries(previous)) {
+  if (files.some(f => f.key === relative)) continue;
+  const output = path.resolve(dest, relative);
+  if (!output.startsWith(path.resolve(dest) + path.sep)) throw Error('Invalid prior manifest path.');
+  const content = await optionalRead(output);
+  if (!content) continue;
+  if (hash(content) !== digest) throw Error('Preserving independently edited retired file: ' + output);
+  removed.push({ relative, output, content });
+}
 console.log(JSON.stringify({ mode: apply ? 'apply' : 'review', target, pulseFiles: files.length,
+  retiredManagedFiles: removed.map(f => f.relative),
   entrypointChanged: originalIndex !== nextIndex, localServerChanged: serverBytes && nextServer !== serverBytes.toString(),
   backendDeployment: false, productionDatabaseChanges: false }, null, 2));
 if (apply) {
@@ -59,6 +70,12 @@ if (apply) {
   await mkdir(backup, { recursive: true });
   await writeFile(path.join(backup, 'index.html'), indexBytes);
   if (serverBytes) await writeFile(path.join(backup, 'serve_lan.py'), serverBytes);
+  for (const file of removed) {
+    const archive = path.join(backup, 'retired', file.relative);
+    await mkdir(path.dirname(archive), { recursive: true });
+    await writeFile(archive, file.content);
+    await unlink(file.output);
+  }
   for (const file of files) { await mkdir(path.dirname(file.output), { recursive: true }); await writeFile(file.output, file.content); }
   await writeFile(indexFile, nextIndex);
   if (serverBytes) await writeFile(serverFile, nextServer);
