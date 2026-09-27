@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Class navigation · Simulated GPS test</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="../../ClassSearch/classSearch.css">
+  <link rel="stylesheet" href="../../app.css">
+  <link rel="stylesheet" href="../classNavigation.css">
+  <style>
+    html,body,#map{height:100%;margin:0} #map{position:fixed;inset:0}
+    .test-controls{position:fixed;z-index:1100;top:8px;right:8px;background:white;padding:8px;border-radius:8px;font:13px system-ui;max-width:310px;box-shadow:0 2px 10px #0002}
+    .test-controls button{margin:3px;padding:5px} .test-controls p{margin:4px}
+  </style>
+</head>
+<body class="map-page">
+  <div id="map" aria-label="Simulated campus map"></div>
+  <aside class="test-controls">
+    <strong>Test environment · Simulated GPS</strong>
+    <button id="open-class" type="button">Find a class</button>
+    <details><summary>GPS test controls</summary>
+      <button id="test-start">Reset position</button><button id="test-move">Move along route</button>
+      <button id="test-arrive">Arrive at building</button><button id="test-deny">Block location</button>
+      <button id="test-weak">Weak GPS</button>
+      <button id="open-location"><strong>Locate me</strong></button><button id="stop-location">Stop location</button>
+      <p id="location-status"></p><p id="test-state" role="status"></p>
+    </details>
+  </aside>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module" src="./classNavigation.fixture.js"></script>
+</body>
+</html>

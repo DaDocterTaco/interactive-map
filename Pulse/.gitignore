@@ -1,0 +1,11 @@
+node_modules/
+.generated/
+.local-config/
+.firebase/
+*-debug.log
+.env*
+!.env.example
+service-account*.json
+.integration-backup/
+.install-manifest.json
+.ui-baseline/

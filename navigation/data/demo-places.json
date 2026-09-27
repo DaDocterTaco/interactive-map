@@ -1,0 +1,55 @@
+{
+  "source": "https://campusmaps.fiu.edu/js/buildings-mmc.js",
+  "retrieved": "2026-09-25",
+  "note": "Official building pins; not surveyed entrances.",
+  "places": [
+    {
+      "id": "AHC2",
+      "name": "Academic Health Center 2",
+      "lat": 25.758091,
+      "lng": -80.371255
+    },
+    {
+      "id": "PG1",
+      "name": "Gold Parking Garage",
+      "lat": 25.754877,
+      "lng": -80.37206
+    },
+    {
+      "id": "SIPA",
+      "name": "Steven J. Green School of International and Public Affairs",
+      "lat": 25.756526,
+      "lng": -80.376109
+    },
+    {
+      "id": "PPFAM",
+      "name": "Patricia & Philip Frost Art Museum",
+      "lat": 25.753685,
+      "lng": -80.373094
+    },
+    {
+      "id": "PC",
+      "name": "Charles Perry & Primera Casa",
+      "lat": 25.755534,
+      "lng": -80.373788
+    },
+    {
+      "id": "GC",
+      "name": "Ernest R. Graham Center",
+      "lat": 25.756189,
+      "lng": -80.372736
+    },
+    {
+      "id": "DM",
+      "name": "Deuxieme Maison",
+      "lat": 25.756201,
+      "lng": -80.374721
+    },
+    {
+      "id": "GL",
+      "name": "Steve and Dorothea Green Library",
+      "lat": 25.7573446,
+      "lng": -80.3744413
+    }
+  ]
+}

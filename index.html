@@ -1,33 +1,388 @@
-<!DOCTYPE html>
+<!doctype html>
+
+
+
 <html lang="en">
+
+
+
 <head>
+
+
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Campus Map</title>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin=""/>
+
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+
+
+    <script src="CampusUI/mobileInput.js?v=mobile-keyboard-1"></script>
+    <link rel="stylesheet" href="CampusUI/mobileInput.css?v=mobile-keyboard-1">
+    <meta name="theme-color" content="#071d4b">
+
+
+
+    <script src="LiveChat/siteTheme.js?v=header-theme-1"></script>
+
+
+
+    <title>Campus Loop · Your campus, connected</title>
+
+
+
+    <link rel="stylesheet" href="Splash/campus-loop.css?v=wayfinder-1">
+
+
+
+    <script src="Splash/campus-loop.js?v=wayfinder-1"></script>
+
+
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+
+
+
+    <link rel="stylesheet" href="LiveChat/bottomSheet.css?v=forum-approved-4">
+
+
+
+    <link rel="stylesheet" href="LiveChat/mapWarnings.css?v=alerts-20260927-1">
+
+
+
+    <link rel="stylesheet" href="ClassSearch/classSearch.css?v=class-refined-20260927">
+
+
+
+    <link rel="stylesheet" href="navigation/classNavigation.css?v=contrast-20260927">
+
+
+    <link rel="stylesheet" href="app.css?v=assistant-markdown-1">
+
+
+    <link rel="stylesheet" href="ActionBar/actionBar.css?v=location-menu-2">
+
+
+
+    <script src="CampusUI/shell.js?v=community-fit-1" defer></script>
+
+
+
+    <script src="LiveChat/mapChat.js?v=forum-popup-4" defer></script>
+
+
+
+    <script src="vendor/marked/marked.umd.js?v=18.0.14" defer></script>
+    <script src="vendor/dompurify/purify.min.js?v=3.4.16" defer></script>
+    <script src="app.js?v=assistant-markdown-1" defer></script>
+
+
+    <script type="module" src="LiveChat/profileUI.js"></script>
+
+
+
+    <!-- Campus Pulse styles -->
+
+
+
+    <link rel="stylesheet" href="Pulse/client/pulse.css?v=pulse-ui-2">
+
+
+
+    <link rel="stylesheet" href="Events/events.css?v=events-20260927-2">
+
+
+
+<link rel="stylesheet" href="Campus3D/experience.css">
+
+
+
+<link rel="stylesheet" href="CampusUI/campus.css?v=adaptive-labels-1">
+
+
+
+<link rel="stylesheet" href="LiveChat/siteTheme.css?v=contrast-20260927">
+
+
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+
+
+
 </head>
-<body>
 
-    <div id="map" style="height: 1000px;"></div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin=""></script>
+
+<body class="map-page">
+
+
+
+    <div id="cu-account-controls" aria-label="Appearance and profile">
+
+
+
+        <button id="campus-theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode">
+
+
+
+            <svg class="cu-theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/></svg>
+
+
+
+            <svg class="cu-theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+
+
+
+        </button>
+
+
+
+    </div>
+
+
+
+    <main class="app-shell">
+
+
+
+        <div id="map" role="application" aria-label="Interactive map of FIU Modesto A. Maidique Campus"></div>
+
+
+
+        <p id="chat-status" role="status"></p>
+
+
+
+        <div class="map-hint" aria-hidden="true">Drag to explore · Select a marker for details</div>
+
+
+
+    </main>
+
+
+
+    <section id="chat-container" class="assistant-panel" aria-labelledby="assistant-title" hidden>
+
+
+
+        <header class="assistant-header"><div><span class="assistant-spark" aria-hidden="true">✦</span><div><h2 id="assistant-title">FIU Campus Assistant</h2><p>Ask about buildings or events</p></div></div><button id="close-assistant" type="button" aria-label="Close assistant">×</button></header>
+
+
+
+        <div id="chat-history" class="assistant-history" role="log" aria-live="polite" aria-relevant="additions"><div class="assistant-message">Hi! What would you like to know about campus?</div></div>
+
+
+
+        <form id="assistant-form" class="assistant-form"><label for="chat-input" class="sr-only">Your question</label><input id="chat-input" type="text" placeholder="Ask a question..." autocomplete="off" maxlength="1000" required><button type="submit">Send</button></form>
+
+
+
+    </section>
+
+
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+
 
     <script>
-        // your JavaScript code goes right here
-        const map = L.map('map').setView([25.75396, -80.37662], 16);
 
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            }).addTo(map);
+
+
+        // Feature modules share this map and add their own independent markers.
+
+
+
+        const map = L.map('map', { zoomControl: false }).setView([25.75396, -80.37662], 16);
+
+
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+
+
+        const campusTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+
+
+
+            maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+
+
+
+        }).addTo(map);
+
+
+
+        if (new URLSearchParams(location.search).get('campusView') === '2d') {
+
+
+
+            campusTiles.once('load', () => window.CampusLoopLoading?.ready());
+
+
+
+            if (!campusTiles.isLoading()) window.CampusLoopLoading?.ready();
+
+
+
+        }
+
+
+
     </script>
 
-    <script src = "Locations.JS"></script>
 
-</body>
+
+    <script type="module" src="firebase.js"></script>
+
+
+
+    <script type="module">
+
+
+
+        import { mountMapWarnings } from './LiveChat/mapWarnings.js?v=alerts-20260927-1';
+
+
+
+        import { mountClassSearch } from './ClassSearch/classSearch.js?v=numeric-course-search-1';
+
+
+
+        import { mountLocationServices } from './locationservices/leafletLocation.js?v=class-route-1';
+
+
+
+        import { createClassNavigation } from './navigation/classNavigation.js?v=mode-speeds-1';
+
+
+        import { mountCampusExplorer } from './CampusUI/explore.mjs?v=numeric-course-search-1';
+
+
+
+        mountMapWarnings({ map, L });
+
+
+
+        const locationServices = mountLocationServices({
+
+
+
+            map, L,
+
+
+
+            locateButton: document.getElementById('open-location'),
+
+
+
+            stopButton: document.getElementById('stop-location'),
+
+
+
+            statusElement: document.getElementById('location-status'),
+
+
+
+        });
+
+
+
+        const classNavigation = createClassNavigation({ map, L, locationServices });
+
+
+
+        mountClassSearch({ map, L, navigation: classNavigation });
+
+
+
+        mountCampusExplorer({ map, L, locationServices, navigation: classNavigation });
+
+
+
+    </script>
+
+
+
+    <!-- Campus Pulse integration -->
+
+
+
+    <script type="module">
+
+
+
+        import { mountCampusPulse } from './Pulse/client/mount.js?v=pulse-ui-2';
+
+
+
+        mountCampusPulse({ map, L });
+
+
+
+    </script>
+
+
+
+    <!-- Events: isolated feature module; catalog refresh remains manual. -->
+
+
+
+    <script type="module">
+
+
+
+        import { mountEvents } from './Events/events.js?v=campus-loop-1';
+
+
+
+        mountEvents({ map, L, dataUrl: './Events/data/events.current.json', autoOpen: new URLSearchParams(location.search).has('events') });
+
+
+
+    </script>
+
+
+
+<script type="module">
+
+
+
+try {
+
+
+
+    const {mountExperience} = await import('./Campus3D/experience.mjs?v=adaptive-labels-1');
+
+
+
+    mountExperience({map,L});
+
+
+
+} catch (error) {
+
+
+
+    console.warn('Campus 3D unavailable; using the 2D map.', error);
+
+
+
+    window.CampusLoopLoading?.ready();
+
+
+
+}
+
+
+
+</script></body>
+
+
+
 </html>
+
+
+

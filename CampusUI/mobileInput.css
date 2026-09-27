@@ -1,0 +1,57 @@
+/* Keep text readable without Safari's small-input zoom; preserve pinch zoom. */
+html[data-mobile-input="true"] body :is(input, textarea, select, [contenteditable="true"]) {
+    font-size: max(16px, 1em) !important;
+    scroll-margin-block: 12px;
+}
+.campus-input-error { color: var(--chat-danger, #b42318); font-size: 14px; margin: 6px 0 12px; }
+
+html[data-mobile-input="true"][data-keyboard-open="true"] #campus-sheet {
+    bottom: var(--keyboard-inset);
+    max-height: calc(var(--mobile-viewport-height) - 8px);
+    transition: none;
+}
+html[data-mobile-input="true"][data-keyboard-open="true"] :is(.cu-college-selector, .cu-map-actions, .cu-map-zoom, .campus-tools, .campus-profile-launch) {
+    visibility: hidden;
+    pointer-events: none;
+}
+html[data-mobile-input="true"] #campus-sheet:focus-within { transition: none; }
+html[data-mobile-input="true"][data-keyboard-open="true"] #campus-sheet .cu-tabs {
+    height: 60px; padding-block: 2px;
+}
+html[data-mobile-input="true"][data-keyboard-open="true"] #campus-sheet .cu-tabs button .cu-icon { padding: 2px; }
+html[data-mobile-input="true"][data-keyboard-open="true"] #campus-sheet .class-footer { bottom: 60px; }
+html[data-mobile-input="true"][data-keyboard-open="true"] #campus-sheet :is(.conversation-header, .assistant-header) {
+    flex-shrink: 0; min-height: 44px; padding-block: 6px;
+}
+html[data-mobile-input="true"][data-keyboard-open="true"] #campus-sheet :is(#chat-subtitle, .assistant-header p) { display: none; }
+html[data-mobile-input="true"][data-keyboard-open="true"] #campus-sheet #chat-panel .conversation-header {
+    min-height: 44px; padding-block: 0;
+}
+html[data-mobile-input="true"][data-keyboard-open="true"] #campus-sheet #chat-panel #message-list { padding-block: 4px; }
+html[data-mobile-input="true"][data-keyboard-open="true"] #campus-sheet #chat-panel :is(.composer, #forum-reply-dock) { padding-block: 6px; }
+html[data-mobile-input="true"][data-keyboard-open="true"] #campus-sheet #chat-panel :is(#message-input, #send-message) { height: 44px; }
+html[data-keyboard-compact="true"] #campus-sheet .cu-handle { height: 16px; }
+html[data-keyboard-compact="true"] #campus-sheet .cu-collapse { top: 0; }
+html[data-mobile-input="true"][data-keyboard-compact="true"] #campus-sheet .cu-tabs { height: 48px; }
+html[data-keyboard-compact="true"] #campus-sheet .cu-tabs button { flex-direction: row; gap: 4px; font-size: 11px; }
+html[data-keyboard-compact="true"] #campus-sheet .cu-tabs button .cu-icon { width: 18px; height: 18px; mask-size: 18px; -webkit-mask-size: 18px; }
+html[data-keyboard-compact="true"] #campus-sheet #community-back { min-height: 44px; padding-block: 6px; }
+html[data-mobile-input="true"][data-keyboard-compact="true"] #campus-sheet .class-footer { bottom: 48px; }
+html[data-mobile-input="true"] #campus-sheet :is(.composer, .assistant-form, #forum-reply-dock) { flex-shrink: 0; }
+html[data-mobile-input="true"] #campus-sheet :is(.message-list, .assistant-history, .forum-content) {
+    min-height: 0; overscroll-behavior-y: contain;
+}
+html[data-mobile-input="true"] :is(.message-list, .assistant-history) { overflow-anchor: none; }
+
+/* Real modals (including nested group/profile forms) use the visible screen. */
+html[data-mobile-input="true"][data-keyboard-open="true"] body dialog[open]:not(.cu-embedded):not(#chat-panel) {
+    position: fixed !important;
+    top: calc(var(--mobile-viewport-top) + 8px) !important;
+    bottom: auto !important;
+    margin-block: 0 !important;
+    max-height: calc(var(--mobile-viewport-height) - 16px) !important;
+    overflow-y: auto;
+}
+html[data-mobile-input="true"][data-keyboard-open="true"] .cp-surface {
+    max-height: calc(var(--mobile-viewport-height) - 32px);
+}

@@ -1,0 +1,137 @@
+/* Message rhythm and the timestamp peek rail. Load after bottomSheet.css. */
+#message-list {
+    --message-avatar-size: 36px;
+    --message-avatar-gap: 10px;
+    --time-rail-width: 64px;
+    --time-reveal: 0px;
+    --time-opacity: 0;
+    touch-action: pan-y pinch-zoom;
+    /* The controller preserves the first visible keyed message explicitly. */
+    overflow-anchor: none;
+}
+#message-list .message-date {
+    margin: 28px 0 18px;
+    gap: 0;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 18px;
+}
+#message-list .message-date:first-child { margin-top: 0; }
+#message-list .message-date::before,
+#message-list .message-date::after { display: none; }
+#message-list .message-row {
+    position: relative;
+    box-sizing: border-box;
+    gap: var(--message-avatar-gap);
+    margin: 14px 0 0;
+    min-width: 0;
+}
+#message-list .message-row.message-continuation { margin-top: 3px; }
+#message-list .message-row.message-gap { margin-top: 28px; }
+#message-list .message-date + .message-row { margin-top: 0; }
+#message-list .message-avatar {
+    width: var(--message-avatar-size);
+    height: var(--message-avatar-size);
+    flex-basis: var(--message-avatar-size);
+    margin-top: 22px;
+    font-size: 15px;
+}
+#message-list .message-continuation .message-avatar {
+    visibility: hidden;
+    height: 0;
+    margin-top: 0;
+}
+#message-list .message-content {
+    max-width: min(82%, calc(100% - var(--message-avatar-size) - var(--message-avatar-gap)));
+}
+#message-list .message-row.own .message-content { max-width: 82%; }
+#message-list .message-meta { padding: 0 10px; margin-bottom: 4px; font-size: 12px; line-height: 18px; }
+#message-list .message-meta[hidden],
+#message-list .message-avatar[hidden],
+#message-list .message-delivery[hidden] { display: none !important; }
+#message-list .message-name { font-weight: 500; }
+#message-list .message-bubble { padding: 10px 16px; border-radius: 18px; font-size: 16px; line-height: 1.4; }
+#message-list .message-row:not(.own):not(.message-group-start) .message-bubble { border-top-left-radius: 6px; }
+#message-list .message-row:not(.own):not(.message-group-end) .message-bubble { border-bottom-left-radius: 6px; }
+#message-list .message-row.own:not(.message-group-start) .message-bubble { border-top-right-radius: 6px; }
+#message-list .message-row.own:not(.message-group-end) .message-bubble { border-bottom-right-radius: 6px; }
+#message-list .message-delivery { margin: 3px 8px 0; font-size: 11px; line-height: 16px; }
+
+/* A drag translates the existing rows, so the text does not reflow while the
+   finger moves. The accessible toggle reserves a rail and keeps all text visible. */
+#message-list .message-row > .message-avatar,
+#message-list .message-row > .message-content {
+    translate: calc(0px - var(--time-reveal)) 0;
+    transition: translate 180ms cubic-bezier(.2,.7,.3,1);
+}
+#message-list .message-time {
+    position: absolute;
+    top: 29px;
+    right: 0;
+    box-sizing: border-box;
+    width: var(--time-rail-width);
+    padding-left: 4px;
+    color: var(--chat-muted);
+    font-size: 11px;
+    line-height: 18px;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: var(--time-opacity);
+    translate: calc(12px * (1 - var(--time-opacity))) 0;
+    transition: opacity 150ms ease, translate 180ms cubic-bezier(.2,.7,.3,1);
+}
+#message-list .message-row.own .message-time,
+#message-list .message-continuation .message-time { top: 11px; }
+#message-list.is-time-dragging { cursor: grabbing; user-select: none; }
+#message-list.is-time-dragging .message-row > .message-avatar,
+#message-list.is-time-dragging .message-row > .message-content,
+#message-list.is-time-dragging .message-time { transition: none; }
+#message-list.times-visible .message-row { padding-right: calc(var(--time-rail-width) + 8px); }
+#message-list.times-visible .message-time { opacity: 1; translate: 0 0; }
+#message-list.times-visible .message-row > .message-avatar,
+#message-list.times-visible .message-row > .message-content { translate: 0 0; }
+
+/* Moderators retain a focusable per-message action without a repeated text
+   label disrupting compact message runs. Its accessible name remains Remove. */
+#chat-panel #message-list .remove-message {
+    top: 50%;
+    right: -32px;
+    left: auto;
+    width: 28px;
+    min-height: 28px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0;
+    color: var(--chat-muted);
+    background: transparent;
+    transform: translateY(-50%);
+}
+#chat-panel #message-list .remove-message::before { content: "•••"; font-size: 15px; }
+#chat-panel #message-list .own .remove-message { left: -32px; right: auto; }
+#message-list .message-row:not(.own):has(.remove-message:not([hidden])) .message-content {
+    max-width: min(82%, calc(100% - var(--message-avatar-size) - var(--message-avatar-gap) - 34px));
+}
+#chat-panel .chat-options p:empty,
+#chat-panel .chat-options small:empty { display: none; }
+#message-status[data-kind="delivery"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+@media (max-width: 700px) {
+    #message-list { --message-avatar-size: 30px; --message-avatar-gap: 8px; }
+    #message-list .message-avatar { font-size: 13px; }
+    #message-list .message-bubble { padding: 9px 14px; }
+    #message-list .message-row.own .message-content { max-width: 80%; }
+    #message-list .message-time { font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    #message-list .message-row > .message-avatar,
+    #message-list .message-row > .message-content,
+    #message-list .message-time { transition: none; }
+}

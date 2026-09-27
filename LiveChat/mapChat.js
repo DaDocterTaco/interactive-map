@@ -1,0 +1,39 @@
+// Insert the shared chat dialogs into the map page before loading chat.js;
+// that controller looks up dialog elements immediately when it runs.
+(async () => {
+    const scriptUrl = document.currentScript.src;
+    const openButton = document.getElementById("open-chat");
+    const status = document.getElementById("chat-status");
+    try {
+        // Never pair a cached template with newer controller code.
+        const response = await fetch(new URL("mainChat.html?v=alerts-20260927-1", scriptUrl), { cache: "no-store" });
+        if (!response.ok) throw new Error("Could not load the chat panel.");
+        const page = new DOMParser().parseFromString(await response.text(), "text/html");
+        // Keep the shared template's styles in the same order on both routes.
+        for (const source of page.querySelectorAll('link[rel="stylesheet"]')) {
+            const href = new URL(source.getAttribute("href"), scriptUrl).href;
+            if ([...document.querySelectorAll('link[rel="stylesheet"]')].some(link => link.href === href)) continue;
+            const style = document.createElement("link");
+            style.rel = "stylesheet";
+            style.href = href;
+            document.head.append(style);
+        }
+        const panels = ["name-panel", "chat-panel"].map((id) => {
+            const panel = page.getElementById(id);
+            if (!panel) throw new Error("The chat panel is missing from mainChat.html.");
+            return document.importNode(panel, true);
+        });
+        document.body.append(...panels);
+        window.CampusUI?.registerDialog(document.getElementById('chat-panel'),'community');
+        // Load handlers only after their buttons, forms, and panels are mounted.
+        const handlers = document.createElement("script");
+        handlers.src = new URL("chat.js?v=forum-popup-4", scriptUrl).href;
+        handlers.onload = () => { openButton.disabled = false; if (new URL(location.href).searchParams.has("forum")) openButton.click(); };
+        handlers.onerror = () => { status.textContent = "Chat could not load. Refresh the page to try again."; };
+        document.body.append(handlers);
+    } catch (error) {
+        status.textContent = location.protocol === "file:"
+            ? "Open the map through your local web server to use chat."
+            : "Chat could not load. Refresh the page to try again.";
+    }
+})();

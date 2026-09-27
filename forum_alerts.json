@@ -1,0 +1,130 @@
+[
+  {
+    "id": "44RCzzPOCWE8xUIM4kPd",
+    "authorId": "I8r3bsaPxdTnRtDNzsohKUwJ6KG3",
+    "name": "TheGambler101",
+    "title": "flooding",
+    "body": "swim",
+    "category": "Alert",
+    "replyCount": 0,
+    "lastReplyId": "",
+    "location": {
+      "label": "flooding street",
+      "latitude": 25.754723,
+      "longitude": -80.374112
+    },
+    "confirmationCount": 0,
+    "lastConfirmationBy": "",
+    "createdAt": {
+      "_seconds": 1790469465,
+      "_nanoseconds": 453000000
+    },
+    "lastActivityAt": {
+      "_seconds": 1790469465,
+      "_nanoseconds": 453000000
+    },
+    "resolution": {
+      "status": "resolved",
+      "resolvedBy": "I8r3bsaPxdTnRtDNzsohKUwJ6KG3",
+      "resolvedName": "TheGambler101",
+      "note": "",
+      "resolvedAt": {
+        "_seconds": 1790469472,
+        "_nanoseconds": 905000000
+      }
+    }
+  },
+  {
+    "id": "OEnSa3QOoJIJ2AuU34ys",
+    "authorId": "hmEhHRtYsDaYqhAxGCUSOgwsYYw2",
+    "name": "Cristian",
+    "title": "Test Warning!",
+    "body": "Testing",
+    "category": "Alert",
+    "replyCount": 0,
+    "lastReplyId": "",
+    "location": {
+      "label": "Bridge",
+      "latitude": 25.757028,
+      "longitude": -80.375408
+    },
+    "confirmationCount": 0,
+    "lastConfirmationBy": "",
+    "createdAt": {
+      "_seconds": 1790453796,
+      "_nanoseconds": 329000000
+    },
+    "lastActivityAt": {
+      "_seconds": 1790453796,
+      "_nanoseconds": 329000000
+    },
+    "verification": {
+      "status": "approved",
+      "verifierId": "I8r3bsaPxdTnRtDNzsohKUwJ6KG3",
+      "verifierName": "TheGambler101",
+      "approvedAt": {
+        "_seconds": 1790469491,
+        "_nanoseconds": 776000000
+      }
+    }
+  },
+  {
+    "id": "Q0GcUXsWBRDSLOwNnhdd",
+    "authorId": "I8r3bsaPxdTnRtDNzsohKUwJ6KG3",
+    "name": "TheGambler101",
+    "title": "flooding",
+    "body": "qqq",
+    "category": "Alert",
+    "replyCount": 0,
+    "lastReplyId": "",
+    "location": {
+      "label": "by road",
+      "latitude": 25.75335,
+      "longitude": -80.378643
+    },
+    "createdAt": {
+      "_seconds": 1790403233,
+      "_nanoseconds": 333000000
+    },
+    "lastActivityAt": {
+      "_seconds": 1790403233,
+      "_nanoseconds": 333000000
+    },
+    "confirmationCount": 3,
+    "lastConfirmationBy": "JoqVqNFDdsTPELSCPYQ2by0iqb53"
+  },
+  {
+    "id": "cIryEnenOpCu2lMaE6qL",
+    "authorId": "JoqVqNFDdsTPELSCPYQ2by0iqb53",
+    "name": "o",
+    "title": "ii",
+    "body": "ii",
+    "category": "Alert",
+    "location": {
+      "label": "ii",
+      "latitude": 25.754567,
+      "longitude": -80.380639
+    },
+    "createdAt": {
+      "_seconds": 1790404423,
+      "_nanoseconds": 995000000
+    },
+    "confirmationCount": 1,
+    "lastConfirmationBy": "I8r3bsaPxdTnRtDNzsohKUwJ6KG3",
+    "verification": {
+      "status": "approved",
+      "verifierId": "I8r3bsaPxdTnRtDNzsohKUwJ6KG3",
+      "verifierName": "TheGambler101",
+      "approvedAt": {
+        "_seconds": 1790404660,
+        "_nanoseconds": 262000000
+      }
+    },
+    "replyCount": 1,
+    "lastReplyId": "GsKDHExaJbWnJh1g5r6D",
+    "lastActivityAt": {
+      "_seconds": 1790468258,
+      "_nanoseconds": 285000000
+    }
+  }
+]

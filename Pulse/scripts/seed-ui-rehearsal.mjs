@@ -1,0 +1,13 @@
+import { readFile } from 'node:fs/promises';
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8197' || process.env.GCLOUD_PROJECT !== 'demo-campus-pulse') throw Error('Only the isolated local demo-campus-pulse emulator is allowed.');
+initializeApp({ projectId: 'demo-campus-pulse' });
+const db = getFirestore(), root = db.doc('pulse/ui-rehearsal');
+if (process.argv.includes('--reset')) await db.recursiveDelete(root);
+const { spots, ...campus } = JSON.parse(await readFile(new URL('../backend/spots.json', import.meta.url)));
+const batch = db.batch();
+batch.set(root, { ...campus, displayName: 'UI rehearsal — emulator only', revision: 0, updatedAt: Timestamp.now() });
+for (const { id, ...spot } of spots) batch.set(root.collection('spots').doc(id), spot);
+await batch.commit();
+console.log('Seeded the three public campus meeting locations in ui-rehearsal only. No production writes.');

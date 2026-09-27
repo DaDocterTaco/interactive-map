@@ -1,0 +1,12 @@
+# Data provenance
+
+- Input: existing `../fiu-model/data/osm-campus.json`, read locally. Its recorded source is the [OpenStreetMap map API bounding box](https://api.openstreetmap.org/api/0.6/map?bbox=-80.3852,25.7488,-80.3678,25.7630). The build did not refresh that snapshot. Its source timestamp is unknown; the exact input SHA-256 is in `data/campus-graph.json`.
+- Campus boundary: existing `../fiu-model/data/campus-boundary.geojson`, from OSM relation 17619320. Included paths are selected by segment endpoint and intermediate-point checks against that polygon. This is a campus-scale extract, not exact polygon clipping.
+- Demo building coordinates: cached `../fiu-model/data/official-building-points.json`, which records [FIU's building directory](https://campusmaps.fiu.edu/js/buildings-mmc.js) as its source and 2026-09-25 as retrieval date. Pins represent buildings, not surveyed doorways.
+- Graph and display footprints: derived OSM data, © OpenStreetMap contributors, [ODbL 1.0 and attribution](https://www.openstreetmap.org/copyright). Preserve attribution and applicable share-alike requirements for the derived database when distributing it. The editable graph and builder are included.
+
+Access behavior is this implementation's conservative campus profile. OSM's [access tagging](https://wiki.openstreetmap.org/wiki/Key:access), [footway tagging](https://wiki.openstreetmap.org/wiki/Tag:highway%3Dfootway), and [cycleway tagging](https://wiki.openstreetmap.org/wiki/Tag%3Ahighway%3Dcycleway) explain why a pedestrian path must not automatically be treated as a verified riding path. These references were consulted on 2026-09-27.
+
+The extractor excludes indoor/area-only paths, unsupported conditional restrictions, non-walkable ways, and unverified restrictive barriers. It admits ordinary footways for walking and only explicit riding access for unqualified riding estimates. Unknown bike/scooter access becomes a dismount estimate unless the caller opts into provisional riding estimates. This is not a complete OSM routing implementation. It does not model restriction relations, opening-hours access, indoor levels, real-time gates, or accessibility certification. Audit routes and node/way access when extending the data, and update the graph's metadata ID when publishing a new version.
+
+No source establishes the actual speed of a user. The defaults in `graphProvider.js` are declared product assumptions and are configurable.

@@ -1,0 +1,17 @@
+/* Verified alerts use a dedicated blue layer and status control on the map. */
+.verified-warning-marker { box-sizing: border-box; display: grid; place-items: center; border: 3px solid #fff; border-radius: 50%; background: #0863ff; color: #fff; font: 800 24px/1 Arial, sans-serif; box-shadow: 0 2px 8px #0007; }
+.verified-warning-marker:focus-visible { outline: 3px solid #081f40; outline-offset: 3px; }
+.map-warning-status { max-width: min(280px, calc(100vw - 40px)); padding: 9px 12px; border-left: 4px solid #0863ff; border-radius: 5px; background: #fff; color: #222; box-shadow: 0 1px 5px #0004; font: 13px/1.4 Arial, sans-serif; }
+.warning-popup { overflow-wrap: anywhere; font: 14px/1.45 Arial, sans-serif; }
+.warning-popup h3 { margin: 6px 0; font-size: 17px; }
+.warning-popup article + article { border-top: 1px solid #ccc; padding-top: 12px; margin-top: 12px; }
+.warning-popup p { margin: 8px 0; }
+.warning-popup .warning-popup-badge { color: #176438; text-transform: uppercase; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.warning-popup-location { font-weight: 600; }
+.warning-popup-body { white-space: pre-wrap; }
+.warning-popup .warning-popup-meta { color: #555; font-size: 12px; }
+.warning-report-link {min-height:44px;border:1px solid #ccd9ee;border-radius:8px;padding:9px 14px;background:white;color:#0756d1;font:600 14px Arial,sans-serif;cursor:pointer}
+.alert-map-return {position:fixed;z-index:1100;top:16px;left:50%;transform:translateX(-50%);padding:12px 20px;min-height:46px;border:1px solid #d8dfef;border-radius:12px;background:#fff;color:#080e50;box-shadow:0 3px 15px #13284125;font:600 15px Arial,sans-serif;cursor:pointer}
+.alert-map-return[hidden] {display:none}
+.alert-map-return:focus-visible,.warning-report-link:focus-visible {outline:3px solid #5298ff;outline-offset:3px}
+@media(max-width:700px) {.alert-map-return {top:max(12px,env(safe-area-inset-top));left:16px;transform:none}.warning-popup {font-size:15px}}

@@ -1,0 +1,151 @@
+/* Community is a page inside the campus sheet, not the standalone chat dialog. */
+#chat-panel .forum-filter-bar{margin:12px 0 4px;border-bottom:1px solid var(--chat-border)}
+#chat-panel #forum-filter-toggle{display:grid;grid-template-columns:auto minmax(0,1fr) 16px;align-items:center;gap:12px;min-height:48px;width:100%;padding:10px 4px;border:0;border-radius:8px;background:transparent;text-align:left;cursor:pointer;color:var(--chat-text);font-size:14px;font-weight:600}
+#chat-panel #forum-filter-toggle .icon{width:16px;height:16px;transform:rotate(90deg);transition:transform .15s ease}
+#chat-panel #forum-filter-toggle .icon-chevron-down{--icon:url('./assets/icons/chevron-right.svg')}
+#chat-panel #forum-filter-toggle[aria-expanded=true] .icon{transform:rotate(270deg)}
+#chat-panel #forum-filter-summary{font-size:12px;font-weight:400;line-height:1.5;text-align:right;color:var(--chat-muted);overflow-wrap:anywhere}
+#chat-panel #forum-filter-options{position:fixed;inset:auto;box-sizing:border-box;margin:0;padding:16px;width:min(360px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain;border:1px solid var(--chat-border);border-radius:20px;background:var(--chat-surface);color:var(--chat-text);box-shadow:0 16px 50px #07182c40}
+#chat-panel #forum-filter-options::backdrop{background:#07182c12}
+#chat-panel .forum-filter-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}
+#chat-panel #forum-filter-title{margin:0;font-size:18px;line-height:1.4}
+#chat-panel .forum-filter-header button{display:grid;place-items:center;min-width:44px;min-height:44px;padding:0;border:0;border-radius:50%;background:var(--chat-incoming);color:var(--chat-text);font-size:24px;line-height:1}
+#campus-sheet[data-tab=community][data-snap=full]{z-index:1000}
+.cu-map-obscured .map-warning-status{visibility:hidden}
+#campus-sheet #community-back{flex:0 0 auto;width:100%;min-height:46px;padding:10px 20px;text-align:left;background:var(--chat-surface);color:var(--cu-link);border-bottom:1px solid var(--chat-border)}
+#campus-sheet #chat-panel{height:auto!important;flex:1 1 0;min-height:0;min-width:0;padding:0;gap:0;background:var(--chat-surface);color:var(--chat-text);container-type:inline-size}
+#campus-sheet #chat-panel :is(.community-sidebar,.chat-conversation,#explore-panel,#forums-panel){border:0;border-radius:0;box-shadow:none;min-height:0;min-width:0}
+#campus-sheet #chat-panel .community-sidebar{flex:1 1 0;padding:0;background:var(--chat-surface)}
+#campus-sheet #chat-panel .community-tabs{flex:0 0 auto;align-self:stretch;align-items:stretch;margin:0;padding:4px 16px 0;gap:12px;min-height:52px;width:100%;border-bottom:1px solid var(--chat-border)}
+#campus-sheet #chat-panel .community-tabs button{flex:1 1 0;min-height:48px;padding:10px 8px;gap:8px;font-size:14px;line-height:1.3}
+#campus-sheet #chat-panel .community-tabs .icon{width:20px;height:20px}
+#campus-sheet #chat-panel #chats-sidebar{flex:1 1 0;overflow:hidden;padding:20px 16px 0;gap:0}
+#campus-sheet #chat-panel #chats-heading{position:static!important;clip-path:none!important;overflow:visible!important;width:auto!important;height:auto!important;margin:0 4px 16px!important;padding:0!important;font-size:23px;line-height:1.25;letter-spacing:-.4px}
+#campus-sheet #chat-panel .search-field{margin:0 4px 16px}
+#campus-sheet #chat-panel #chat-search{height:48px;padding-left:42px;font-size:16px!important}
+#campus-sheet #chat-panel .search-field>.icon{top:15px}
+#campus-sheet #chat-panel .chat-list-scroll{flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;padding:4px 4px 16px;scroll-padding-top:8px}
+#campus-sheet #chat-panel .chat-choice{min-height:76px;gap:12px;padding:12px;border-radius:14px}
+#campus-sheet #chat-panel .chat-choice>.avatar{width:44px;height:44px;flex-basis:44px;font-size:17px}
+#campus-sheet #chat-panel .chat-choice-copy strong{font-size:16px;line-height:1.35}
+#campus-sheet #chat-panel .chat-choice-copy>span{font-size:13px;line-height:1.45}
+#campus-sheet #chat-panel .chat-section-heading{margin:20px 8px 8px;font-size:13px}
+#campus-sheet #chat-panel .new-chat-footer{flex:0 0 auto;margin:0;padding:12px 4px 16px;border-top:1px solid var(--chat-border);gap:10px}
+#campus-sheet #chat-panel :is(#new-chat,#explore-groups){min-height:46px;font-size:14px;padding:10px 8px}
+#campus-sheet #chat-panel .group-row .chat-choice{padding-right:48px!important}
+#campus-sheet #chat-panel .group-row .pin-button{width:44px;min-height:44px;right:0;opacity:1}
+#campus-sheet #chat-panel .person-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px;padding-bottom:10px;border-bottom:1px solid var(--chat-border)}
+#campus-sheet #chat-panel .person-row .chat-choice{grid-column:1/-1}
+#campus-sheet #chat-panel .person-row .friend-button{min-height:44px;margin:0;padding:8px 12px}
+#campus-sheet #chat-panel .person-row .friend-button:nth-child(2){grid-column:2}
+#campus-sheet #chat-panel :is(.mobile-conversation-nav,#close-explore,#forum-back,#forum-cancel-post){display:none!important}
+#campus-sheet #chat-panel .chat-conversation{flex:1 1 0;background:var(--chat-surface)}
+#campus-sheet #chat-panel .conversation-header{flex:0 0 auto;min-height:80px;margin:0 20px;padding:14px 0;gap:10px}
+#campus-sheet #chat-panel #open-chat-info{gap:12px;padding:0;min-width:0}
+#campus-sheet #chat-panel #open-chat-info>.avatar{width:44px;height:44px;flex-basis:44px}
+#campus-sheet #chat-panel #chat-title{font-size:20px;line-height:1.25}
+#campus-sheet #chat-panel #chat-subtitle{font-size:13px;line-height:1.45;margin-top:4px}
+#campus-sheet #chat-panel #chat-more{width:44px;min-height:44px;flex:0 0 44px}
+#campus-sheet #chat-panel #message-list{flex:1 1 0;min-height:0;padding:18px 20px;scroll-padding:18px}
+#campus-sheet #chat-panel .message-row{gap:10px;margin-bottom:16px}
+#campus-sheet #chat-panel .message-avatar{width:32px;height:32px;flex-basis:32px;font-size:13px}
+#campus-sheet #chat-panel .message-content{max-width:calc(100% - 42px)}
+#campus-sheet #chat-panel .message-row.own .message-content{max-width:88%}
+#campus-sheet #chat-panel .message-meta{font-size:12px;line-height:1.4;margin-bottom:5px}
+#campus-sheet #chat-panel .message-bubble{font-size:15px;line-height:1.5;padding:10px 14px}
+#campus-sheet #chat-panel .composer{flex:0 0 auto;padding:12px 16px;background:var(--chat-surface)}
+#campus-sheet #chat-panel #message-form{gap:10px}
+#campus-sheet #chat-panel #message-input{height:48px;padding:10px 14px;font-size:16px!important}
+#campus-sheet #chat-panel #send-message{height:48px;min-width:68px;padding:10px 14px;font-size:14px}
+#campus-sheet #chat-panel .chat-options{top:calc(100% + 4px);right:0;max-width:100%;padding:8px}
+#campus-sheet #chat-panel #explore-panel{flex:1 1 0;padding:20px 20px 0;overflow:hidden;animation:none;background:var(--chat-surface)}
+#campus-sheet #chat-panel .explore-intro{margin:0 0 18px}
+#campus-sheet #chat-panel .explore-eyebrow{display:none}
+#campus-sheet #chat-panel #explore-title{font-size:24px;line-height:1.25;margin:0 0 8px}
+#campus-sheet #chat-panel .explore-intro p{font-size:14px;line-height:1.5}
+#campus-sheet #chat-panel .explore-tools{gap:10px;margin-bottom:16px}
+#campus-sheet #chat-panel #explore-search{font-size:16px;height:48px}
+#campus-sheet #chat-panel #explore-filter{min-width:118px;min-height:48px;font-size:14px}
+#campus-sheet #chat-panel .explore-scroll{flex:1 1 0;min-height:0;padding:4px 2px 20px;scroll-padding-top:4px}
+#campus-sheet #chat-panel #explore-results{grid-template-columns:1fr;gap:12px}
+#campus-sheet #chat-panel .explore-card{padding:16px;border-radius:16px}
+#campus-sheet #chat-panel .explore-card-heading .avatar{width:40px;height:40px;flex-basis:40px;font-size:16px}
+#campus-sheet #chat-panel .explore-card h3{font-size:16px;line-height:1.4}
+#campus-sheet #chat-panel .explore-card-detail{margin:12px 0 16px;line-height:1.5}
+#campus-sheet #chat-panel .explore-card-footer{flex-wrap:wrap;gap:10px}
+#campus-sheet #chat-panel .explore-card-action{min-height:44px;font-size:13px;padding:10px 12px}
+#campus-sheet #chat-panel[data-section=forums]>.community-sidebar{flex:0 0 auto;padding:0;flex-direction:column}
+#campus-sheet #chat-panel[data-section=forums][data-forum-view=thread]>.community-sidebar,
+#campus-sheet #chat-panel[data-section=forums][data-forum-view=compose]>.community-sidebar{display:none!important}
+#campus-sheet #chat-panel #forums-panel{display:flex;flex-direction:column;flex:1 1 0;padding:0;overflow:hidden;background:var(--chat-surface)}
+#campus-sheet #chat-panel #forum-content{flex:1 1 0;min-height:0;min-width:0;overflow-y:auto;overflow-x:hidden;padding:20px;scroll-padding-top:20px;overscroll-behavior:contain}
+#campus-sheet #chat-panel .forum-feed-header{margin:0 0 16px}
+#campus-sheet #chat-panel #forum-feed-title{font-size:24px;line-height:1.25;margin:0}
+#campus-sheet #chat-panel #forum-mobile-search{height:48px;font-size:16px}
+#campus-sheet #chat-panel #forum-mobile-topics{gap:8px;margin:14px 0 12px;padding:3px 0 6px}
+#campus-sheet #chat-panel .forum-topic-chip{min-height:44px;min-width:44px;padding:8px 12px;white-space:nowrap}
+#campus-sheet #chat-panel .forum-mobile-toolbar{gap:12px;margin-bottom:8px;flex-wrap:wrap}
+#campus-sheet #chat-panel :is(#forum-mobile-sort,#forum-mobile-saved){min-height:44px;font-size:14px}
+#campus-sheet #chat-panel #forums-panel #forum-mobile-sort{width:190px;max-width:100%;padding-left:12px;padding-right:32px}
+#campus-sheet #chat-panel .forum-filter-body #forum-mobile-topics{display:flex;flex-wrap:wrap;gap:8px;overflow:visible;margin:4px 0 16px;padding:4px}
+#campus-sheet #chat-panel .forum-filter-body .forum-mobile-toolbar{padding:0 4px;gap:8px}
+#campus-sheet #chat-panel .forum-feed-card{padding:24px 0;margin:0;border-bottom:1px solid var(--chat-border)}
+#campus-sheet #chat-panel .forum-card-open{min-height:44px;margin:10px 0 12px;font-size:20px;font-weight:650;line-height:1.4;letter-spacing:-.3px}
+#campus-sheet #chat-panel .forum-card-preview{font-size:14px;line-height:1.6;margin:14px 0 8px}
+#campus-sheet #chat-panel .forum-feed-card:not([data-alert=true]) .forum-card-topic{padding:0;background:transparent;color:var(--chat-muted);font-size:11px;line-height:1.5;letter-spacing:.5px}
+#campus-sheet #chat-panel .forum-feed-card .forum-author-line{gap:7px;font-size:12px}
+#campus-sheet #chat-panel .forum-feed-card .forum-author-line>strong{color:var(--chat-muted);font-weight:400}
+#campus-sheet #chat-panel .forum-feed-card .forum-avatar{width:24px;height:24px;flex-basis:24px;font-size:10px}
+#campus-sheet #chat-panel .forum-feed-card .forum-meta{font-size:12px}
+#campus-sheet #chat-panel .forum-feed-card .forum-helpful-preview{margin:14px 0 4px;padding:6px 12px;border-left:2px solid var(--chat-border);border-radius:0;background:transparent;line-height:1.5;font-size:13px}
+#campus-sheet #chat-panel .forum-feed-card .forum-helpful-preview .forum-avatar{display:none}
+#campus-sheet #chat-panel .forum-card-footer{gap:12px;flex-wrap:wrap;margin-top:10px}
+#campus-sheet #chat-panel .forum-card-footer button{min-height:44px;padding:8px 0}
+#campus-sheet #chat-panel .forum-card-footer button{color:var(--chat-muted);font-size:13px}
+#campus-sheet #chat-panel .forum-card-footer .forum-card-save{justify-content:center;width:44px;min-width:44px;padding:10px}
+#campus-sheet #chat-panel .forum-card-save>span:not(.icon){position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+#campus-sheet #chat-panel .forum-card-save[aria-pressed=true]{color:var(--forum-link);background:var(--forum-wash)}
+#campus-sheet #chat-panel .forum-feed-card[data-alert=true]{padding:24px 0!important}
+#campus-sheet #chat-panel .forum-author-line{gap:8px;flex-wrap:wrap;line-height:1.5}
+#campus-sheet #chat-panel #forum-mobile-actions{flex:0 0 auto;padding:12px 16px 16px;gap:10px;background:var(--chat-surface)}
+#campus-sheet #chat-panel #forum-mobile-actions button{min-height:46px;padding:10px 8px;font-size:13px;line-height:1.35;gap:6px}
+#campus-sheet #chat-panel #forum-thread-title{font-size:24px;line-height:1.3;margin:6px 0 16px}
+#campus-sheet #chat-panel #forum-thread-body{font-size:15px;line-height:1.6;margin:16px 0}
+#campus-sheet #chat-panel .forum-thread-actions{gap:16px;flex-wrap:wrap;margin-bottom:16px}
+#campus-sheet #chat-panel .forum-replies-heading{gap:12px;flex-wrap:wrap;margin:18px 0 12px}
+#campus-sheet #chat-panel .forum-reply{padding-top:16px;padding-bottom:16px}
+#campus-sheet #chat-panel .forum-reply-actions{gap:14px;flex-wrap:wrap;margin-top:6px}
+#campus-sheet #chat-panel .forum-reply-actions button{min-height:44px;padding:8px 0}
+#campus-sheet #chat-panel #forum-reply-dock{flex:0 0 auto;padding:12px 16px;background:var(--chat-surface)}
+#campus-sheet #chat-panel #forum-reply-input{font-size:16px;min-width:0}
+#campus-sheet #chat-panel .forum-compose-header{margin:0 0 20px}
+#campus-sheet #chat-panel #forum-compose-title{font-size:24px;line-height:1.3;margin:8px 0}
+#campus-sheet #chat-panel #forum-post-form{max-width:none}
+#campus-sheet #chat-panel #forum-post-form :is(input,select,textarea){min-height:48px;font-size:16px;line-height:1.5}
+#campus-sheet #chat-panel #forum-post-form label{margin-top:20px;margin-bottom:8px;line-height:1.4}
+#campus-sheet #chat-panel .forum-submit-row{position:static;flex-wrap:wrap;margin-top:20px;padding:16px 0 8px}
+#campus-sheet #chat-panel .group-dialog{max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);padding:24px;overflow-x:hidden}
+#campus-sheet #chat-panel .group-dialog :is(input,textarea,select){font-size:16px;min-height:46px}
+#campus-sheet #chat-panel .group-dialog button{min-height:44px}
+@container(max-width:350px){
+ #campus-sheet #chat-panel .explore-tools{flex-wrap:wrap}
+ #campus-sheet #chat-panel .explore-search-field{flex-basis:100%}
+ #campus-sheet #chat-panel #explore-filter{width:100%;max-width:none}
+ #campus-sheet #chat-panel :is(#forum-content,#explore-panel){padding-left:16px;padding-right:16px}
+ #campus-sheet #chat-panel #message-list{padding-left:12px;padding-right:12px}
+}
+@media(max-height:600px){
+ #campus-sheet #chat-panel #chats-heading{font-size:20px;margin-bottom:10px!important}
+ #campus-sheet #chat-panel #chats-sidebar{padding-top:10px}
+ #campus-sheet #chat-panel .conversation-header{min-height:62px;padding:8px 0}
+ #campus-sheet #chat-panel .explore-intro p{display:none}
+ #campus-sheet #chat-panel .explore-intro{margin-bottom:12px}
+ #campus-sheet #chat-panel :is(.composer,#forum-reply-dock){padding-top:8px;padding-bottom:8px}
+}
+@media(max-height:520px){
+ #campus-sheet[data-tab=community] #chats-heading{display:none}
+ #campus-sheet[data-tab=community] .cu-tabs{height:66px}
+}
+@media(max-height:520px) and (max-width:640px){
+ #campus-sheet[data-tab=community]{width:100%;max-width:100%}
+}

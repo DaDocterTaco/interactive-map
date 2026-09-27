@@ -1,0 +1,67 @@
+// Real service and rules exercised with synthetic accounts in the local emulator.
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import { initializeApp, deleteApp } from 'firebase/app';
+import * as sdk from 'firebase/firestore';
+import { alertStatus, visibleOnMap, expiresAt } from '../forums/reportLifecycle.js';
+if (process.env.FIRESTORE_EMULATOR_HOST !== '127.0.0.1:8185') throw Error('Use local emulator');
+sdk.setLogLevel('silent');
+const code = (await fs.readFile(new URL('../forums/forumService.js', import.meta.url), 'utf8')).replace(/import[\s\S]*?from "[^"]+";\s*/g, '').replaceAll('export ', '');
+const factory = new Function('app','sdk',`const {${Object.keys(sdk).join(',')}}=sdk;\n${code}\nreturn {createPost,reviewReport,clarifyReport,approveReport,resolveReport,setConfirmation,newPostId};`);
+const apps=[];
+function client(uid) { const app=initializeApp({projectId:'demo-fiu-chat',apiKey:'emulator-only'},uid); apps.push(app); const db=sdk.getFirestore(app); sdk.connectFirestoreEmulator(db,'127.0.0.1',8185,{mockUserToken:{sub:uid}}); return {db,user:{uid,displayName:uid},service:factory(app,sdk)}; }
+const author=client('review-author'), reviewer=client('review-reviewer'), other=client('review-other'), reader=client('review-reader');
+const point={label:'Green Library east entrance',latitude:25.756,longitude:-80.3726};
+const create=(options={})=>author.service.createPost(author.user,'Flooded entrance','Water covers the walkway.','Alert',point,'',options);
+const ref=(who,id)=>sdk.doc(who.db,'forums',id);
+const read=async id=>(await sdk.getDoc(ref(author,id))).data();
+const denied=op=>assert.rejects(op,e=>e.code==='permission-denied');
+const decision=(who,reason='Not a current issue')=>({by:who.user.uid,name:who.user.displayName,at:sdk.serverTimestamp(),reason});
+const approval=who=>({status:'approved',verifierId:who.user.uid,verifierName:who.user.displayName,approvedAt:sdk.serverTimestamp()});
+async function patch(path,fields,mask='') {const res=await fetch('http://127.0.0.1:8185/v1/projects/demo-fiu-chat/databases/(default)/documents/'+path+mask,{method:'PATCH',headers:{Authorization:'Bearer owner','Content-Type':'application/json'},body:JSON.stringify({fields})});assert.ok(res.ok,await res.text());}
+try {
+  for(const who of [author,reviewer,other])await patch('users/'+who.user.uid+'/roles/verifier',{enabled:{booleanValue:true}});
+  const stable=author.service.newPostId();
+  await Promise.all([create({submissionId:stable,issueType:'Flooding'}),create({submissionId:stable,issueType:'Flooding'})]);
+  assert.equal(await create({submissionId:stable,issueType:'Flooding'}),stable);
+  await assert.rejects(create({submissionId:stable,issueType:'Other'}),/already submitted/);
+  assert.equal((await read(stable)).issueType,'Flooding');
+  const id=await create();
+  assert.equal(alertStatus(await read(id)),'pending'); assert.equal(visibleOnMap(await read(id)),false);
+  await denied(sdk.updateDoc(ref(reader,id),{rejection:decision(reader)}));
+  await denied(sdk.updateDoc(ref(author,id),{rejection:decision(author)}));
+  await denied(sdk.updateDoc(ref(reviewer,id),{rejection:decision(reviewer,' ')}));
+  await denied(sdk.updateDoc(ref(reviewer,id),{rejection:{...decision(reviewer),at:sdk.Timestamp.fromMillis(0)}}));
+  await denied(sdk.updateDoc(ref(reviewer,id),{detailRequest:decision(reviewer),title:'Rewritten'}));
+  await reviewer.service.reviewReport(reviewer.user,id,'request_details','Which entrance, and when did you see it?');
+  assert.equal(alertStatus(await read(id)),'needs_details');
+  await assert.rejects(reviewer.service.approveReport(reviewer.user,id),/Waiting/);
+  await denied(sdk.updateDoc(ref(reviewer,id),{verification:approval(reviewer)}));
+  await denied(sdk.updateDoc(ref(reader,id),{clarification:{by:reader.user.uid,at:sdk.serverTimestamp(),body:'Fake response'}}));
+  await author.service.clarifyReport(author.user,id,'East entrance, ten minutes ago.');
+  assert.equal(alertStatus(await read(id)),'pending');
+  await assert.rejects(author.service.clarifyReport(author.user,id,'Overwrite'),/no longer needs/);
+  await denied(sdk.updateDoc(ref(author,id),{clarification:sdk.deleteField()}));
+  await reviewer.service.approveReport(reviewer.user,id);
+  const verified=await read(id); assert.equal(alertStatus(verified),'approved');assert.equal(visibleOnMap(verified),true);
+  assert.equal(expiresAt(verified),verified.verification.approvedAt.toMillis()+86400000);
+  await assert.rejects(other.service.reviewReport(other.user,id,'reject','Stale pending review'),/changed/);
+  await other.service.reviewReport(other.user,id,'reject','The walkway has been misidentified.',true);
+  const rejected=await read(id);assert.equal(alertStatus(rejected),'rejected');assert.equal(visibleOnMap(rejected),false);assert.deepEqual(rejected.verification,verified.verification);
+  await denied(sdk.updateDoc(ref(other,id),{rejection:sdk.deleteField()}));
+  await denied(sdk.updateDoc(ref(other,id),{rejection:decision(other,'Changed reason')}));
+  await assert.rejects(reviewer.service.approveReport(reviewer.user,id),/closed/);
+  await denied(reader.service.setConfirmation(reader.user,id,true));
+  const race=await create();
+  const results=await Promise.allSettled([reviewer.service.approveReport(reviewer.user,race),other.service.reviewReport(other.user,race,'reject','Incorrect location')]);
+  const raced=await read(race);assert.equal(results.filter(x=>x.status==='fulfilled').length,1);assert.ok(!!raced.verification!==!!raced.rejection);
+  const late=await create();await patch('forums/'+late,{createdAt:{timestampValue:new Date(Date.now()-23*3600000).toISOString()}},'?updateMask.fieldPaths=createdAt');
+  await reviewer.service.approveReport(reviewer.user,late);const fresh=await read(late);assert.ok(expiresAt(fresh)>Date.now()+23*3600000);assert.equal(visibleOnMap(fresh),true);
+  await patch('forums/'+late,{verification:{mapValue:{fields:{status:{stringValue:'approved'},verifierId:{stringValue:reviewer.user.uid},verifierName:{stringValue:reviewer.user.displayName},approvedAt:{timestampValue:new Date(Date.now()-86401000).toISOString()}}}}},'?updateMask.fieldPaths=verification');
+  assert.equal(alertStatus(await read(late)),'expired');assert.equal(visibleOnMap(await read(late)),false);
+  await denied(reviewer.service.reviewReport(reviewer.user,late,'reject','Expired',true));
+  const revoked=await create();await patch('users/'+reviewer.user.uid+'/roles/verifier',{enabled:{booleanValue:false}});
+  await assert.rejects(reviewer.service.reviewReport(reviewer.user,revoked,'reject','Revoked role'),/authorized/);
+  await denied(sdk.updateDoc(ref(reviewer,revoked),{rejection:decision(reviewer)}));
+  console.log('PASS: retry idempotency; request-details/author response/verification; required reasons; no self-review or forgery; immutable history; stale/concurrent decisions; withdrawal removes map eligibility; verification-based expiry; revoked roles.');
+} finally {await Promise.all(apps.map(deleteApp));}

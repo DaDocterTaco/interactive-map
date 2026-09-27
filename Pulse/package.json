@@ -1,0 +1,24 @@
+{
+  "name": "campus-pulse",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/policy.test.mjs tests/arrival.test.mjs tests/readiness.test.mjs tests/background.test.mjs",
+    "preview": "node scripts/preview-server.mjs",
+    "test:integration": "node --test --test-concurrency=1 tests/spark.test.mjs",
+    "seed:emulator": "node scripts/seed-emulator.mjs"
+  },
+  "devDependencies": {
+    "firebase": "12.19.0",
+    "firebase-admin": "14.5.0"
+  },
+  "overrides": {
+    "gaxios@6.7.1": {
+      "uuid": "11.1.1"
+    }
+  }
+}
