@@ -1,12 +1,19 @@
-# interactive-map
-FIU creating the interactive map for our shellhacks hackathon
+# FIU Navigator
 
-Configuration Setup
+A map-first campus web app for FIU's Modesto A. Maidique Campus. The home screen is `index.html`; its layout and assistant behavior live in `app.css` and `app.js`. The map, class search, live chat, and warning markers keep their own modules.
 
-### Configuration Setup
+## Run it locally
 
-Before running the application:
+From the project folder, run `python3 -m http.server 8000`, then open `http://localhost:8000`. Use a local server because the class catalog and chat templates are fetched by the browser. No front-end build step is needed.
 
-1. Copy `.env.example` and rename it to `.env`. Add the required Gemini API key.
-2. Copy `service-account.example.json` and rename it to `service-account.json`. Add the required Firebase service account credentials.
-3. Install the project dependencies and start the application.
+- **Find a class** opens the existing search dialog. Search a course code or class ID, select a section, and locate its building on the map. See `ClassSearch/README.md` for data limits.
+- **Campus live chat** opens the existing community chat. Its configuration and setup are documented in `LiveChat/README.md`.
+- **Ask the assistant** opens a small question panel. Its Python endpoint is `http://127.0.0.1:5000/chat`; run `campus_ai.py` and configure its dependencies/API key to use it locally. The rest of the map still runs if the assistant server is unavailable.
+
+For the Python assistant, copy `.env.example` to `.env` and add your Gemini API key. If you run `AlertNode.js`, copy `service-account_example.json` to `service-account.json` and add your Firebase service account credentials. Both local credential files are ignored by Git.
+
+The map uses Leaflet and OpenStreetMap tiles. This first UI pass is a responsive 2D map; a 3D scene and turn-by-turn routes are future features, not current navigation behavior.
+
+## Where to change the UI
+
+Edit `index.html` for the home screen's text and buttons, `app.css` for spacing/colors/mobile layout, and `app.js` for the assistant panel. Keep the `open-class`, `open-chat`, `chat-status`, and `map` IDs because the existing feature modules use them. Run `node --test ClassSearch/classData.test.mjs` after changes to the class-search code.
