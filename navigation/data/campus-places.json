@@ -1,0 +1,557 @@
+{
+  "source": "https://campusmaps.fiu.edu/js/buildings-mmc.js",
+  "retrieved": "2026-09-25",
+  "note": "Building pins, not surveyed entrances. Catalog entries may be outside routing coverage.",
+  "places": [
+    {
+      "id": "AHC2",
+      "name": "Academic Health Center 2",
+      "lat": 25.758091,
+      "lng": -80.371255
+    },
+    {
+      "id": "ASTRO",
+      "name": "Stocker AstroScience Center",
+      "lat": 25.757812,
+      "lng": -80.372554
+    },
+    {
+      "id": "PVH",
+      "name": "Parkview Housing",
+      "lat": 25.75439,
+      "lng": -80.377664
+    },
+    {
+      "id": "PG1",
+      "name": "Gold Parking Garage",
+      "lat": 25.754877,
+      "lng": -80.37206
+    },
+    {
+      "id": "PG2",
+      "name": "Blue Parking Garage",
+      "lat": 25.753841,
+      "lng": -80.372092
+    },
+    {
+      "id": "SIPA",
+      "name": "Steven J. Green School of International and Public Affairs",
+      "lat": 25.756526,
+      "lng": -80.376109
+    },
+    {
+      "id": "PPFAM",
+      "name": "Patricia & Philip Frost Art Museum",
+      "lat": 25.753685,
+      "lng": -80.373094
+    },
+    {
+      "id": "MARC",
+      "name": "Management and Advanced Research Center",
+      "lat": 25.754598,
+      "lng": -80.373341
+    },
+    {
+      "id": "PC",
+      "name": "Charles Perry & Primera Casa",
+      "lat": 25.755534,
+      "lng": -80.373788,
+      "aliases": [
+        "Primera Casa"
+      ]
+    },
+    {
+      "id": "GC",
+      "name": "Ernest R. Graham Center",
+      "lat": 25.756189,
+      "lng": -80.372736,
+      "aliases": [
+        "Graham Center"
+      ]
+    },
+    {
+      "id": "DM",
+      "name": "Deuxieme Maison",
+      "lat": 25.756201,
+      "lng": -80.374721
+    },
+    {
+      "id": "GL",
+      "name": "Steve and Dorothea Green Library",
+      "lat": 25.7573446,
+      "lng": -80.3744413,
+      "aliases": [
+        "Green Library",
+        "Library"
+      ]
+    },
+    {
+      "id": "LVN",
+      "name": "Lakeview Housing North",
+      "lat": 25.754347,
+      "lng": -80.374655
+    },
+    {
+      "id": "LVS",
+      "name": "Lakeview Housing South",
+      "lat": 25.754043,
+      "lng": -80.374499
+    },
+    {
+      "id": "EH",
+      "name": "Everglades Residence Hall",
+      "lat": 25.753728,
+      "lng": -80.375384
+    },
+    {
+      "id": "PH",
+      "name": "Panther Residence Hall",
+      "lat": 25.753743,
+      "lng": -80.37664
+    },
+    {
+      "id": "UT",
+      "name": "University Towers",
+      "lat": 25.754796,
+      "lng": -80.375851
+    },
+    {
+      "id": "PBST",
+      "name": "Pitbull Stadium",
+      "lat": 25.752535,
+      "lng": -80.377933
+    },
+    {
+      "id": "WPAC",
+      "name": "Herbert and Nicole Wertheim Performing Arts Center",
+      "lat": 25.752539,
+      "lng": -80.37264
+    },
+    {
+      "id": "RH",
+      "name": "Ronald W. Reagan Presidential House",
+      "lat": 25.755463,
+      "lng": -80.369435
+    },
+    {
+      "id": "PGD",
+      "name": "Phi Gamma Delta",
+      "lat": 25.753912,
+      "lng": -80.369733
+    },
+    {
+      "id": "PKP",
+      "name": "Pi Kappa Phi ",
+      "lat": 25.753588,
+      "lng": -80.369913
+    },
+    {
+      "id": "OE",
+      "name": "Owa Ehan",
+      "lat": 25.758033,
+      "lng": -80.372929
+    },
+    {
+      "id": "CP",
+      "name": "Chemistry & Physics",
+      "lat": 25.7584,
+      "lng": -80.372232
+    },
+    {
+      "id": "CASE",
+      "name": "Computing, Arts, Sciences & Education",
+      "lat": 25.759039,
+      "lng": -80.373866
+    },
+    {
+      "id": "VH",
+      "name": "Viertes Haus",
+      "lat": 25.757922,
+      "lng": -80.374742
+    },
+    {
+      "id": "CU",
+      "name": "Central Utilities",
+      "lat": 25.758013,
+      "lng": -80.375188
+    },
+    {
+      "id": "PG4",
+      "name": "Red Parking Garage",
+      "lat": 25.760154,
+      "lng": -80.373146
+    },
+    {
+      "id": "PG5",
+      "name": "PG5 Market Station",
+      "lat": 25.760203,
+      "lng": -80.371623
+    },
+    {
+      "id": "PG6",
+      "name": "PG6 Parking Garage 6",
+      "lat": 25.76009,
+      "lng": -80.374362
+    },
+    {
+      "id": "AHC1",
+      "name": "Academic Health Center 1",
+      "lat": 25.757649,
+      "lng": -80.371438
+    },
+    {
+      "id": "UA-1",
+      "name": "University Apartments",
+      "lat": 25.758676,
+      "lng": -80.370337
+    },
+    {
+      "id": "UA-2",
+      "name": "University Apartments",
+      "lat": 25.758628,
+      "lng": -80.369886
+    },
+    {
+      "id": "UA-3",
+      "name": "University Apartments",
+      "lat": 25.758657,
+      "lng": -80.369425
+    },
+    {
+      "id": "UA-4",
+      "name": "University Apartments",
+      "lat": 25.758724,
+      "lng": -80.368963
+    },
+    {
+      "id": "UA-5",
+      "name": "University Apartments",
+      "lat": 25.757381,
+      "lng": -80.370422
+    },
+    {
+      "id": "UA-6",
+      "name": "University Apartments",
+      "lat": 25.7577,
+      "lng": -80.370074
+    },
+    {
+      "id": "UA-7",
+      "name": "University Apartments",
+      "lat": 25.75784,
+      "lng": -80.369537
+    },
+    {
+      "id": "UA-8",
+      "name": "University Apartments",
+      "lat": 25.758038,
+      "lng": -80.369124
+    },
+    {
+      "id": "UA-9",
+      "name": "University Apartments",
+      "lat": 25.757434,
+      "lng": -80.369414
+    },
+    {
+      "id": "UA-10",
+      "name": "University Apartments",
+      "lat": 25.75741,
+      "lng": -80.368904
+    },
+    {
+      "id": "UA-11",
+      "name": "University Apartments",
+      "lat": 25.758057,
+      "lng": -80.369832
+    },
+    {
+      "id": "UA-12",
+      "name": "University Apartments",
+      "lat": 25.757937,
+      "lng": -80.368663
+    },
+    {
+      "id": "UA-13",
+      "name": "University Apartments",
+      "lat": 25.757289,
+      "lng": -80.369988
+    },
+    {
+      "id": "PCA",
+      "name": "Paul L. Cejas School of Architecture",
+      "lat": 25.758936,
+      "lng": -80.375408
+    },
+    {
+      "id": "WC",
+      "name": "Wertheim Conservatory",
+      "lat": 25.759216,
+      "lng": -80.373106
+    },
+    {
+      "id": "RB",
+      "name": "Ryder Business Building",
+      "lat": 25.757458,
+      "lng": -80.376142
+    },
+    {
+      "id": "CBC",
+      "name": "College of Business Complex",
+      "lat": 25.758033,
+      "lng": -80.377038
+    },
+    {
+      "id": "ZEB",
+      "name": "Sanford and Dolores Ziff Education Building",
+      "lat": 25.758888,
+      "lng": -80.376733
+    },
+    {
+      "id": "RDB",
+      "name": "Rafael Diaz-Balart Hall",
+      "lat": 25.756771,
+      "lng": -80.377779
+    },
+    {
+      "id": "LC",
+      "name": "Labor Center",
+      "lat": 25.756548,
+      "lng": -80.377152
+    },
+    {
+      "id": "RC",
+      "name": "Recreation Complex",
+      "lat": 25.755992,
+      "lng": -80.378091
+    },
+    {
+      "id": "SHC",
+      "name": "Student Health Center",
+      "lat": 25.756021,
+      "lng": -80.376782
+    },
+    {
+      "id": "TWR",
+      "name": "Public Safety Tower",
+      "lat": 25.756122,
+      "lng": -80.376363
+    },
+    {
+      "id": "DC",
+      "name": "Duplicating Center",
+      "lat": 25.755895,
+      "lng": -80.376068
+    },
+    {
+      "id": "OBCC",
+      "name": "Ocean Bank Convocation Center",
+      "lat": 25.756916,
+      "lng": -80.379764
+    },
+    {
+      "id": "PG3",
+      "name": "Panther Parking Garage",
+      "lat": 25.758443,
+      "lng": -80.379876
+    },
+    {
+      "id": "BBS",
+      "name": "Baseball Stadium",
+      "lat": 25.754103,
+      "lng": -80.381331
+    },
+    {
+      "id": "AS",
+      "name": "Artist Studio",
+      "lat": 25.753011,
+      "lng": -80.381315
+    },
+    {
+      "id": "W01C",
+      "name": "Ceramics",
+      "lat": 25.752784,
+      "lng": -80.381529
+    },
+    {
+      "id": "W01",
+      "name": "West 1 - Sculpture + Art Foundation",
+      "lat": 25.75276,
+      "lng": -80.382345
+    },
+    {
+      "id": "W02",
+      "name": "West 2",
+      "lat": 25.753161,
+      "lng": -80.382586
+    },
+    {
+      "id": "W03",
+      "name": "West 3",
+      "lat": 25.753504,
+      "lng": -80.382484
+    },
+    {
+      "id": "CSC",
+      "name": "Campus Support Complex",
+      "lat": 25.754742,
+      "lng": -80.382467
+    },
+    {
+      "id": "NOAA",
+      "name": "National Hurricane Center",
+      "lat": 25.7545,
+      "lng": -80.383637
+    },
+    {
+      "id": "SAAC",
+      "name": "Student Athletic Academic Center",
+      "lat": 25.75605,
+      "lng": -80.382291
+    },
+    {
+      "id": "W07",
+      "name": "West 7",
+      "lat": 25.756079,
+      "lng": -80.382565
+    },
+    {
+      "id": "W05",
+      "name": "West 5",
+      "lat": 25.755572,
+      "lng": -80.382119
+    },
+    {
+      "id": "W06",
+      "name": "West 6",
+      "lat": 25.755857,
+      "lng": -80.38213
+    },
+    {
+      "id": "CCLC",
+      "name": "Children’s Creative Learning Center",
+      "lat": 25.756765,
+      "lng": -80.382012
+    },
+    {
+      "id": "W09",
+      "name": "West 9",
+      "lat": 25.756809,
+      "lng": -80.382683
+    },
+    {
+      "id": "W10C",
+      "name": "W10C-Support",
+      "lat": 25.756891,
+      "lng": -80.382951
+    },
+    {
+      "id": "W10B",
+      "name": "W10B-Support",
+      "lat": 25.756896,
+      "lng": -80.383278
+    },
+    {
+      "id": "W10",
+      "name": "West 10 - Drawing + MFA Studios",
+      "lat": 25.756915,
+      "lng": -80.383922
+    },
+    {
+      "id": "W10A",
+      "name": "ROTC-Reserve Officer Training Corps",
+      "lat": 25.757263,
+      "lng": -80.383659
+    },
+    {
+      "id": "CFES",
+      "name": "Carlos Finlay Elementary School",
+      "lat": 25.759144,
+      "lng": -80.381439
+    },
+    {
+      "id": "WSTC",
+      "name": "Women’s Softball & Tennis Center",
+      "lat": 25.757475,
+      "lng": -80.381771
+    },
+    {
+      "id": "IC",
+      "name": "Information Center ",
+      "lat": 25.759961,
+      "lng": -80.376451
+    },
+    {
+      "id": "AHC3",
+      "name": "Academic Health Center 3",
+      "lat": 25.758786,
+      "lng": -80.371384
+    },
+    {
+      "id": "AHC4",
+      "name": "Academic Health Center 4",
+      "lat": 25.759463,
+      "lng": -80.372189
+    },
+    {
+      "id": "AHC5",
+      "name": "Academic Health Center 5",
+      "lat": 25.759353,
+      "lng": -80.370695
+    },
+    {
+      "id": "SS",
+      "name": "FIU Soccer Stadium",
+      "lat": 25.755828,
+      "lng": -80.381149
+    },
+    {
+      "id": "NP",
+      "name": "Nature Preserve",
+      "lat": 25.754558,
+      "lng": -80.379227
+    },
+    {
+      "id": "BD10",
+      "name": "Building 10",
+      "lat": 25.75838,
+      "lng": -80.375526
+    },
+    {
+      "id": "PG6",
+      "name": "Tech Station",
+      "lat": 25.760058,
+      "lng": -80.374529
+    },
+    {
+      "id": "MANGO",
+      "name": "Management and New Growth Opportunities Building",
+      "lat": 25.757311,
+      "lng": -80.376895
+    },
+    {
+      "id": "WFC",
+      "name": "Wellness & Fitness Center",
+      "lat": 25.7559521773512,
+      "lng": -80.378138422966
+    },
+    {
+      "id": "SASC",
+      "name": "Student Academic Success Center",
+      "lat": 25.755632,
+      "lng": -80.370995
+    },
+    {
+      "id": "TAM",
+      "name": "Tamiami Hall",
+      "lat": 25.75288,
+      "lng": -80.375768
+    },
+    {
+      "id": "INV",
+      "name": "Innovation Complex",
+      "lat": 25.760607,
+      "lng": -80.369313
+    }
+  ]
+}

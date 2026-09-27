@@ -1,6 +1,6 @@
-import { expiresAt, reportState, watchReportExpiry } from "./forums/reportLifecycle.js";
+import { expiresAt, reportState, visibleOnMap, watchReportExpiry } from "./forums/reportLifecycle.js?v=alerts-20260927-1";
 
-// Maintain a Leaflet layer for active verified warnings. Reports at identical
+// Maintain a Leaflet layer for active verified alerts. Reports at identical
 // coordinates share a marker but retain separate popup entries.
 export function createWarningLayer({ map, L }) {
     const layer = L.layerGroup().addTo(map);
@@ -12,7 +12,7 @@ export function createWarningLayer({ map, L }) {
     status.className = "map-warning-status";
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
-    status.textContent = "Loading verified warnings…";
+    status.textContent = "Loading verified alerts…";
     control.onAdd = () => { L.DomEvent.disableClickPropagation(status); L.DomEvent.disableScrollPropagation(status); return status; };
     control.addTo(map);
     function node(tag, text, className) {
@@ -23,6 +23,7 @@ export function createWarningLayer({ map, L }) {
     }
     const date = timestamp => timestamp?.toDate?.().toLocaleString() || "Time unavailable";
     function valid(report) {
+        if (!visibleOnMap(report)) return false;
         const point = report.location;
         return report.category === "Alert" && report.verification?.status === "approved" && !report.pending && reportState(report) === "active"
             && typeof point?.latitude === "number" && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90
@@ -31,21 +32,29 @@ export function createWarningLayer({ map, L }) {
     function popup(reports) {
         // Build DOM nodes with textContent so report text cannot become HTML.
         const container = node("section", "", "warning-popup");
-        container.setAttribute("aria-label", "Verified warning details");
+        container.setAttribute("aria-label", "Verified alert details");
         for (const report of reports) {
             const article = node("article", "");
             const count = report.confirmationCount || 0;
-            article.append(node("p", "Verified warning", "warning-popup-badge"), node("h3", report.title),
+            article.append(node("p", "Verified alert", "warning-popup-badge"), node("h3", report.title),
                 node("p", report.location.label, "warning-popup-location"), node("p", report.body, "warning-popup-body"),
-                node("p", `${count} user confirmation${count === 1 ? "" : "s"}`, "warning-popup-meta"),
-                node("p", `Reported by ${report.name} · ${date(report.createdAt)}`, "warning-popup-meta"),
-                node("p", `Approved by ${report.verification.verifierName} · ${date(report.verification.approvedAt)}`, "warning-popup-meta"),
-                node("p", `Expires ${new Date(expiresAt(report)).toLocaleString()}`, "warning-popup-meta"));
+                node("p", `Checked ${date(report.verification.approvedAt)}`, "warning-popup-meta"),
+                node("p", `${count} community observation${count === 1 ? "" : "s"}`, "warning-popup-meta"));
+            const details = node("button", "Read report", "warning-report-link"); details.type = "button";
+            details.addEventListener("click", () => window.dispatchEvent(new CustomEvent("fiu-alert-open", { detail: { id: report.id } })));
+            article.append(details);
             container.append(article);
         }
         return container;
     }
     const view = {
+        focusReport(id) {
+            const report = latestReports.find(item => item.id === id && valid(item));
+            if (!report) return false;
+            const key = `${report.location.latitude},${report.location.longitude}`;
+            map.setView([report.location.latitude, report.location.longitude], 18, { animate: !matchMedia("(prefers-reduced-motion: reduce)").matches });
+            markers.get(key)?.openPopup(); return true;
+        },
         setReports(reports, cached = false) {
             latestReports = reports; latestCached = cached;
             const groups = new Map();
@@ -58,7 +67,7 @@ export function createWarningLayer({ map, L }) {
             // report changes and removing them on resolution or expiry.
             for (const [key, marker] of markers) if (!groups.has(key)) { layer.removeLayer(marker); markers.delete(key); }
             for (const [key, items] of groups) {
-                const title = items.length === 1 ? `Verified warning: ${items[0].title}` : `${items.length} verified warnings at ${items[0].location.label}`;
+                const title = items.length === 1 ? `Verified alert: ${items[0].title}` : `${items.length} verified alerts at ${items[0].location.label}`;
                 let marker = markers.get(key);
                 if (!marker) {
                     marker = L.marker([items[0].location.latitude, items[0].location.longitude], { icon, title, keyboard: true, zIndexOffset: 1000 })
@@ -69,7 +78,7 @@ export function createWarningLayer({ map, L }) {
                 if (element) { element.setAttribute("title", title); element.setAttribute("aria-label", title); }
             }
             const count = [...groups.values()].reduce((sum, items) => sum + items.length, 0);
-            status.textContent = `${count} verified warning${count === 1 ? "" : "s"}${cached ? " · Saved data; reconnecting…" : ""}`;
+            status.textContent = `${count} verified alert${count === 1 ? "" : "s"}${cached ? " · Saved data; reconnecting…" : ""}`;
             expiry.refresh();
         },
         setStatus(message) { status.textContent = message; },

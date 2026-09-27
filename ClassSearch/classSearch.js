@@ -14,7 +14,7 @@ const schedule = section => {
     return `${formatDays(section.days)} · ${start}–${end}`;
 };
 
-export function mountClassSearch({ map, L }) {
+export function mountClassSearch({ map, L, navigation }) {
     const openButton = document.getElementById('open-class');
     if (!openButton || document.getElementById('class-dialog')) return;
     const mobile = matchMedia('(max-width: 700px)');
@@ -113,10 +113,11 @@ export function mountClassSearch({ map, L }) {
     function placeDetails() {
         const article=selected && results.querySelector(`[data-class-id="${CSS.escape(selected.section.class_id)}"]`);
         if(mobile.matches&&article) article.append(pane); else dialog.append(pane);
-        $('#locate-class').innerHTML=icon(mobile.matches?'pin':'directions')+`<span>${mobile.matches?'Show on map':'Directions'}</span>`;
+        $('#locate-class').innerHTML=icon('directions')+`<span>${navigation?'Find this class':mobile.matches?'Show on map':'Directions'}</span>`;
         requestAnimationFrame(updatePreview);
     }
     function hideJourney(removePin=false) {
+        navigation?.stop();
         cancelJourney?.(); journey.hidden=true; mapNav.hidden=true;
         document.body.classList.remove('class-location-active');
         map.getContainer().classList.remove('class-map-focused');
@@ -250,6 +251,12 @@ export function mountClassSearch({ map, L }) {
         journey.dataset.state='moving';journey.querySelector('.class-journey-state span:last-child').textContent='Locating building…';
         journey.querySelector('.class-stop').hidden=false;journey.querySelector('.class-directions').hidden=true;
         mapNav.querySelector('button').focus({preventScroll:true});
+        if(navigation) {
+            finishJourney('located','Class location');
+            journey.querySelector('.class-directions span:last-child').textContent='Show route';
+            void navigation.start({section,location,panel:journey});
+            return;
+        }
         requestAnimationFrame(()=>{
             if(journey.hidden)return;
             map.invalidateSize({pan:false});
@@ -266,11 +273,10 @@ export function mountClassSearch({ map, L }) {
     }
     $('#locate-class').addEventListener('click',locate);
     journey.querySelector('.class-stop').addEventListener('click',()=>{cancelJourney?.();journey.querySelector('.class-directions').focus();});
-    // Routing is intentionally deferred: Directions locates the actual building.
-    journey.querySelector('.class-directions').addEventListener('click',locate);
+    journey.querySelector('.class-directions').addEventListener('click',()=>navigation?navigation.frame():locate());
     journey.querySelector('.class-dismiss').addEventListener('click',()=>{hideJourney(true);openButton.focus();});
     mapNav.querySelector('.class-return').addEventListener('click',open);
     mobile.addEventListener('change',()=>{if(dialog.open)placeDetails();});
     reduced.addEventListener('change',()=>{if(reduced.matches&&journey.dataset.state==='moving'&&!journey.hidden)locate();});
-    window.addEventListener('resize',()=>{if(!journey.hidden){cancelJourney?.();finishJourney('paused','Map resized · tap Directions to center');}});
+    window.addEventListener('resize',()=>{if(!journey.hidden){if(navigation)navigation.frame();else{cancelJourney?.();finishJourney('paused','Map resized · tap Directions to center');}}});
 }

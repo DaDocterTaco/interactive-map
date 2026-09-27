@@ -66,16 +66,33 @@ export async function setSavedPost(user, postId, saved) {
     await batch.commit();
 }
 
-export async function createPost(user, title, body, category, location = null, topic = "") {
+export function newPostId() { return doc(posts).id; }
+export async function createPost(user, title, body, category, location = null, topic = "", options = {}) {
     if (!categories.includes(category)) throw new Error("Choose a discussion type.");
     if (topic && !forumTopics.includes(topic)) throw new Error("Choose a valid topic.");
-    const reference = doc(posts);
+    if (options.submissionId && !/^[A-Za-z0-9_-]{1,128}$/.test(options.submissionId)) throw Error("Invalid submission ID.");
+    const reference = options.submissionId ? doc(posts, options.submissionId) : doc(posts);
     const alert = category === "Alert" ? { location: validateLocation(location), confirmationCount: 0, lastConfirmationBy: "" } : {};
-    await setDoc(reference, {
+    const payload = {
         ...identity(user), title: text(title, 140, "Title"), body: text(body, 5000, "Post"), category,
         createdAt: serverTimestamp(), lastActivityAt: serverTimestamp(), replyCount: 0, lastReplyId: "", ...alert,
-        ...(category !== "Alert" && topic ? { topic } : {})
-    });
+        ...(category !== "Alert" && topic ? { topic } : {}),
+        ...(category === "Alert" && options.issueType ? { issueType: text(options.issueType, 40, "Problem type") } : {})
+    };
+    if (options.submissionId) {
+        // A retry uses the same document. Never silently overwrite a prior send.
+        await runTransaction(db, async transaction => {
+            const previous = await transaction.get(reference);
+            if (previous.exists()) {
+                const data = previous.data();
+                if (data.authorId !== user.uid || data.title !== payload.title || data.body !== payload.body || data.category !== category
+                    || (data.topic || '') !== (payload.topic || '') || (data.issueType || '') !== (payload.issueType || '')
+                    || ['label', 'latitude', 'longitude'].some(key => data.location?.[key] !== payload.location?.[key])) throw Error("This draft was already submitted. Open My reports before sending changes.");
+                return;
+            }
+            transaction.set(reference, payload);
+        });
+    } else await setDoc(reference, payload);
     return reference.id;
 }
 
@@ -113,6 +130,8 @@ export async function approveReport(user, postId) {
         const report = await transaction.get(parent);
         if (!report.exists() || report.data().category !== "Alert") throw new Error("This alert is unavailable.");
         if (report.data().authorId === user.uid) throw new Error("Another verifier must review your own report.");
+        if (report.data().rejection || report.data().resolution) throw Error("This report is closed. Reopen it to see the latest decision.");
+        if (report.data().detailRequest && !report.data().clarification) throw Error("Waiting for the reporter's details.");
         if (report.data().verification?.status === "approved") return;
         attemptedWrite = true;
         transaction.update(parent, { verification: {
@@ -124,6 +143,33 @@ export async function approveReport(user, postId) {
             && (await getDocFromServer(parent)).data()?.verification?.status === "approved") return;
         throw error;
     }
+}
+
+// Each review/response is immutable, preserving who decided and why. Rejected
+// content is corrected by submitting a new report, never by changing approved text.
+export async function reviewReport(user, postId, action, reason, expectedApproval = false) {
+    const actor = identity(user), note = text(reason, 500, "Explanation");
+    if (!["reject", "request_details"].includes(action)) throw Error("Choose a review decision.");
+    const parent = doc(posts, postId);
+    await runTransaction(db, async transaction => {
+        const role = await transaction.get(doc(db, "users", user.uid, "roles", "verifier"));
+        const snapshot = await transaction.get(parent), data = snapshot.data();
+        if (role.data()?.enabled !== true) throw Error("Only an authorized verifier can review reports.");
+        if (!data || data.category !== "Alert" || data.authorId === user.uid) throw Error("Another verifier must review your own report.");
+        if (data.rejection || data.resolution) throw Error("This report has already been closed.");
+        if (!!data.verification !== expectedApproval) throw Error("Another reviewer changed this report. Review the latest status before continuing.");
+        if (action === "request_details" && (data.verification || data.detailRequest)) throw Error("Details have already been requested or this report is verified.");
+        const field = action === "reject" ? "rejection" : "detailRequest";
+        transaction.update(parent, { [field]: { by: user.uid, name: actor.name, at: serverTimestamp(), reason: note } });
+    });
+}
+export async function clarifyReport(user, postId, body) {
+    identity(user); const clean = text(body, 2000, "Additional details"), parent = doc(posts, postId);
+    await runTransaction(db, async transaction => {
+        const snapshot = await transaction.get(parent), data = snapshot.data();
+        if (!data || data.authorId !== user.uid || !data.detailRequest || data.clarification || data.rejection || data.resolution || data.verification) throw Error("This report no longer needs a response. Reopen it to see its status.");
+        transaction.update(parent, { clarification: { by: user.uid, at: serverTimestamp(), body: clean } });
+    });
 }
 
 export async function setConfirmation(user, postId, confirmed) {

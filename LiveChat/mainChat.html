@@ -12,7 +12,8 @@
     <link rel="stylesheet" href="chatInfo.css?v=responsive-1">
     <link rel="stylesheet" href="explore.css?v=responsive-1">
     <link rel="stylesheet" href="chatResponsive.css?v=responsive-1">
-    <script src="chat.js?v=responsive-1" defer></script>
+    <script src="chat.js?v=polish-20260927-1" defer></script>
+    <link rel="stylesheet" href="forums/alerts.css?v=polish-20260927-1">
 </head>
 
 <body class="chat-standalone">
@@ -79,12 +80,12 @@
 
 <aside id="forums-sidebar" class="forums-list-pane" hidden aria-label="Campus forums">
     <h2 class="community-sr-only">Campus forums</h2>
-    <div class="forum-search-field"><span class="icon icon-search" aria-hidden="true"></span><label class="community-sr-only" for="forum-search">Search discussions</label><input id="forum-search" type="search" placeholder="Search discussions…" autocomplete="off"></div>
+    <div class="forum-search-field"><span class="icon icon-search" aria-hidden="true"></span><label id="forum-search-label" class="community-sr-only" for="forum-search">Search discussions</label><input id="forum-search" type="search" aria-describedby="forum-search-scope" placeholder="Search discussions…" autocomplete="off"></div>
     <nav id="forum-topic-nav" aria-label="Forum topics"></nav>
     <button id="forum-sidebar-saved" class="forum-nav-button" type="button" aria-pressed="false"><span class="icon icon-bookmark" aria-hidden="true"></span>Saved</button>
     <div class="forum-list-footer">
         <button id="forum-new-post" class="forum-primary" type="button"><span class="icon icon-plus" aria-hidden="true"></span>New post</button>
-        <button id="forum-new-alert" class="forum-alert-button" type="button"><span class="icon icon-alert" aria-hidden="true"></span>Report alert</button>
+        <button id="forum-new-alert" class="forum-alert-button" type="button"><span class="icon icon-plus" aria-hidden="true"></span>Report a problem</button>
     </div>
 </aside>
 
@@ -147,9 +148,9 @@
 <section id="forums-panel" aria-label="Forums" data-detail="false" hidden>
     <div id="forum-content" class="forum-content">
         <section id="forum-welcome" aria-labelledby="forum-feed-title">
-    <header class="forum-feed-header"><h2 id="forum-feed-title">Campus forums</h2><div class="forum-desktop-sort"><label class="community-sr-only" for="forum-sort">Sort discussions</label><select id="forum-sort"><option value="newest">Latest</option><option value="active">Recently active</option><option value="helpful">Helpful answers</option></select><button id="forum-retry" class="forum-icon-button" type="button" aria-label="Refresh discussions"><span class="icon icon-refresh" aria-hidden="true"></span></button></div></header>
-    <div class="forum-mobile-browse"><div class="forum-search-field"><span class="icon icon-search" aria-hidden="true"></span><label class="community-sr-only" for="forum-mobile-search">Search discussions</label><input id="forum-mobile-search" type="search" placeholder="Search discussions…" autocomplete="off"></div><nav id="forum-mobile-topics" aria-label="Filter by topic"></nav><div class="forum-mobile-toolbar"><label class="community-sr-only" for="forum-mobile-sort">Sort discussions</label><select id="forum-mobile-sort"><option value="newest">Latest</option><option value="active">Recently active</option><option value="helpful">Helpful answers</option></select><button id="forum-mobile-saved" type="button" aria-pressed="false"><span class="icon icon-bookmark" aria-hidden="true"></span>Saved</button></div></div>
-    <p id="forum-search-scope" class="community-sr-only">Searches all post titles, details, authors and topics</p><p id="forum-result-count" class="community-sr-only" role="status"></p>
+    <header class="forum-feed-header"><h2 id="forum-feed-title">Campus forums</h2><div class="forum-desktop-sort"><label id="forum-sort-label" class="community-sr-only" for="forum-sort">Sort discussions</label><select id="forum-sort"><option value="newest">Latest</option><option value="active">Recently active</option><option value="helpful">Helpful answers</option></select><button id="forum-retry" class="forum-icon-button" type="button" aria-label="Refresh discussions"><span class="icon icon-refresh" aria-hidden="true"></span></button></div></header>
+    <div class="forum-mobile-browse"><div class="forum-search-field"><span class="icon icon-search" aria-hidden="true"></span><label id="forum-mobile-search-label" class="community-sr-only" for="forum-mobile-search">Search discussions</label><input id="forum-mobile-search" type="search" aria-describedby="forum-search-scope" placeholder="Search discussions…" autocomplete="off"></div><nav id="forum-mobile-topics" aria-label="Filter by topic"></nav><div class="forum-mobile-toolbar"><label id="forum-mobile-sort-label" class="community-sr-only" for="forum-mobile-sort">Sort discussions</label><select id="forum-mobile-sort"><option value="newest">Latest</option><option value="active">Recently active</option><option value="helpful">Helpful answers</option></select><button id="forum-mobile-saved" type="button" aria-pressed="false"><span class="icon icon-bookmark" aria-hidden="true"></span>Saved</button></div></div>
+    <nav id="alert-feed-filters" aria-label="Report status" hidden><button type="button" data-alert-filter="active" aria-pressed="true">Active</button><button type="button" data-alert-filter="mine" aria-pressed="false">My reports</button><button type="button" data-alert-filter="review" aria-pressed="false">Under review</button><button type="button" data-alert-filter="history" aria-pressed="false">History</button></nav><p id="forum-search-scope" class="community-sr-only">Searches all post titles, details, authors and topics</p><p id="forum-result-count" class="community-sr-only" role="status"></p>
     <p id="forum-list-status" class="forum-feedback" role="status"></p><button id="forum-error-retry" class="forum-quiet-button" type="button" hidden>Try again</button>
     <div id="forum-list-placeholder" class="forum-list-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
     <div id="forum-post-list" aria-label="Forum posts"></div>
@@ -160,20 +161,20 @@
             <button id="forum-cancel-post" class="forum-back" type="button"><span class="icon icon-chevron-left" aria-hidden="true"></span>Back to discussions</button>
             <header class="forum-compose-header"><span class="forum-eyebrow">CAMPUS FORUMS</span><h2 id="forum-compose-title">New post</h2><p id="forum-compose-description">Visible to everyone on campus.</p></header>
             <form id="forum-post-form">
-                <div class="forum-type-field"><label for="forum-category-input">Post type</label><select id="forum-category-input"><option>Question</option><option value="Comment">Discussion</option><option>Concern</option><option>Alert</option><option>Other</option></select></div>
+                <div id="forum-type-field" class="forum-type-field"><label for="forum-category-input">Post type</label><select id="forum-category-input"><option>Question</option><option value="Comment">Discussion</option><option>Concern</option><option>Alert</option><option>Other</option></select></div>
                 <div id="forum-topic-field"><label for="forum-topic-input">Topic <span class="forum-label-optional">(optional)</span></label><select id="forum-topic-input"><option value="">Choose a topic</option></select></div>
-                <label for="forum-title-input">Title</label><input id="forum-title-input" maxlength="140" placeholder="What would you like to share?" required>
-                <label for="forum-body-input">Details</label><textarea id="forum-body-input" rows="4" maxlength="5000" placeholder="Add a little context…" required></textarea>
+                <div id="alert-type-field" hidden><label for="alert-issue-type">What is the problem?</label><select id="alert-issue-type"><option>Other</option><option>Flooding</option><option>Blocked path</option><option>Facility outage</option><option>Accessibility</option></select></div><label id="forum-title-label" for="forum-title-input">Title</label><input id="forum-title-input" maxlength="140" placeholder="What would you like to share?" required>
+                <label id="forum-body-label" for="forum-body-input">Details</label><textarea id="forum-body-input" rows="4" maxlength="5000" placeholder="Add a little context…" required></textarea>
                 <fieldset id="alert-location-fields" hidden>
-                    <legend>Location</legend>
-                    <label for="alert-location-label">Place or landmark</label><input id="alert-location-label" maxlength="120" placeholder="For example, the library entrance" disabled>
+                    <legend>Where is it?</legend><label for="alert-building">Find a campus building</label><input id="alert-building" list="alert-buildings" placeholder="Search a building name or code" autocomplete="off"><datalist id="alert-buildings"></datalist>
+                    <label for="alert-location-label">Place or landmark</label><p id="alert-location-hint">Choose a building or tap the map to fill this in. Edit the text anytime.</p><input id="alert-location-label" aria-describedby="alert-location-hint" maxlength="120" placeholder="Filled from your map selection" disabled>
                     <div id="alert-location-map" aria-label="Choose the alert location on the map"></div>
                     <p id="alert-picker-status" class="forum-meta" role="status">Select a spot on the map.</p>
                     <details id="alert-coordinate-options" class="forum-disclosure"><summary>Enter coordinates instead</summary><div class="alert-coordinates">
                         <div><label for="alert-latitude">Latitude</label><input id="alert-latitude" type="number" step="any" min="-90" max="90" placeholder="25.753960" disabled></div>
                         <div><label for="alert-longitude">Longitude</label><input id="alert-longitude" type="number" step="any" min="-180" max="180" placeholder="-80.376620" disabled></div>
                     </div></details>
-                    <p class="forum-field-note">Alerts expire after 24 hours. You can resolve yours sooner.</p>
+                    <p class="forum-field-note">Only verified reports appear on the campus map.</p>
                 </fieldset>
                 <div class="forum-submit-row"><p id="forum-compose-status" class="forum-feedback" role="status"></p><button id="forum-post-submit" class="forum-primary" type="submit">Publish post</button></div>
             </form>
@@ -188,17 +189,33 @@
                 <p id="forum-thread-body" class="forum-body"></p>
             <div class="forum-thread-actions"><button id="forum-save" class="forum-text-button" type="button" aria-pressed="false"><span class="icon icon-bookmark" aria-hidden="true"></span><span>Save</span></button><button id="forum-copy-link" class="forum-text-button" type="button"><span class="icon icon-share" aria-hidden="true"></span>Share</button></div><input id="forum-share-link" readonly aria-label="Copy discussion link" hidden><p id="forum-action-status" class="forum-feedback" role="status"></p>
             </article>
-            <section id="alert-details" class="alert-details" aria-label="Alert status" hidden>
-                <div class="alert-summary-top"><p id="alert-location-display"></p><p id="alert-verification" class="alert-verification" role="status"></p></div>
-                <div class="alert-facts"><strong id="alert-count"></strong><p id="alert-lifecycle" role="status"></p></div>
-                <p id="alert-owner-note" class="forum-field-note" hidden>Other people can confirm your alert.</p>
-                <div class="alert-actions"><button id="alert-confirm" type="button" disabled>Confirm alert</button><button id="alert-approve" class="forum-primary" type="button" hidden disabled>Verify alert</button></div>
-                <p id="alert-confirm-status" class="forum-feedback" role="status"></p><p id="alert-approval-status" class="forum-feedback" role="status"></p>
-                <details id="alert-resolve-fields" class="forum-disclosure" hidden><summary>Resolve this alert</summary><label for="alert-resolution-note">Resolution note <span class="forum-label-optional">(optional)</span></label><textarea id="alert-resolution-note" rows="2" maxlength="500" placeholder="What changed?"></textarea><button id="alert-resolve" type="button">Mark resolved</button></details>
-                <p id="alert-resolution-status" class="forum-feedback" role="status"></p>
+            <section id="alert-details" class="alert-details" aria-label="Report details" hidden>
+                <p class="alert-place"><span class="icon icon-alert-location" aria-hidden="true"></span><span id="alert-location-display"></span></p>
+                <div class="alert-status-line"><p id="alert-verification" role="status"></p><p id="alert-freshness"></p></div>
+                <p id="alert-status-explanation" class="forum-field-note"></p>
+                <div class="alert-detail-grid">
+                    <div class="alert-detail-copy">
+                        <div class="alert-impact"><span class="alert-impact-symbol"><span class="icon icon-alert" aria-hidden="true"></span></span><p id="alert-impact-text"></p></div>
+                        <div class="alert-actions"><button id="alert-confirm" aria-describedby="alert-count" class="forum-primary" type="button" disabled>I saw this too</button><button id="alert-share" type="button"><span class="icon icon-share" aria-hidden="true"></span>Share</button><button id="alert-map-mobile" type="button">View on map</button></div>
+                        <p id="alert-count" class="forum-field-note"></p><p id="alert-owner-note" class="forum-field-note" hidden>You reported this. Other people can add an observation.</p>
+                        <p id="alert-confirm-status" class="forum-feedback" role="status"></p>
+                        <div class="alert-report-meta"><p id="alert-attribution" class="forum-field-note"></p><p id="alert-lifecycle" class="forum-field-note"></p><p id="alert-community-note" class="forum-field-note">Community report · Not a university notice.</p></div>
+                    </div>
+                    <aside id="alert-preview" class="alert-preview" aria-label="Report location preview"><div id="alert-preview-map"></div><p id="alert-preview-error" hidden>Map preview unavailable. Use View on map to locate this report.</p><button id="alert-map-desktop" type="button">View on map</button></aside>
+                </div>
+                <div id="alert-review-history" class="alert-review-history" hidden></div>
+                <section id="alert-review-controls" class="alert-review-controls" aria-label="Review this report" hidden>
+                    <h3>Review this report</h3><p class="forum-field-note">Check the location and current conditions before verifying. Observations do not replace your review.</p>
+                    <label for="alert-review-note">Explanation for the reporter</label><textarea id="alert-review-note" rows="2" maxlength="500" placeholder="Required when requesting details or rejecting"></textarea>
+                    <div class="alert-actions"><button id="alert-approve" class="forum-primary" type="button">Verify and show on map</button><button id="alert-request-details" type="button">Request details</button><button id="alert-reject" class="danger-button" type="button">Reject report</button></div>
+                    <p id="alert-approval-status" class="forum-feedback" role="status"></p>
+                </section>
+                <section id="alert-clarify-fields" class="alert-review-controls" hidden><label for="alert-clarification">Add the requested details</label><textarea id="alert-clarification" maxlength="2000" rows="3"></textarea><button id="alert-clarify" class="forum-primary" type="button">Send for review</button><p id="alert-clarify-status" class="forum-feedback" role="status"></p></section>
+                <details id="alert-resolve-fields" class="forum-disclosure" hidden><summary>Mark this issue resolved</summary><label for="alert-resolution-note">What changed? <span class="forum-label-optional">(optional)</span></label><textarea id="alert-resolution-note" rows="2" maxlength="500" placeholder="For example, the walkway is clear again"></textarea><button id="alert-resolve" type="button">Mark resolved</button></details><p id="alert-resolution-status" class="forum-feedback" role="status"></p>
             </section>
             <p id="forum-thread-status" class="forum-feedback" role="status"></p>
-            <section class="forum-replies" aria-labelledby="forum-reply-heading">
+            <button id="alert-discussion-toggle" type="button" class="forum-text-button" aria-expanded="false" aria-controls="forum-replies forum-reply-dock" hidden>Discussion</button>
+            <section id="forum-replies" class="forum-replies" aria-labelledby="forum-reply-heading">
                 <div class="forum-replies-heading"><h3 id="forum-reply-heading">Replies</h3><label class="community-sr-only" for="forum-reply-sort">Sort replies</label><select id="forum-reply-sort"><option value="helpful">Most helpful</option><option value="oldest">Oldest first</option><option value="newest">Newest first</option></select></div>
                 <p id="forum-replies-status" class="forum-feedback" role="status"></p><button id="forum-replies-retry" class="forum-quiet-button" type="button" hidden>Retry replies</button><ol id="forum-reply-list" aria-label="Replies"></ol><button id="forum-older-replies" class="forum-quiet-button" type="button" hidden>Show more replies</button>
             </section>
@@ -209,7 +226,7 @@
         <div class="forum-reply-entry"><span id="forum-compose-avatar" class="forum-avatar" aria-hidden="true"></span><label class="community-sr-only" for="forum-reply-input">Your reply</label><textarea id="forum-reply-input" rows="1" maxlength="2000" placeholder="Add a reply…" required></textarea><button id="forum-reply-submit" type="submit" aria-label="Send reply" disabled><span class="icon icon-send" aria-hidden="true"></span></button></div>
         <p id="forum-reply-status" class="forum-feedback" role="status"></p>
     </form></div>
-    <div id="forum-mobile-actions"><button id="forum-mobile-new" class="forum-primary" type="button"><span class="icon icon-plus" aria-hidden="true"></span>New post</button><button id="forum-mobile-alert" class="forum-alert-button" type="button"><span class="icon icon-alert" aria-hidden="true"></span>Report alert</button></div>
+    <div id="forum-mobile-actions"><button id="forum-mobile-new" class="forum-primary" type="button"><span class="icon icon-plus" aria-hidden="true"></span>New post</button><button id="forum-mobile-alert" class="forum-alert-button" type="button"><span class="icon icon-alert" aria-hidden="true"></span>Report a problem</button></div>
     <div id="forum-toast" role="status" aria-live="polite" hidden></div>
 </section>
 

@@ -4,8 +4,8 @@ const messages = {
   idle: 'Find your position on campus.',
   preparing: 'Preparing campus location…',
   locating: 'Waiting for your device’s location…',
-  tracking: 'Live position',
-  weak: 'Approximate position',
+  tracking: 'Following your live position',
+  weak: 'Following your approximate position',
   outside: 'Your reported position is outside campus.',
   stale: 'Location is outdated. Waiting for a fresh position…',
   denied: 'Location blocked. Allow it in your browser, then retry.',
@@ -42,10 +42,14 @@ export function mountLocationServices({
   let disposed = false;
   let request = 0;
   let boundaryAbort = null;
+  let followedOnce = false;
+  let followEnabled = true;
+  const listeners = new Set();
+  const snapshot = () => ({ ...state, fix: state.fix && { ...state.fix } });
   const locationLabel = locateButton.querySelector('strong');
 
   function handleLocate() {
-    if (state.markerVisible) centerOnFix();
+    if (state.tracking || loading) stopTracking();
     else start();
   }
 
@@ -60,11 +64,14 @@ export function mountLocationServices({
     statusElement.textContent = (messages[status] || messages.unavailable) +
       (markerVisible && fix ? ` (±${Math.ceil(fix.accuracy)} m)` : '');
     locateButton.dataset.state = status;
-    locateButton.disabled = loading || (tracking && !markerVisible && !['stale', 'outside'].includes(status));
-    locationLabel.textContent = markerVisible ? 'Center on me' :
-      ['stale', 'denied', 'timeout', 'unavailable', 'boundary-error', 'outside'].includes(status)
+    const active = tracking || loading;
+    locateButton.disabled = false;
+    locateButton.setAttribute('aria-pressed', String(active));
+    locateButton.setAttribute('aria-label', active ? 'Turn location off' : 'Turn location on');
+    locationLabel.textContent = active ? 'Location on' :
+      ['denied', 'timeout', 'unavailable', 'boundary-error'].includes(status)
         ? 'Retry location' : 'Locate me';
-    stopButton.hidden = !tracking && !loading;
+    stopButton.hidden = true;
 
     if (!markerVisible || !fix) {
       clearLayers();
@@ -103,6 +110,20 @@ export function mountLocationServices({
     if (disposed) return;
     state = nextState;
     render();
+    if (followEnabled && nextState.markerVisible && nextState.fix) followFix(nextState.fix);
+    for (const listener of listeners) listener(snapshot());
+  }
+
+  function followFix(fix) {
+    const point = [fix.latitude, fix.longitude];
+    if (!followedOnce) {
+      const zoom = Math.min(map.getMaxZoom(), fix.accuracy > 100
+        ? 16 : Math.max(map.getZoom(), 18));
+      map.setView(point, zoom, { animate: true });
+      followedOnce = true;
+    } else {
+      map.panTo(point, { animate: true, duration: 0.4 });
+    }
   }
 
   function cancelLoad() {
@@ -114,7 +135,8 @@ export function mountLocationServices({
 
   async function start() {
     if (disposed || loading) return;
-    if (tracker?.getState().tracking) tracker.stop();
+    if (tracker?.getState().tracking) return;
+    followedOnce = false;
     if (tracker && tracker.getState().status !== 'boundary-error') {
       tracker.start();
       return;
@@ -157,6 +179,7 @@ export function mountLocationServices({
   function stopTracking() {
     if (disposed) return;
     cancelLoad();
+    followedOnce = false;
     if (tracker) tracker.stop();
     else setState({ status: 'stopped', tracking: false, fix: null, markerVisible: false });
   }
@@ -166,14 +189,16 @@ export function mountLocationServices({
     const fresh = tracker?.getState();
     if (!fresh?.markerVisible || !fresh.fix) return;
     const zoom = Math.min(map.getMaxZoom(), fresh.fix.accuracy > 100
-      ? 16 : Math.max(map.getZoom(), 17));
+      ? 16 : Math.max(map.getZoom(), 18));
     map.setView([fresh.fix.latitude, fresh.fix.longitude], zoom, { animate: true });
+    followedOnce = true;
   }
 
   function pause() {
     if (disposed) return;
     const wasLoading = loading;
     cancelLoad();
+    followedOnce = false;
     if (tracker?.getState().tracking) tracker.pause();
     else if (wasLoading) setState({ status: 'paused', tracking: false, fix: null, markerVisible: false });
   }
@@ -193,6 +218,7 @@ export function mountLocationServices({
     window.removeEventListener('pagehide', pause);
     document.removeEventListener('visibilitychange', pauseWhenHidden);
     map.off('unload', dispose);
+    listeners.clear();
   }
 
   locateButton.addEventListener('click', handleLocate);
@@ -204,5 +230,13 @@ export function mountLocationServices({
   if (!secureContext) setState({ status: 'insecure', tracking: false, fix: null, markerVisible: false });
   else if (!geolocation) setState({ status: 'unsupported', tracking: false, fix: null, markerVisible: false });
 
-  return { start, stop: stopTracking, center: centerOnFix, getState: () => ({ ...state, fix: state.fix && { ...state.fix } }), dispose };
+  return { start, stop: stopTracking, center: centerOnFix, getState: snapshot,
+    subscribe(listener) {
+      if (typeof listener !== 'function') throw new TypeError('Supply a location listener.');
+      if (disposed) return () => {};
+      listeners.add(listener); return () => listeners.delete(listener);
+    },
+    setFollowing(value) { followEnabled = Boolean(value); followedOnce = false; },
+    getFollowing: () => followEnabled,
+    dispose };
 }

@@ -1,6 +1,6 @@
-import * as service from "./forumService.js?v=forum-approved-4";
-import { mountAlerts } from "./alertUI.js";
-import { reportState, watchReportExpiry } from "./reportLifecycle.js";
+import * as service from "./forumService.js?v=alerts-20260927-1";
+import { mountAlerts } from "./alertUI.js?v=polish-20260927-1";
+import { reportState, alertStatus, alertLabels, watchReportExpiry } from "./reportLifecycle.js?v=alerts-20260927-1";
 import { topics, timestamp, selectPosts, buildReplyTree, postIdFromURL, postURL } from "./forumModel.js?v=forum-approved-4";
 
 // Module lifetime outlasts closing/reopening the dialog. Keep in-flight writes
@@ -11,6 +11,9 @@ const writeEvent = "fiu-forum-write-finished";
 export function mountForums({ user }) {
     const $ = id => document.getElementById(id), events = new AbortController();
     const on = (id, type, fn) => $(id).addEventListener(type, fn, { signal: events.signal });
+    // The dialog DOM survives closing, while each controller owns fresh cards.
+    $("forum-post-list").replaceChildren();
+    for (const item of document.querySelectorAll("[data-alert-filter]")) item.setAttribute("aria-pressed", String(item.dataset.alertFilter === "active"));
     const key = `fiu-forums:v2:${user.uid}`;
     const read = (suffix, fallback) => { try { return JSON.parse(sessionStorage.getItem(key + suffix)) ?? fallback; } catch { return fallback; } };
     const write = (suffix, value) => { try { sessionStorage.setItem(key + suffix, JSON.stringify(value)); } catch { /* The in-memory draft is retained. */ } };
@@ -19,6 +22,7 @@ export function mountForums({ user }) {
     const saved = new Set(), pendingSaves = new Map(), collapsed = new Set(), cards = new Map();
     const alerts = mountAlerts({ user });
     let disposed = false, active = false, posts = [], replies = [], selected = null, currentPost = null;
+    let alertFilter = "active", alertDiscussion = false;
     let view = "discussions", topic = "", search = "", sort = "newest", screen = "forum-welcome";
     let shown = 20, replyShown = 20, listScroll = 0, lastOpened = null, toastTimer;
     let loading = true, listFailed = false, cachedList = false, posting = postOperations.has(user.uid), answerPending = false;
@@ -50,7 +54,7 @@ export function mountForums({ user }) {
         if (body || replyTarget) drafts.set(selected, { body, target: replyTarget }); else drafts.delete(selected);
         write(":replies", Object.fromEntries([...drafts].slice(-30)));
     }
-    const composeFields = ["forum-title-input", "forum-body-input", "forum-category-input", "forum-topic-input", "alert-location-label", "alert-latitude", "alert-longitude"];
+    const composeFields = ["forum-title-input", "forum-body-input", "forum-category-input", "forum-topic-input", "alert-location-label", "alert-latitude", "alert-longitude", "alert-issue-type"];
     function rememberCompose() { write(":compose", Object.fromEntries(composeFields.map(id => [id, $(id).value]))); }
     function sameReply(draft, body, target) { return draft?.body === body && draft?.target?.id === target?.id; }
     function clearSentDraft(id, body, target) {
@@ -80,9 +84,16 @@ export function mountForums({ user }) {
     function syncComposer() {
         const isAlert = $("forum-category-input").value === "Alert";
         alerts.setComposer(active && screen === "forum-compose" && isAlert);
-        $("forum-compose-title").textContent = isAlert ? "Report an alert" : "New post";
-        $("forum-compose-description").textContent = isAlert ? "Share what happened and where. Alerts expire after 24 hours." : "Ask a question or share something useful with campus.";
-        $("forum-post-submit").textContent = posting ? "Publishing…" : isAlert ? "Publish alert" : "Publish post"; $("forum-topic-field").hidden = isAlert;
+        $("forum-compose-title").textContent = isAlert ? "Report a problem" : "New post";
+        $("forum-compose-description").textContent = isAlert ? "Tell us what happened and where. A reviewer will check it before it appears on the map." : "Ask a question or share something useful with campus.";
+        $("forum-compose").dataset.alert = String(isAlert);
+        $("forum-type-field").hidden = isAlert; $("alert-type-field").hidden = !isAlert;
+        $("forum-title-label").textContent = isAlert ? "Short summary" : "Title";
+        $("forum-body-label").textContent = isAlert ? "What should people know?" : "Details";
+        $("forum-title-input").placeholder = isAlert ? "For example, flooding at the east entrance" : "What would you like to share?";
+        $("forum-body-input").placeholder = isAlert ? "Describe what you saw and when. Include how it affects people." : "Add a little context…";
+        $("forum-post-submit").textContent = posting ? "Sending…" : isAlert ? "Submit report" : "Publish post"; $("forum-topic-field").hidden = isAlert;
+        $("forum-cancel-post").lastChild.textContent = isAlert ? "Back to alerts" : "Back to discussions";
     }
     function options() { return { view, search, topic, sort, saved: [...saved] }; }
     function anchor(container) {
@@ -95,8 +106,24 @@ export function mountForums({ user }) {
         const el = value.id && $(value.id); $("forum-content").scrollTop = el ? value.scrollTop + el.getBoundingClientRect().top - value.offset : value.scrollTop;
     }
     function syncNavigation() {
-        for (const id of ["forum-search", "forum-mobile-search"]) if ($(id).value !== search) $(id).value = search;
-        for (const id of ["forum-sort", "forum-mobile-sort"]) { $(id).value = sort; $(id).dataset.sort = sort; }
+        const reports = view === "alerts";
+        if (reports && sort === "helpful") sort = "newest";
+        for (const id of ["forum-search", "forum-mobile-search"]) {
+            if ($(id).value !== search) $(id).value = search;
+            $(id).placeholder = reports ? "Search reports…" : "Search discussions…";
+            $(`${id}-label`).textContent = reports ? "Search reports" : "Search discussions";
+        }
+        for (const id of ["forum-sort", "forum-mobile-sort"]) {
+            if ($(id).dataset.reports !== String(reports)) {
+                const choices = reports ? [["newest", "Newest reports"], ["active", "Recently active"]] : [["newest", "Latest"], ["active", "Recently active"], ["helpful", "Helpful answers"]];
+                $(id).replaceChildren(...choices.map(([value, label]) => { const option = node("option", label); option.value = value; return option; }));
+                $(id).dataset.reports = String(reports);
+            }
+            $(id).value = sort; $(id).dataset.sort = sort;
+            $(`${id}-label`).textContent = reports ? "Sort reports" : "Sort discussions";
+        }
+        $("forum-retry").setAttribute("aria-label", reports ? "Refresh reports" : "Refresh discussions");
+        $("forum-post-list").setAttribute("aria-label", reports ? "Reports" : "Forum posts");
         for (const el of document.querySelectorAll("[data-forum-topic]")) {
             const chosen = view !== "saved" && (el.dataset.forumTopic === "alerts" ? view === "alerts" : view === "discussions" && el.dataset.forumTopic === topic);
             el.classList.toggle("is-active", chosen); el.setAttribute("aria-pressed", String(chosen));
@@ -106,10 +133,11 @@ export function mountForums({ user }) {
     }
     function renderPosts() {
         if (disposed) return;
-        const list = $("forum-post-list"), position = anchor(list), focused = document.activeElement, state = options(), filtered = selectPosts(posts, state);
         syncNavigation();
-        $("forum-result-count").textContent = loading ? "Loading campus posts…" : `${filtered.length} ${filtered.length === 1 ? "post" : "posts"}${cachedList ? " · Cached results" : ""}`;
-        $("forum-search-scope").textContent = view === "saved" ? "Saved to your account" : "Searches titles, details, authors, and topics, including older posts";
+        const list = $("forum-post-list"), position = anchor(list), focused = document.activeElement, state = options(), filtered = selectPosts(posts, state).filter(post => view !== "alerts" || (alertFilter === "mine" ? post.authorId === user.uid : alertFilter === "history" ? ["resolved", "rejected", "expired"].includes(alertStatus(post)) : alertFilter === "review" ? ["pending", "needs_details"].includes(alertStatus(post)) : alertStatus(post) === "approved"));
+        $("alert-feed-filters").hidden = view !== "alerts"; $("forums-panel").dataset.alertFeed = String(view === "alerts");
+        $("forum-result-count").textContent = loading ? (view === "alerts" ? "Loading reports…" : "Loading campus posts…") : `${filtered.length} ${view === "alerts" ? (filtered.length === 1 ? "report" : "reports") : (filtered.length === 1 ? "post" : "posts")}${cachedList ? " · Cached results" : ""}`;
+        $("forum-search-scope").textContent = view === "saved" ? "Searches your saved posts" : view === "alerts" ? "Searches titles, details, reporters, and locations in this report list. Only verified, current alerts appear on the map." : "Searches titles, details, authors, and topics, including older posts";
         const visible = filtered.slice(0, shown), keep = new Set(visible.map(post => post.id));
         for (const [id, entry] of cards) if (!keep.has(id)) { entry.element.remove(); cards.delete(id); }
         for (const [index, post] of visible.entries()) {
@@ -127,24 +155,27 @@ export function mountForums({ user }) {
                 entry = { element, tag, open, face, name, meta, preview, helpful, helpfulFace, helpfulText, openReplies, save }; cards.set(post.id, entry);
             }
             let label = post.topic || (post.category === "Comment" ? "Discussion" : post.category);
-            if (post.category === "Alert") { const status = reportState(post); label = status === "active" ? post.verification?.status === "approved" ? "Verified alert" : "Alert · Needs review" : status === "resolved" ? "Resolved alert" : "Expired alert"; }
+            entry.element.dataset.alert = String(post.category === "Alert");
+            if (post.category === "Alert") { const status = alertStatus(post); label = alertLabels[status]; entry.element.dataset.alertStatus = status; }
+
             entry.tag.textContent = label; entry.tag.dataset.category = post.category;
             entry.open.firstElementChild.textContent = post.title; setAvatar(entry.face, post.name); entry.name.textContent = post.name;
-            entry.meta.textContent = date(post.createdAt); entry.meta.title = timestamp(post.createdAt) ? new Date(timestamp(post.createdAt)).toLocaleString() : "";
-            entry.preview.textContent = post.category === "Alert" ? `${post.location?.label || "Campus"} · ${post.body}` : post.body;
+            entry.meta.textContent = post.category === "Alert" ? `${post.location?.label || "Campus"} · ${post.verification ? "Checked" : "Reported"} ${date(post.verification?.approvedAt || post.createdAt)}` : date(post.createdAt); entry.meta.title = timestamp(post.createdAt) ? new Date(timestamp(post.createdAt)).toLocaleString() : "";
+            entry.preview.textContent = post.body;
             const answer = post.acceptedAnswer; entry.helpful.hidden = !answer;
             if (answer) { const preview = answer.body.match(/^.+?[.!?](?=\s|$)/s)?.[0] || answer.body; setAvatar(entry.helpfulFace, answer.name); entry.helpfulText.replaceChildren(node("strong", `${answer.name.split(" ")[0]}: `), document.createTextNode(preview)); entry.helpful.setAttribute("aria-label", "Helpful reply selected by the author"); }
-            entry.openReplies.lastElementChild.textContent = `${post.replyCount || 0} ${post.replyCount === 1 ? "reply" : "replies"}`;
-            entry.openReplies.setAttribute("aria-label", `Open ${post.title}, ${post.replyCount || 0} replies`); updateSave(entry.save, post.id, post.title);
+            entry.openReplies.lastElementChild.textContent = post.category === "Alert" ? "Read report" : `${post.replyCount || 0} ${post.replyCount === 1 ? "reply" : "replies"}`;
+            entry.openReplies.setAttribute("aria-label", post.category === "Alert" ? `Read report: ${post.title}` : `Open ${post.title}, ${post.replyCount || 0} replies`); updateSave(entry.save, post.id, post.title);
             if (list.children[index] !== entry.element) list.insertBefore(entry.element, list.children[index] || null);
         }
         $("forum-empty").hidden = filtered.length > 0 || loading || listFailed;
         const constrained = !!(search.trim() || topic);
-        $("forum-empty-title").textContent = constrained ? "No discussions match yet" : view === "saved" ? "Keep useful conversations here" : view === "alerts" ? "No campus alerts" : "Start a campus conversation";
-        $("forum-empty-description").textContent = constrained ? "Try another search or clear your filters." : view === "saved" ? "Save a discussion to find it here later." : view === "alerts" ? "Reports appear here with their verification status." : "Ask a question or share something useful with campus.";
+        $("forum-empty-title").textContent = constrained ? (view === "alerts" ? "No matching reports" : "No discussions match yet") : view === "saved" ? "Keep useful conversations here" : view === "alerts" ? ({ active: "No active alerts", mine: "No reports from you yet", review: "No reports awaiting review", history: "No past reports" }[alertFilter]) : "Start a campus conversation";
+        $("forum-empty-description").textContent = constrained ? "Try another search or clear your filters." : view === "saved" ? "Save a discussion to find it here later." : view === "alerts" ? ({ active: "Verified, current alerts appear here and on the map. Pending reports are under review.", mine: "Use Report a problem to let campus know what happened.", review: "New reports and requests for more details appear here.", history: "Resolved, rejected, and out-of-date reports are kept here." }[alertFilter]) : "Ask a question or share something useful with campus.";
         $("forum-welcome-compose").hidden = constrained || view !== "discussions"; $("forum-empty-clear").hidden = !constrained;
         $("forum-list-placeholder").hidden = !loading || posts.length > 0; $("forum-load-more").hidden = filtered.length <= shown;
-        $("forum-load-more").textContent = `Show more posts (${Math.min(shown, filtered.length)} of ${filtered.length})`;
+        $("forum-load-more").textContent = `Show more ${view === "alerts" ? "reports" : "posts"} (${Math.min(shown, filtered.length)} of ${filtered.length})`;
+        if (!listFailed && (loading || cachedList)) feedback("forum-list-status", loading ? (view === "alerts" ? "Loading reports…" : "Loading discussions…") : `Offline or connecting · Showing available ${view === "alerts" ? "reports" : "discussions"}.`, "loading");
         if (focused?.isConnected && document.activeElement !== focused) focused.focus({ preventScroll: true });
         if (screen === "forum-welcome") restoreAnchor(position);
     }
@@ -154,7 +185,7 @@ export function mountForums({ user }) {
         stopPosts = service.watchAllPosts((data, cached) => {
             if (!active || disposed || version !== listVersion) return;
             posts = data; cachedList = cached; loading = cached && !data.length; listFailed = false; expiry.refresh(); renderPosts();
-            feedback("forum-list-status", cached ? "Offline or connecting · Showing available discussions." : "", cached ? "loading" : "ready"); $("forum-retry").setAttribute("aria-busy", String(cached)); $("forum-error-retry").hidden = true;
+            if (!cached) feedback("forum-list-status", ""); $("forum-retry").setAttribute("aria-busy", String(cached)); $("forum-error-retry").hidden = true;
         }, error => {
             if (!active || disposed || version !== listVersion) return;
             loading = false; listFailed = true; feedback("forum-list-status", `${failure(error)}${posts.length ? " Showing previous results." : ""}`, "error");
@@ -233,23 +264,33 @@ export function mountForums({ user }) {
         $("forum-reply-heading").textContent = "Replies"; $("forum-reply-list").replaceChildren(); $("forum-older-replies").hidden = true; $("forum-replies-retry").hidden = true; $("forum-share-link").hidden = true;
         alerts.render(null); replyControls(); syncSaved(); feedback("forum-thread-status", message, "error");
     }
+    function syncAlertDiscussion() {
+        const isAlert = currentPost?.category === "Alert";
+        $("alert-discussion-toggle").hidden = !isAlert;
+        $("alert-discussion-toggle").textContent = `${alertDiscussion ? "Hide" : "Show"} discussion (${currentPost?.replyCount || 0})`;
+        $("alert-discussion-toggle").setAttribute("aria-expanded", String(alertDiscussion));
+        $("forum-replies").hidden = isAlert && !alertDiscussion;
+        $("forum-reply-dock").hidden = screen !== "forum-thread" || isAlert && !alertDiscussion;
+    }
+    on("alert-discussion-toggle", "click", () => { alertDiscussion = !alertDiscussion; syncAlertDiscussion(); if (alertDiscussion) $("forum-reply-input").focus(); });
     function openPost(id, push = true) {
         if (screen === "forum-welcome") listScroll = $("forum-content").scrollTop;
         rememberReply(); stopThread(); selected = id; lastOpened = id; currentPost = null; threadUnavailable = false; replies = []; replyShown = 20; collapsed.clear();
-        const version = threadVersion; show("forum-thread"); setURL(id, push); syncSaved();
+        alertDiscussion = false;
+        const version = threadVersion; show("forum-thread"); syncAlertDiscussion(); setURL(id, push); syncSaved();
         $("forum-thread-title").textContent = "Loading discussion…"; $("forum-thread-title").focus({ preventScroll: true }); $("forum-thread-loading").hidden = false;
         for (const el of ["forum-thread-body", "forum-thread-author", "forum-thread-avatar", "forum-thread-meta", "forum-thread-category", "forum-thread-status", "forum-action-status", "forum-reply-status"]) $(el).textContent = "";
         $("forum-share-link").hidden = true; $("forum-reply-list").replaceChildren(); $("forum-reply-heading").textContent = "Replies";
         const draft = drafts.get(id); $("forum-reply-input").value = typeof draft?.body === "string" ? draft.body : ""; setReplyTarget(draft?.target || null); replyControls();
         stopPost = service.watchPost(id, post => {
             if (!active || disposed || version !== threadVersion) return;
-            currentPost = post; $("forum-thread-loading").hidden = true; alerts.render(post); replyControls();
+            currentPost = post; $("forum-thread").classList.toggle("is-alert", post?.category === "Alert"); if (post?.category === "Alert") { view = "alerts"; syncNavigation(); } $("forum-back").lastChild.textContent = post?.category === "Alert" ? "Back to alerts" : "Back to discussions"; $("forum-thread-loading").hidden = true; alerts.render(post); replyControls();
             if (!post) { unavailable("This discussion is no longer available. Go back to find another conversation."); return; }
             feedback("forum-thread-status", "");
             $("forum-thread-title").textContent = post.title; $("forum-thread-category").textContent = post.topic || (post.category === "Comment" ? "Discussion" : post.category);
             $("forum-thread-author").textContent = post.name; setAvatar($("forum-thread-avatar"), post.name);
             $("forum-thread-meta").textContent = `${date(post.createdAt)}${post.pending ? " · Saving…" : ""}`; $("forum-thread-meta").title = timestamp(post.createdAt) ? new Date(timestamp(post.createdAt)).toLocaleString() : ""; $("forum-thread-body").textContent = post.body;
-            $("forum-reply-heading").textContent = `Replies (${post.replyCount || 0})`; syncSaved(); renderReplies();
+            $("forum-reply-heading").textContent = `Replies (${post.replyCount || 0})`; syncSaved(); renderReplies(); syncAlertDiscussion();
             if (threadUnavailable) { threadUnavailable = false; listenReplies(); }
         }, error => { if (!active || disposed || version !== threadVersion) return; unavailable(`${failure(error)} Go back and reopen this discussion.`); });
         listenReplies();
@@ -259,12 +300,18 @@ export function mountForums({ user }) {
         $("forum-content").scrollTop = listScroll; (cards.get(lastOpened)?.open || $("forum-feed-title")).focus({ preventScroll: true });
     }
     function compose(isAlert = false) {
+        if (isAlert) { view = "alerts"; topic = ""; syncNavigation(); }
         if (screen === "forum-welcome") listScroll = $("forum-content").scrollTop;
         if (posting) { rememberReply(); stopThread(); selected = null; setURL(null); show("forum-compose"); feedback("forum-compose-status", "Publishing…", "loading"); return; }
         rememberReply(); stopThread(); selected = null;
         if (isAlert) $("forum-category-input").value = "Alert"; else if ($("forum-category-input").value === "Alert") $("forum-category-input").value = "Question";
         setURL(null); show("forum-compose"); $("forum-title-input").focus();
     }
+    for (const control of document.querySelectorAll("[data-alert-filter]")) control.addEventListener("click", () => {
+        alertFilter = control.dataset.alertFilter;
+        for (const item of document.querySelectorAll("[data-alert-filter]")) item.setAttribute("aria-pressed", String(item === control));
+        filterChanged();
+    }, { signal: events.signal });
     function filterChanged() { shown = 20; if (screen !== "forum-welcome") back(); $("forum-content").scrollTop = 0; renderPosts(); }
     function clearFilters() { search = ""; topic = ""; filterChanged(); }
     const navTopics = [["", "All discussions", "chat"], ["Study spaces", "Study spaces", "book"], ["Classes", "Classes", "mortarboard"], ["Campus life", "Campus life", "building"], ["Parking & transit", "Parking & transit", "car"], ["alerts", "Alerts", "alert"]];
@@ -293,9 +340,9 @@ export function mountForums({ user }) {
     for (const id of ["forum-new-alert", "forum-mobile-alert"]) on(id, "click", () => compose(true));
     on("forum-back", "click", () => back()); on("forum-cancel-post", "click", () => back()); on("forum-save", "click", () => toggleSaved(selected));
     on("forum-copy-link", "click", async () => {
-        const version = threadVersion, url = postURL(location.href, selected);
-        try { await navigator.clipboard.writeText(url); if (!disposed && version === threadVersion) toast("Discussion link copied."); }
-        catch { if (!disposed && version === threadVersion) { $("forum-share-link").value = url; $("forum-share-link").hidden = false; $("forum-share-link").focus(); $("forum-share-link").select(); feedback("forum-action-status", "Copy this link to share the discussion."); } }
+        const version = threadVersion, url = postURL(location.href, selected), report = currentPost?.category === "Alert";
+        try { await navigator.clipboard.writeText(url); if (!disposed && version === threadVersion) toast(report ? "Report link copied." : "Discussion link copied."); }
+        catch { if (!disposed && version === threadVersion) { $("forum-share-link").value = url; $("forum-share-link").hidden = false; $("forum-share-link").focus(); $("forum-share-link").select(); feedback("forum-action-status", `Copy this link to share the ${report ? "report" : "discussion"}.`); } }
     });
     window.addEventListener(writeEvent, event => {
         const result = event.detail;
@@ -303,10 +350,10 @@ export function mountForums({ user }) {
         if (result.kind === "post") {
             const matches = sameCompose(composeValues(), result.values);
             if (!result.error && matches) { $("forum-post-form").reset(); alerts.reset(); rememberCompose(); feedback("forum-compose-status", ""); }
-            if (result.error && matches) feedback("forum-compose-status", `Post not saved. Your draft is kept. ${result.error}`, "error");
+            if (result.error && matches) feedback("forum-compose-status", `Not submitted. Your draft is kept. ${result.error}`, "error");
             syncPostControls();
-            if (!result.error && active && result.origin === instance && result.version === threadVersion) { openPost(result.id); toast("Post published."); }
-            else if (!result.error && active) toast("Post published.");
+            if (!result.error && active && result.origin === instance && result.version === threadVersion) { openPost(result.id); toast(result.values["forum-category-input"] === "Alert" ? "Report submitted. Waiting for review." : "Post published."); }
+            else if (!result.error && active) toast(result.values["forum-category-input"] === "Alert" ? "Report submitted. Waiting for review." : "Post published.");
             return;
         }
         if (!result.error) {
@@ -327,10 +374,12 @@ export function mountForums({ user }) {
     on("forum-post-form", "submit", async event => {
         event.preventDefault(); if (postOperations.has(user.uid) || disposed || !active) return;
         const values = composeValues(), result = { kind: "post", uid: user.uid, values, origin: instance, version: threadVersion };
+        const draftKey = JSON.stringify(values); let submission = read(":submission", null);
+        if (!submission || submission.key !== draftKey) { submission = { key: draftKey, id: service.newPostId() }; write(":submission", submission); }
         rememberCompose(); postOperations.set(user.uid, result); syncPostControls(); feedback("forum-compose-status", "Publishing…", "loading");
         try {
-            result.id = await service.createPost(user, values["forum-title-input"], values["forum-body-input"], values["forum-category-input"], alerts.location(), values["forum-topic-input"]);
-            if (sameCompose(read(":compose", {}), values)) { try { sessionStorage.removeItem(key + ":compose"); } catch { /* Optional persistence unavailable. */ } }
+            result.id = await service.createPost(user, values["forum-title-input"], values["forum-body-input"], values["forum-category-input"], alerts.location(), values["forum-topic-input"], { issueType: values["alert-issue-type"], submissionId: submission.id });
+            if (sameCompose(read(":compose", {}), values)) { try { sessionStorage.removeItem(key + ":compose"); sessionStorage.removeItem(key + ":submission"); } catch { /* Optional persistence unavailable. */ } }
         } catch (error) { result.error = error.message || failure(error); }
         finally { postOperations.delete(user.uid); window.dispatchEvent(new CustomEvent(writeEvent, { detail: result })); }
     });

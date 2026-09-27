@@ -7,13 +7,17 @@
     <title>FIU Navigator · Modesto A. Maidique Campus</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <link rel="stylesheet" href="LiveChat/bottomSheet.css?v=forum-approved-4">
-    <link rel="stylesheet" href="LiveChat/mapWarnings.css">
+    <link rel="stylesheet" href="LiveChat/mapWarnings.css?v=alerts-20260927-1">
     <link rel="stylesheet" href="ClassSearch/classSearch.css?v=class-refined-20260927">
+    <link rel="stylesheet" href="navigation/classNavigation.css?v=class-route-1">
     <link rel="stylesheet" href="app.css?v=header-removed-2">
     <link rel="stylesheet" href="ActionBar/actionBar.css?v=location-menu-2">
     <script src="ActionBar/actionBar.js?v=location-menu-2" defer></script>
-    <script src="LiveChat/mapChat.js?v=responsive-1" defer></script>
+    <script src="LiveChat/mapChat.js?v=polish-20260927-1" defer></script>
     <script src="app.js" defer></script>
+    <!-- Campus Pulse styles -->
+    <link rel="stylesheet" href="Pulse/client/pulse.css?v=pulse-1">
+    <link rel="stylesheet" href="Events/events.css?v=events-20260927-2">
 </head>
 <body class="map-page">
     <main class="app-shell">
@@ -38,17 +42,29 @@
     <script src="Locations.JS?v=clean-rss-1"></script>
     <script type="module" src="firebase.js"></script>
     <script type="module">
-        import { mountMapWarnings } from './LiveChat/mapWarnings.js';
-        import { mountClassSearch } from './ClassSearch/classSearch.js?v=class-refined-20260927';
-        import { mountLocationServices } from './locationservices/leafletLocation.js?v=location-menu-2';
+        import { mountMapWarnings } from './LiveChat/mapWarnings.js?v=alerts-20260927-1';
+        import { mountClassSearch } from './ClassSearch/classSearch.js?v=class-route-1';
+        import { mountLocationServices } from './locationservices/leafletLocation.js?v=class-route-1';
+        import { createClassNavigation } from './navigation/classNavigation.js';
         mountMapWarnings({ map, L });
-        mountClassSearch({ map, L });
-        mountLocationServices({
+        const locationServices = mountLocationServices({
             map, L,
             locateButton: document.getElementById('open-location'),
             stopButton: document.getElementById('stop-location'),
             statusElement: document.getElementById('location-status'),
         });
+        const classNavigation = createClassNavigation({ map, L, locationServices });
+        mountClassSearch({ map, L, navigation: classNavigation });
+    </script>
+    <!-- Campus Pulse integration -->
+    <script type="module">
+        import { mountCampusPulse } from './Pulse/client/mount.js?v=pulse-1';
+        mountCampusPulse({ map, L });
+    </script>
+    <!-- Events: isolated feature module; catalog refresh remains manual. -->
+    <script type="module">
+        import { mountEvents } from './Events/events.js?v=events-20260927-2';
+        mountEvents({ map, L, dataUrl: './Events/data/events.current.json', autoOpen: new URLSearchParams(location.search).has('events') });
     </script>
 </body>
 </html>

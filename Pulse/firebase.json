@@ -1,0 +1,19 @@
+{
+  "functions": [{
+    "source": ".",
+    "codebase": "pulse",
+    "runtime": "nodejs22",
+    "ignore": ["node_modules", ".git", ".local-config", ".firebase", ".generated", ".integration-backup", ".install-manifest.json", "tests", "docs", "scripts", "client", "preview", "*-debug.log", "*.local", ".env*", "service-account*.json"]
+  }],
+  "firestore": {
+    "rules": ".generated/firestore.rules",
+    "predeploy": ["node scripts/merge-rules.mjs"]
+  },
+  "emulators": {
+    "auth": { "host": "127.0.0.1", "port": 9107 },
+    "firestore": { "host": "127.0.0.1", "port": 8197 },
+    "functions": { "host": "127.0.0.1", "port": 5017 },
+    "ui": { "enabled": false },
+    "singleProjectMode": true
+  }
+}

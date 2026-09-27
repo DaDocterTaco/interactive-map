@@ -48,7 +48,7 @@ try {
     await reader.service.sendReply(reader.user, id, 'History is still available.');
     const pending = await create();
     await verifier.service.resolveReport(verifier.user, pending);
-    await denied(verifier.service.approveReport(verifier.user, pending));
+    await assert.rejects(verifier.service.approveReport(verifier.user, pending), /closed/);
     assert.equal((await sdk.getDoc(ref(reader, pending))).data().resolution.resolvedBy, 'verifier');
     const race = await create();
     await Promise.all([author.service.resolveReport(author.user, race, 'Author'), verifier.service.resolveReport(verifier.user, race, 'Verifier')]);

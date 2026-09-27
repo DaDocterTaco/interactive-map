@@ -1,0 +1,50 @@
+    // Pulse is excluded from the application's unrelated-data fallback.
+    match /pulse/{campusId} {
+      function pulseSignedIn() { return request.auth != null; }
+      function pulseMember(meetupId) {
+        return pulseSignedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/pulse/$(campusId)/meetups/$(meetupId)).data.participantIds;
+      }
+      function pulseChatOpen(meetupId) {
+        let meetup = get(/databases/$(database)/documents/pulse/$(campusId)/meetups/$(meetupId)).data;
+        return meetup.status in ['confirmed', 'ended'] && request.time < meetup.chatClosesAt;
+      }
+      allow read: if pulseSignedIn();
+      allow write: if false;
+      match /spots/{spotId} {
+        allow read: if pulseSignedIn();
+        allow write: if false;
+      }
+      match /availability/{uid} {
+        allow get: if pulseSignedIn() && request.auth.uid == uid;
+        allow list, write: if false;
+      }
+      match /memberState/{uid} {
+        allow get: if pulseSignedIn() && request.auth.uid == uid;
+        allow list, write: if false;
+      }
+      match /proposals/{proposalId} {
+        allow read: if pulseSignedIn() && request.auth.uid in resource.data.candidateIds;
+        allow write: if false;
+      }
+      match /meetups/{meetupId} {
+        allow read: if pulseSignedIn() && request.auth.uid in resource.data.participantIds;
+        allow write: if false;
+        match /messages/{messageId} {
+          allow read: if pulseMember(meetupId) && pulseChatOpen(meetupId);
+          allow create: if pulseMember(meetupId) && pulseChatOpen(meetupId)
+            && request.resource.data.keys().hasAll(['senderId', 'text', 'createdAt'])
+            && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt'])
+            && request.resource.data.senderId == request.auth.uid
+            && request.resource.data.text is string
+            && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000
+            && request.resource.data.text.matches('[\\s\\S]*\\S[\\s\\S]*')
+            && request.resource.data.createdAt == request.time;
+          allow update, delete: if false;
+        }
+        match /checkIns/{uid} {
+          allow read: if pulseMember(meetupId) && pulseChatOpen(meetupId);
+          allow write: if false;
+        }
+      }
+    }

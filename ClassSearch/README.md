@@ -2,7 +2,7 @@
 
 Responsive class search integrated with the existing Leaflet map and chat theme.
 
-Desktop uses a search/result pane, section details, an actual map preview and a **Directions** action. At widths up to 700px the selected result expands into inline details with **Show on map**; arrival reveals a compact building summary and **Directions**. Per the approved scope, Directions centers the actual building, not a walking route.
+Desktop uses a search/result pane, section details and a map preview; at widths up to 700px the selected result expands into inline details. In the main app, **Find this class** opens the map with the building, outdoor route, travel mode and estimated time in the class popup. It uses live GPS or a manually chosen campus start. The optional adapter lives in `navigation/`; see [CLASS-NAVIGATION.md](../navigation/CLASS-NAVIGATION.md).
 
 ## Behavior
 
@@ -11,7 +11,7 @@ Desktop uses a search/result pane, section details, an actual map preview and a 
 - Catalog loaded once, including concurrent searches. Failed loads can retry; stale asynchronous results are ignored after edits or close.
 - All catalog text is rendered with textContent. The class layer is separate from existing map markers and warnings.
 - Native dialog focus handling, Escape/backdrop dismissal, visible keyboard focus, selected/pressed state, live status feedback and small-screen scrolling.
-- Map motion interpolates center and zoom monotonically over 2.8 seconds with quintic easing. It has no fly-out arc and supports interruption. Reduced motion uses immediate placement. The target is framed above the summary, not behind it.
+- With navigation supplied, the adapter frames the path and building above the popup, updates progress from shared GPS, and clears the journey on dismiss or return to search. Reduced motion uses immediate placement. Hosts that omit `navigation` retain the existing 2.8-second building-only camera transition.
 - Live chat theme variables supply light/dark surfaces. The primary action color is #0449d3 from the approved mockup.
 
 ## Data and map assets
@@ -30,5 +30,7 @@ Desktop uses a search/result pane, section details, an actual map preview and a 
 - `classMotion.mjs`: interruptible, reduced-motion-aware camera movement.
 
 Run `node --test ClassSearch/classData.test.mjs ClassSearch/classMotion.test.mjs` from the app root. No new runtime dependency is required.
+
+For the combined navigation/class checks, run `node --test navigation/tests/*.test.mjs ClassSearch/classData.test.mjs ClassSearch/classMotion.test.mjs`. Browser testing with simulated GPS is available at `/navigation/tests/classNavigation.fixture.html`; it imports the same production modules and catalog without requesting real device location.
 
 Visual proof and comparison notes are linked from the app-root `design-qa.md`. Existing class files and index were backed up before installation; unrelated chat changes were preserved.

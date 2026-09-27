@@ -1,5 +1,5 @@
-import * as service from "./forumService.js";
-import { expiresAt, reportState, watchReportExpiry } from "./reportLifecycle.js";
+import * as service from "./forumService.js?v=alerts-20260927-1";
+import { expiresAt, reportState, alertStatus, alertLabels, visibleOnMap, watchReportExpiry } from "./reportLifecycle.js?v=alerts-20260927-1";
 
 // Alert-specific composer and thread controls. The location picker is its own
 // Leaflet map, independent of the campus map and warning marker layer.
@@ -23,174 +23,214 @@ function leaflet() {
 }
 
 export function mountAlerts({ user }) {
-    const $ = id => document.getElementById(id);
-    const events = new AbortController();
-    const on = (id, event, fn) => $(id).addEventListener(event, fn, { signal: events.signal });
-    let map, marker, disposed = false, disabled = false, visible = false, mapLoading;
-    let post = null, stopConfirmation, version = 0, confirmed = null, confirming = false;
-    let verifier = false, approving = false, resolving = false;
+    const $ = id => document.getElementById(id), events = new AbortController();
+    const on = (id, type, fn) => $(id).addEventListener(type, fn, { signal: events.signal });
+    const mobile = matchMedia("(max-width: 900px)");
+    let map, marker, preview, previewMarker, observer, buildings, disposed = false, disabled = false, visible = false;
+    let post = null, stopConfirmation, version = 0, confirmed = null, busy = false, verifier = false, previewVersion = 0;
     const expiry = watchReportExpiry(() => post ? [post] : [], controls);
     const locationFields = ["alert-location-label", "alert-latitude", "alert-longitude"];
+    let buildingsLoading, locationVersion = 0;
     const shortDate = value => value?.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) || "Just now";
+    const stamp = value => value?.toMillis?.() ?? value?.toDate?.().getTime() ?? 0;
+    const relative = value => { const minutes = Math.max(0, Math.floor((Date.now() - stamp(value)) / 60000)); return minutes < 1 ? "just now" : minutes < 60 ? `${minutes} min ago` : minutes < 1440 ? `${Math.floor(minutes / 60)} hr ago` : shortDate(new Date(stamp(value))); };
     const feedback = (id, message, state = "error") => { $(id).textContent = message; $(id).dataset.state = state; };
     function coordinates() {
         const latitude = $("alert-latitude").value.trim(), longitude = $("alert-longitude").value.trim();
         return { label: $("alert-location-label").value, latitude: latitude === "" ? NaN : Number(latitude), longitude: longitude === "" ? NaN : Number(longitude) };
     }
-    function previewPoint() {
-        const point = coordinates();
-        if (!Number.isFinite(point.latitude) || Math.abs(point.latitude) > 90 || !Number.isFinite(point.longitude) || Math.abs(point.longitude) > 180) {
-            marker?.remove(); marker = null;
-            $("alert-picker-status").textContent = "Select a spot on the map.";
-            $("alert-picker-status").dataset.state = "ready";
-            return;
+    function suggestedLocation(latitude, longitude) {
+        let nearest, distance = Infinity;
+        for (const building of buildings || []) {
+            const metres = Math.hypot((building.latitude - latitude) * 111320, (building.longitude - longitude) * 111320 * Math.cos(latitude * Math.PI / 180));
+            if (metres < distance) { nearest = building; distance = metres; }
         }
+        // Building data contains center points, not entrance or boundary shapes.
+        return nearest && distance <= 200 ? `Near ${nearest.full_name}`.slice(0, 120) : `Map location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
+    }
+    async function selectPoint(point) {
+        if (disposed || disabled || !visible) return;
+        const token = ++locationVersion, latitude = point.lat, longitude = point.wrap().lng;
+        $("alert-latitude").value = latitude.toFixed(6); $("alert-longitude").value = longitude.toFixed(6);
+        $("alert-building").value = "";
+        $("alert-location-label").value = suggestedLocation(latitude, longitude);
+        previewPoint();
+        $("alert-longitude").dispatchEvent(new Event("change", { bubbles: true }));
+        if (!buildings) {
+            await loadBuildings();
+            // A slow lookup must never replace a newer pin or the user's own text.
+            if (disposed || disabled || !visible || token !== locationVersion) return;
+            $("alert-location-label").value = suggestedLocation(latitude, longitude);
+            $("alert-location-label").dispatchEvent(new Event("change", { bubbles: true }));
+        }
+    }
+    function previewPoint() {
+        const point = coordinates(), valid = Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90 && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180;
+        if (!valid) { marker?.remove(); marker = null; $("alert-picker-status").textContent = "Choose a building or select a spot on the map."; return; }
         if (map) {
             if (marker) marker.setLatLng([point.latitude, point.longitude]);
-            else marker = window.L.circleMarker([point.latitude, point.longitude], { radius: 9, color: "#0757d8", fillColor: "#0863ff", fillOpacity: .8 }).addTo(map);
+            else marker = window.L.marker([point.latitude, point.longitude], { title: "Selected report location", draggable: true }).addTo(map).on("dragend", () => selectPoint(marker.getLatLng()));
         }
-        $("alert-picker-status").textContent = "Location selected";
-        $("alert-picker-status").dataset.state = "success";
+        $("alert-picker-status").textContent = "Location selected. You can edit the place or landmark above.";
     }
-    async function loadMap() {
-        if (mapLoading) return mapLoading;
-        mapLoading = (async () => {
+    async function loadBuildings() {
+        if (buildings) return;
+        if (buildingsLoading) return buildingsLoading;
+        buildingsLoading = (async () => {
             try {
-                const L = await leaflet();
-                if (disposed) return;
-                // This is a separate form picker; it never touches the main map.
+                const response = await fetch(new URL("../../Buildings.json", import.meta.url));
+                if (!response.ok) throw Error();
+                const data = await response.json(); if (disposed) return;
+                buildings = data.filter(item => Number.isFinite(item.latitude) && Number.isFinite(item.longitude) && typeof item.full_name === "string" && item.full_name.trim());
+                $("alert-buildings").replaceChildren(...buildings.map(item => {
+                    const option = document.createElement("option"); option.value = `${item.full_name} (${item.abbreviation})`; return option;
+                }));
+            } catch { if (!disposed) $("alert-building").placeholder = "Building search unavailable — use the map below"; }
+            finally { buildingsLoading = null; }
+        })();
+        return buildingsLoading;
+    }
+    let loadingMap;
+    async function loadMap() {
+        if (loadingMap) return loadingMap;
+        loadingMap = (async () => {
+            try {
+                const L = await leaflet(); if (disposed || !visible) return;
                 if (!map) {
                     map = L.map($("alert-location-map"), { scrollWheelZoom: false }).setView([25.75396, -80.37662], 16);
                     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
-                    map.on("click", event => {
-                        if (disabled || !visible) return;
-                        $("alert-latitude").value = event.latlng.lat.toFixed(6);
-                        $("alert-longitude").value = event.latlng.wrap().lng.toFixed(6);
-                        previewPoint();
-                    });
+                    map.on("click", event => selectPoint(event.latlng));
                 }
-                if (visible) { map.invalidateSize(); previewPoint(); }
-            } catch (error) { if (!disposed) { feedback("alert-picker-status", "Map unavailable. Enter coordinates below."); $("alert-coordinate-options").open = true; } }
-            finally { mapLoading = null; }
+                map.invalidateSize(); previewPoint();
+            } catch { if (!disposed) { feedback("alert-picker-status", "Map unavailable. Choose a building or enter coordinates."); $("alert-coordinate-options").open = true; } }
+            finally { loadingMap = null; }
         })();
-        return mapLoading;
+        return loadingMap;
+    }
+    async function locationPreview() {
+        const token = ++previewVersion, current = post;
+        if (disposed || !visibleOnMap(current) || mobile.matches) return;
+        try {
+            const L = await leaflet();
+            if (disposed || token !== previewVersion || post?.id !== current.id || mobile.matches) return;
+            if (!preview) {
+                preview = L.map($("alert-preview-map"), { zoomControl: false, dragging: false, keyboard: false, touchZoom: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false });
+                preview.attributionControl.setPrefix(false);
+                const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(preview);
+                tiles.on("tileerror", () => { $("alert-preview-error").hidden = false; });
+                tiles.on("tileload", () => { $("alert-preview-error").hidden = true; });
+                observer = new ResizeObserver(() => { if (post && !mobile.matches && $("alert-details").offsetWidth) { preview.invalidateSize({ pan: false }); preview.setView([post.location.latitude, post.location.longitude], 18, { animate: false }); } });
+                observer.observe($("alert-preview-map"));
+            }
+            const point = [current.location.latitude, current.location.longitude];
+            preview.invalidateSize({ pan: false }); preview.setView(point, 18, { animate: false });
+            if (previewMarker) previewMarker.setLatLng(point); else previewMarker = L.marker(point, { interactive: false, keyboard: false }).addTo(preview);
+        } catch { if (!disposed && token === previewVersion) $("alert-preview-error").hidden = false; }
+    }
+    function history() {
+        const container = $("alert-review-history"); container.replaceChildren();
+        for (const [title, event, body] of [["Reviewer requested details", post?.detailRequest, post?.detailRequest?.reason], ["Reporter added details", post?.clarification, post?.clarification?.body], [post?.verification ? "Verification withdrawn" : "Report rejected", post?.rejection, post?.rejection?.reason]]) {
+            if (!event) continue;
+            const section = document.createElement("div"), heading = document.createElement("strong"), text = document.createElement("p"), meta = document.createElement("small");
+            heading.textContent = title; text.textContent = body; meta.textContent = `${event.name || post.name} · ${shortDate(event.at?.toDate?.())}`; section.append(heading, text, meta); container.append(section);
+        }
+        container.hidden = !container.children.length;
     }
     function controls() {
-        // Permission hints here guide the UI; Firestore rules make the final
-        // decision using server time and the current verifier role.
-        const state = reportState(post), open = !!post && state === "active";
-        $("alert-confirm").hidden = !open || post.authorId === user.uid;
-        $("alert-confirm").disabled = !post || post.pending || confirmed === null || confirming;
-        $("alert-confirm").textContent = confirming ? "Saving…" : confirmed ? "Undo confirmation" : "Confirm alert";
-        $("alert-confirm").setAttribute("aria-busy", String(confirming));
-        $("alert-approve").hidden = !verifier || !open || post.authorId === user.uid || post.verification?.status === "approved";
-        $("alert-approve").disabled = !verifier || !post || post.pending || approving;
-        $("alert-approve").textContent = approving ? "Verifying…" : "Verify alert";
-        $("alert-approve").setAttribute("aria-busy", String(approving));
-        $("alert-resolve-fields").hidden = !open || !(verifier || post.authorId === user.uid);
-        $("alert-resolve").disabled = !open || post.pending || resolving;
-        $("alert-resolve").textContent = resolving ? "Saving…" : "Mark resolved";
-        $("alert-resolve").setAttribute("aria-busy", String(resolving));
-        $("alert-resolution-note").disabled = !open || post.pending || resolving;
-        if (post) {
-            const resolution = post.resolution;
-            $("alert-owner-note").hidden = !open || post.authorId !== user.uid;
-            const approved = post.verification?.status === "approved";
-            $("alert-details").dataset.state = state === "active" ? approved ? "approved" : "pending" : state;
-            $("alert-verification").dataset.approved = String(approved && !post.pending);
-            $("alert-verification").textContent = state === "resolved" ? "Resolved" : state === "expired" ? "Expired"
-                : approved ? post.pending ? "Saving verification…" : `Verified by ${post.verification.verifierName}` : "Needs review";
-            $("alert-lifecycle").textContent = state === "resolved"
-                ? `${post.pending ? "Saving resolution…" : `${resolution.resolvedName} · ${shortDate(resolution.resolvedAt?.toDate?.())}`}${resolution.note ? `\n${resolution.note}` : ""}`
-                : state === "expired" ? "Kept for reference."
-                : `Expires ${shortDate(new Date(expiresAt(post)))}`;
-        }
+        const status = alertStatus(post), open = !!post && reportState(post) === "active", ready = !!post && !post.pending && !busy;
+        const owner = post?.authorId === user.uid, shownOnMap = visibleOnMap(post);
+        $("alert-confirm").hidden = !open || owner;
+        $("alert-confirm").disabled = !ready || confirmed === null;
+        $("alert-confirm").textContent = busy ? "Saving…" : confirmed ? "Undo my observation" : "I saw this too";
+        $("alert-confirm").setAttribute("aria-pressed", String(confirmed === true));
+        $("alert-review-controls").hidden = !verifier || owner || !open;
+        $("alert-approve").hidden = !verifier || owner || !open || !!post?.verification || status === "needs_details";
+        $("alert-request-details").hidden = !!post?.verification || !!post?.detailRequest;
+        $("alert-reject").textContent = post?.verification ? "Withdraw verification" : "Reject report";
+        $("alert-clarify-fields").hidden = !owner || status !== "needs_details";
+        for (const id of ["alert-approve", "alert-request-details", "alert-reject", "alert-review-note", "alert-clarify", "alert-clarification", "alert-resolve", "alert-resolution-note"]) $(id).disabled = !ready;
+        $("alert-resolve-fields").hidden = !open || !(verifier || owner);
+        $("alert-owner-note").hidden = !open || !owner;
+        $("alert-preview").hidden = !shownOnMap; $("alert-map-mobile").hidden = !shownOnMap;
+        if (!post) return;
+        $("alert-details").dataset.state = status;
+        $("alert-verification").textContent = post.pending ? "Saving…" : alertLabels[status];
+        $("alert-verification").dataset.approved = String(status === "approved" && !post.pending);
+        $("alert-freshness").textContent = `${post.verification ? "Checked" : "Reported"} ${relative(post.verification?.approvedAt || post.createdAt)}`;
+        const checkedAt = stamp(post.verification?.approvedAt || post.createdAt);
+        $("alert-freshness").title = checkedAt ? shortDate(new Date(checkedAt)) : "Just now";
+        $("alert-status-explanation").textContent = status === "pending" ? "Waiting for review. This report is not on the campus map yet." : status === "needs_details" ? "A reviewer needs more information. This report is not on the map." : status === "rejected" ? "This report is not on the map. Read the reviewer's explanation below." : status === "expired" ? "No longer current. Removed from the map; this does not mean the issue is fixed." : status === "resolved" ? "This issue was marked resolved and removed from the map." : "";
+        $("alert-status-explanation").hidden = status === "approved";
+        $("alert-attribution").textContent = post.verification ? `Verified by ${post.verification.verifierName}` : `Reported by ${post.name}`;
+        $("alert-lifecycle").textContent = status === "resolved" ? `Resolved by ${post.resolution.resolvedName} · ${shortDate(post.resolution.resolvedAt?.toDate?.())}${post.resolution.note ? `\n${post.resolution.note}` : ""}` : ["approved", "pending", "needs_details"].includes(status) ? `${status === "approved" ? "Current until" : "Review window ends"} ${shortDate(new Date(expiresAt(post)))}` : "Kept in report history. If you have new information, submit a new report.";
     }
-    function render(postData) {
-        // Restart the viewer's confirmation listener only when the selected
-        // report changes, not on every parent snapshot update.
-        const next = postData?.category === "Alert" ? postData : null;
+    function render(data) {
+        const next = data?.category === "Alert" ? data : null;
         if (post?.id !== next?.id) {
-            version++; stopConfirmation?.(); stopConfirmation = null; confirmed = null;
-            $("alert-confirm-status").textContent = "";
-            $("alert-approval-status").textContent = "";
-            $("alert-resolution-status").textContent = "";
-            $("alert-resolution-note").value = "";
+            version++; previewVersion++; stopConfirmation?.(); stopConfirmation = null; confirmed = null; busy = false;
+            for (const id of ["alert-confirm-status", "alert-approval-status", "alert-resolution-status", "alert-clarify-status"]) $(id).textContent = "";
+            for (const id of ["alert-review-note", "alert-resolution-note", "alert-clarification"]) $(id).value = "";
             $("alert-resolve-fields").open = false;
             if (next && next.authorId !== user.uid) {
-                const epoch = version;
-                stopConfirmation = service.watchConfirmation(next.id, user.uid, (exists, pending) => {
-                    if (disposed || epoch !== version) return;
-                    confirmed = pending ? null : exists; controls();
-                }, error => {
-                    if (disposed || epoch !== version) return;
-                    confirmed = null; controls(); feedback("alert-confirm-status", "Confirmation unavailable. Reopen this alert to retry.");
-                });
+                const token = version;
+                stopConfirmation = service.watchConfirmation(next.id, user.uid, (exists, pending) => { if (!disposed && token === version) { confirmed = pending ? null : exists; controls(); } }, () => { if (!disposed && token === version) feedback("alert-confirm-status", "Observations unavailable. Reopen the report to retry."); });
             }
         }
-        post = next;
-        $("alert-details").hidden = !post;
+        post = next; $("alert-details").hidden = !post;
         if (post) {
-            $("alert-location-display").textContent = post.location.label;
-            $("alert-location-display").title = `${post.location.latitude.toFixed(6)}, ${post.location.longitude.toFixed(6)}`;
-            $("alert-count").textContent = `${post.confirmationCount || 0} confirmation${post.confirmationCount === 1 ? "" : "s"}`;
-            $("alert-owner-note").hidden = post.authorId !== user.uid;
+            $("alert-location-display").textContent = post.location?.label || "Location unavailable";
+            $("alert-impact-text").textContent = post.body;
+            $("alert-count").textContent = post.confirmationCount ? `${post.confirmationCount} observation${post.confirmationCount === 1 ? "" : "s"} · Not a verification` : "No observations yet";
+            history();
         }
-        controls();
-        expiry.refresh();
+        controls(); expiry.refresh(); locationPreview();
     }
-    on("alert-confirm", "click", async () => {
-        if (!post || reportState(post) !== "active" || post.authorId === user.uid || post.pending || confirmed === null || confirming) return;
-        const id = post.id, epoch = version, value = !confirmed;
-        confirming = true; controls(); feedback("alert-confirm-status", "", "loading");
-        try {
-            await service.setConfirmation(user, id, value);
-            if (!disposed && epoch === version) feedback("alert-confirm-status", value ? "Confirmation added." : "Confirmation withdrawn.", "success");
-        } catch (error) {
-            if (!disposed && epoch === version) feedback("alert-confirm-status", `Not saved. ${error.message}`);
-        } finally { confirming = false; if (!disposed) controls(); }
-    });
-    on("alert-approve", "click", async () => {
-        if (!verifier || !post || reportState(post) !== "active" || post.pending || approving || post.authorId === user.uid || post.verification?.status === "approved") return;
-        const id = post.id, epoch = version;
-        approving = true; controls(); feedback("alert-approval-status", "", "loading");
-        try {
-            await service.approveReport(user, id);
-            if (!disposed && epoch === version) feedback("alert-approval-status", "Alert verified.", "success");
-        } catch (error) {
-            if (!disposed && epoch === version) feedback("alert-approval-status", `Verification not saved. ${error.message}`);
-        } finally { approving = false; if (!disposed) controls(); }
-    });
-    on("alert-resolve", "click", async () => {
-        if (!post || reportState(post) !== "active" || post.pending || resolving || !(verifier || post.authorId === user.uid)) return;
-        const id = post.id, epoch = version, note = $("alert-resolution-note").value;
-        resolving = true; controls(); feedback("alert-resolution-status", "", "loading");
-        try {
-            await service.resolveReport(user, id, note);
-            if (!disposed && epoch === version) { feedback("alert-resolution-status", "Alert resolved.", "success"); $("alert-resolution-note").value = ""; }
-        } catch (error) {
-            if (!disposed && epoch === version) feedback("alert-resolution-status", `Resolution not saved. ${error.message}`);
-        } finally { resolving = false; if (!disposed) controls(); }
-    });
-    const stopVerifier = service.watchVerifier(user.uid, enabled => {
-        if (disposed) return;
-        verifier = enabled; controls();
-    }, () => { if (!disposed) { verifier = false; controls(); } });
-    for (const id of ["alert-latitude", "alert-longitude"]) {
-        on(id, "input", previewPoint);
-        // Native validation must be able to focus required fields in a disclosure.
-        on(id, "invalid", () => { $("alert-coordinate-options").open = true; });
+    async function perform(id, operation, success) {
+        if (!post || post.pending || busy) return;
+        const token = version; busy = true; controls(); feedback(id, "Saving…", "loading");
+        try { await operation(); if (!disposed && token === version) feedback(id, success, "success"); }
+        catch (error) { if (!disposed && token === version) feedback(id, `Not saved. ${error.message}`); }
+        finally { if (!disposed && token === version) { busy = false; controls(); } }
     }
+    on("alert-confirm", "click", () => { if (confirmed !== null && post && post.authorId !== user.uid && reportState(post) === "active") { const value = !confirmed; return perform("alert-confirm-status", () => service.setConfirmation(user, post.id, value), value ? "Your observation was added." : "Your observation was removed."); } });
+    on("alert-approve", "click", () => { if (verifier) return perform("alert-approval-status", () => service.approveReport(user, post.id), "Verified. This alert is now on the campus map."); });
+    for (const [id, action] of [["alert-reject", "reject"], ["alert-request-details", "request_details"]]) on(id, "click", () => {
+        if (!verifier || !post) return;
+        const reason = $("alert-review-note").value.trim(); if (!reason) { feedback("alert-approval-status", "Add an explanation for the reporter first."); $("alert-review-note").focus(); return; }
+        return perform("alert-approval-status", () => service.reviewReport(user, post.id, action, reason, !!post.verification), action === "reject" ? "Decision saved. The report is off the map." : "Details requested. The reporter can respond here.");
+    });
+    on("alert-clarify", "click", () => perform("alert-clarify-status", () => service.clarifyReport(user, post.id, $("alert-clarification").value), "Details sent. Waiting for review."));
+    on("alert-resolve", "click", () => perform("alert-resolution-status", () => service.resolveReport(user, post.id, $("alert-resolution-note").value), "Resolved. Removed from the active map."));
+    on("alert-share", "click", () => $("forum-copy-link").click());
+    for (const id of ["alert-map-mobile", "alert-map-desktop"]) on(id, "click", () => {
+        if (!visibleOnMap(post)) return;
+        if (document.body.dataset.alertMapReady === "true") window.dispatchEvent(new CustomEvent("fiu-alert-locate", { detail: { id: post.id } }));
+        else { const url = new URL("../../index.html", import.meta.url); url.searchParams.set("alert", post.id); location.href = url.href; }
+    });
+    window.addEventListener("fiu-alert-locate-failed", () => feedback("alert-confirm-status", "This alert is no longer available on the map. Check its latest status."), { signal: events.signal });
+    on("alert-building", "change", async () => {
+        if (disposed || disabled || !visible) return;
+        const token = ++locationVersion;
+        await loadBuildings();
+        if (disposed || disabled || !visible || token !== locationVersion) return;
+        const value = $("alert-building").value.trim().toLowerCase();
+        const building = buildings?.find(item => [`${item.full_name} (${item.abbreviation})`, item.full_name, item.abbreviation].some(text => text?.toLowerCase() === value));
+        if (!building) return;
+        $("alert-location-label").value = building.full_name; $("alert-latitude").value = building.latitude; $("alert-longitude").value = building.longitude;
+        $("alert-longitude").dispatchEvent(new Event("change", { bubbles: true }));
+        await loadMap(); if (disposed || !visible || token !== locationVersion) return; map?.setView([building.latitude, building.longitude], 17); previewPoint();
+    });
+    for (const id of ["alert-location-label", "alert-building"]) on(id, "input", () => { locationVersion++; });
+    for (const id of ["alert-latitude", "alert-longitude"]) { on(id, "input", () => { locationVersion++; previewPoint(); }); on(id, "invalid", () => { $("alert-coordinate-options").open = true; }); }
+    mobile.addEventListener("change", locationPreview, { signal: events.signal });
+    const minute = setInterval(() => { if (!disposed && post) controls(); }, 60000);
+    const stopVerifier = service.watchVerifier(user.uid, enabled => { if (!disposed) { verifier = enabled; controls(); } }, () => { if (!disposed) { verifier = false; controls(); } });
     return {
-        setComposer(value) {
-            visible = value; $("alert-location-fields").hidden = !value;
-            for (const id of locationFields) { $(id).required = value; $(id).disabled = !value || disabled; }
-            if (value) loadMap();
-        },
+        setComposer(value) { visible = value; if (!value) locationVersion++; $("alert-location-fields").hidden = !value; for (const id of locationFields) { $(id).required = value; $(id).disabled = !value || disabled; } for (const id of ["alert-issue-type", "alert-building"]) $(id).disabled = !value || disabled; if (value) { loadBuildings(); loadMap(); } },
         location: coordinates,
-        setDisabled(value) { disabled = value; for (const id of locationFields) $(id).disabled = value || !visible; },
-        reset() { for (const id of locationFields) $(id).value = ""; marker?.remove(); marker = null; $("alert-coordinate-options").open = false; $("alert-picker-status").textContent = "Select a spot on the map."; $("alert-picker-status").dataset.state = "ready"; },
+        setDisabled(value) { disabled = value; if (value) locationVersion++; for (const id of [...locationFields, "alert-building", "alert-issue-type"]) $(id).disabled = value || !visible; marker?.dragging?.[value ? "disable" : "enable"](); },
+        reset() { locationVersion++; for (const id of [...locationFields, "alert-building"]) $(id).value = ""; marker?.remove(); marker = null; $("alert-coordinate-options").open = false; },
         render,
-        dispose() { disposed = true; version++; events.abort(); stopConfirmation?.(); stopVerifier(); expiry.dispose(); map?.remove(); }
+        dispose() { disposed = true; version++; previewVersion++; events.abort(); clearInterval(minute); stopConfirmation?.(); stopVerifier(); expiry.dispose(); observer?.disconnect(); map?.remove(); preview?.remove(); }
     };
 }

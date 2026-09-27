@@ -3,7 +3,7 @@
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const root = path.join(__dirname, '..');
 const source = name => fs.readFileSync(path.join(root, name), 'utf8').replace(/^import.*;\s*/gm, '').replaceAll('export ', '');
-const element = () => ({ textContent: '', children: [], attributes: {}, append(...items) { this.children.push(...items); }, setAttribute(k, v) { this.attributes[k] = v; } });
+const element = () => ({ textContent: '', children: [], attributes: {}, addEventListener() {}, remove() {}, append(...items) { this.children.push(...items); }, setAttribute(k, v) { this.attributes[k] = v; } });
 let status, created = 0, removedControl = false;
 const layers = new Set();
 const layer = { addTo() { return this; }, removeLayer(item) { layers.delete(item); }, clearLayers() { layers.clear(); }, remove() { layers.clear(); } };
@@ -14,22 +14,22 @@ const L = {
 };
 let now = Date.now(), scheduled;
 const lifecycle = require('./lifecycle-helper.cjs')({ Date: class extends Date { static now() { return now; } }, setTimeout: cb => { scheduled = cb; return 1; } });
-const create = new Function('document', 'lifecycle', 'const {expiresAt, reportState, watchReportExpiry} = lifecycle;\n' + source('warningMarkers.js') + '\nreturn createWarningLayer;')({ createElement: element }, lifecycle);
+const create = new Function('document', 'lifecycle', 'const {expiresAt, reportState, visibleOnMap, watchReportExpiry} = lifecycle;\n' + source('warningMarkers.js') + '\nreturn createWarningLayer;')({ createElement: element }, lifecycle);
 const createdAt = now, stamp = { toDate: () => new Date(createdAt) };
 const report = { id: 'one', title: '<img src=x onerror=alert(1)>', body: 'Concern\nDetails', category: 'Alert', location: { label: '<Library>', latitude: 25.75, longitude: -80.37 }, name: 'Reporter', confirmationCount: 2, createdAt: stamp, verification: { status: 'approved', verifierName: '<Reviewer>', approvedAt: stamp } };
 const view = create({ map: {}, L });
 view.setReports([report, { ...report, id: 'pending', verification: null }, { ...report, id: 'bad', location: { latitude: NaN, longitude: 0 } }, { ...report, id: 'local', pending: true }]);
-assert.equal(layers.size, 1); assert.match(status.textContent, /^1 verified warning$/);
+assert.equal(layers.size, 1); assert.match(status.textContent, /^1 verified alert$/);
 const marker = [...layers][0]; assert.deepEqual(marker.location, [25.75, -80.37]);
 assert.equal(marker.content.children[0].children[1].textContent, report.title);
 assert.equal(marker.content.children[0].children[3].textContent, report.body);
-assert.match(marker.content.children[0].children.at(-2).textContent, /<Reviewer>/);
-assert.equal(marker.element.attributes['aria-label'], `Verified warning: ${report.title}`);
+assert.match(marker.content.children[0].children[4].textContent, /^Checked /);
+assert.equal(marker.element.attributes['aria-label'], `Verified alert: ${report.title}`);
 view.setReports([report, { ...report, id: 'two', title: 'Second report' }]);
 assert.equal(layers.size, 1); assert.equal(created, 1); assert.equal(marker.content.children.length, 2);
-assert.match(status.textContent, /^2 verified warnings$/);
+assert.match(status.textContent, /^2 verified alerts$/);
 view.setReports([{ ...report, confirmationCount: 3 }], true);
-assert.equal(created, 1); assert.match(marker.content.children[0].children[4].textContent, /3 user confirmations/); assert.match(status.textContent, /reconnecting/);
+assert.equal(created, 1); assert.match(marker.content.children[0].children[5].textContent, /3 community observations/); assert.match(status.textContent, /reconnecting/);
 view.setReports([{ ...report, location: { ...report.location, latitude: 26 } }]);
 assert.equal(layers.size, 1); assert.equal(created, 2);
 view.setReports([{ ...report, verification: null }]); assert.equal(layers.size, 0);
@@ -39,8 +39,8 @@ view.setReports([{ ...report, createdAt: { toMillis: () => now }, resolution: { 
 view.dispose(); assert.equal(removedControl, true);
 
 let authChanged, readReports, readError, unsubscribed = 0, stoppedAuth = false, viewDisposed = false, shown, message, unload;
-const controllerFactory = new Function('restoreUser', 'watchUser', 'watchVerifiedWarnings', 'createWarningLayer', source('mapWarnings.js') + '\nreturn mountMapWarnings;');
-const mount = controllerFactory(async () => {}, cb => { authChanged = cb; return () => { stoppedAuth = true; }; }, (cb, err) => { readReports = cb; readError = err; return () => unsubscribed++; }, () => ({ clear() { shown = []; }, setReports(reports) { shown = reports; }, setStatus(text) { message = text; }, dispose() { viewDisposed = true; } }));
+const controllerFactory = new Function('restoreUser', 'watchUser', 'watchVerifiedWarnings', 'createWarningLayer', 'document', 'window', 'location', source('mapWarnings.js') + '\nreturn mountMapWarnings;');
+const mount = controllerFactory(async () => {}, cb => { authChanged = cb; return () => { stoppedAuth = true; }; }, (cb, err) => { readReports = cb; readError = err; return () => unsubscribed++; }, () => ({ clear() { shown = []; }, setReports(reports) { shown = reports; }, setStatus(text) { message = text; }, dispose() { viewDisposed = true; } }), {body:{dataset:{},append(){}},createElement:element}, {addEventListener(){},removeEventListener(){}}, {href:'https://campus.test/'});
 (async () => {
     const controller = mount({ map: { on(type, cb) { unload = cb; }, off() {} }, L });
     await new Promise(resolve => setImmediate(resolve));

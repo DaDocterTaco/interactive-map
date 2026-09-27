@@ -14,13 +14,14 @@ function element(tag = 'div') {
         querySelectorAll(selector) { return this.children.flatMap(c => [c, ...c.querySelectorAll('*')]).filter(c => selector === '*' || selector === '[data-reply-control]' && c.dataset.replyControl); },
         reset() { if (this.id === 'forum-post-form') { for (const id of ['forum-title-input', 'forum-body-input', 'forum-topic-input', 'alert-location-label', 'alert-latitude', 'alert-longitude']) elements[id].value = ''; elements['forum-category-input'].value = 'Question'; } },
         classList: { add(name) { classes.add(name); }, toggle(name, enabled) { if (enabled) classes.add(name); else classes.delete(name); }, contains(name) { return classes.has(name); } },
-        get firstElementChild() { return this.children[0]; }, get lastElementChild() { return this.children.at(-1); },
+        get firstElementChild() { return this.children[0]; }, get lastElementChild() { return this.children.at(-1); }, get lastChild() { return this.children.at(-1); },
         get isConnected() { return !!elements[this.id] || !!this.parent?.isConnected; },
         get textContent() { return this._text + this.children.map(c => c.textContent).join(''); }, set textContent(v) { this.replaceChildren(); this._text = String(v); }
     }; dynamic.push(el); return el;
 }
 for (const [, id] of fs.readFileSync(path.join(root, 'mainChat.html'), 'utf8').matchAll(/id="([^"]+)"/g)) { const el = element(); el.id = id; elements[id] = el; }
 elements['forum-save'].append(element('span'), element('span'));
+for (const id of ['forum-back','forum-cancel-post']) elements[id].append(element('span'),element('#text'));
 elements['forum-reply-sort'].value = 'helpful';
 document.getElementById = id => elements[id] || dynamic.find(el => el.id === id && el.isConnected) || null;
 document.createElement = element; document.createTextNode = text => { const el = element('#text'); el.textContent = text; return el; };
@@ -30,6 +31,7 @@ const windowListeners = new Map(), window = { innerHeight: 844, addEventListener
 let postsCallback, postsError, savedCallback, savedError, postCallback, postError, repliesCallback, repliesError, stopped = 0, alertDisabled = false;
 const sent = [], publications = [], bookmarks = []; let failSave = false, failReply = false, failPost = false, delayPost = false;
 const service = {
+    newPostId() { return 'retry-safe-id'; },
     watchAllPosts(cb, err) { postsCallback = cb; postsError = err; return () => stopped++; },
     watchSavedPosts(uid, cb, err) { savedCallback = cb; savedError = err; return () => stopped++; },
     watchPost(id, cb, err) { postCallback = cb; postError = err; return () => stopped++; },
@@ -90,6 +92,7 @@ const replies = [{ id: 'r1', authorId: 'bob', name: 'Bob', body: '<img src=x one
     fire('forum-back'); open('p0'); showPost('p0'); assert.equal(elements['forum-reply-input'].value, '');
     replyDraft('Close while sending'); const pendingRemount = fire('forum-reply-form', 'submit'); controller.dispose();
     controller = mount({ user }); controller.setActive(true); postsCallback(all, false); showPost('p0');
+    assert.equal(elements['forum-post-list'].children.length, 20, 'Reopening does not duplicate retained card DOM');
     assert.equal(elements['forum-reply-input'].disabled, true, 'Remount retains in-flight duplicate guard');
     await fire('forum-reply-form', 'submit'); assert.equal(sent.length, 2, 'A remounted controller cannot resubmit in-flight draft');
     sent[1].resolve('new-remount'); await pendingRemount; assert.equal(elements['forum-reply-input'].value, ''); assert.equal(elements['forum-reply-input'].disabled, false);

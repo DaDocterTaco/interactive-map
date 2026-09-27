@@ -49,8 +49,8 @@ service cloud.firestore {
           && location.longitude is number && location.longitude >= -180 && location.longitude <= 180;
       }
       function warningOpen(data) {
-        return data.category == 'Alert' && !('resolution' in data)
-          && request.time < data.createdAt + duration.value(24, 'h');
+        return data.category == 'Alert' && !('resolution' in data) && !('rejection' in data)
+          && request.time < (('verification' in data) ? data.verification.approvedAt : data.createdAt) + duration.value(24, 'h');
       }
       function authorizedVerifier() {
         let role = /databases/$(database)/documents/users/$(request.auth.uid)/roles/verifier;
@@ -70,7 +70,8 @@ service cloud.firestore {
         return data.keys().hasAll(['authorId', 'name', 'title', 'body', 'category', 'createdAt', 'lastActivityAt', 'replyCount', 'lastReplyId'])
           && ((data.category != 'Alert' && data.keys().hasOnly(['authorId', 'name', 'title', 'body', 'category', 'createdAt', 'lastActivityAt', 'replyCount', 'lastReplyId', 'topic'])
               && (!('topic' in data) || data.topic in ['Classes', 'Study spaces', 'Campus life', 'Parking & transit', 'Housing', 'Other']))
-            || (data.category == 'Alert' && data.keys().hasOnly(['authorId', 'name', 'title', 'body', 'category', 'createdAt', 'lastActivityAt', 'replyCount', 'lastReplyId', 'location', 'confirmationCount', 'lastConfirmationBy'])
+            || (data.category == 'Alert' && data.keys().hasOnly(['authorId', 'name', 'title', 'body', 'category', 'createdAt', 'lastActivityAt', 'replyCount', 'lastReplyId', 'location', 'confirmationCount', 'lastConfirmationBy', 'issueType'])
+              && (!('issueType' in data) || data.issueType in ['Flooding', 'Blocked path', 'Facility outage', 'Accessibility', 'Other'])
               && validLocation(data.location) && data.confirmationCount == 0 && data.lastConfirmationBy == ''))
           && validAuthor(data) && validText(data.title, 140) && validText(data.body, 5000)
           && data.category in ['Question', 'Comment', 'Concern', 'Alert', 'Other']
@@ -81,6 +82,7 @@ service cloud.firestore {
         let approval = request.resource.data.verification;
         return warningOpen(resource.data) && resource.data.authorId != request.auth.uid
           && !('verification' in resource.data)
+          && (!('detailRequest' in resource.data) || 'clarification' in resource.data)
           && authorizedVerifier()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['verification'])
           && approval is map && approval.keys().hasOnly(['status', 'verifierId', 'verifierName', 'approvedAt'])
@@ -96,6 +98,25 @@ service cloud.firestore {
           && resolution.status == 'resolved' && resolution.resolvedBy == request.auth.uid
           && validText(resolution.resolvedName, 40) && resolution.resolvedAt == request.time
           && resolution.note is string && resolution.note.size() <= 500;
+      }
+      function reviewDecision(field) {
+        let decision = request.resource.data[field];
+        return warningOpen(resource.data) && authorizedVerifier() && resource.data.authorId != request.auth.uid
+          && !(field in resource.data)
+          && (field == 'rejection' || !('verification' in resource.data))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([field])
+          && decision.keys().hasAll(['by', 'name', 'at', 'reason'])
+          && decision.keys().hasOnly(['by', 'name', 'at', 'reason'])
+          && decision.by == request.auth.uid && validText(decision.name, 40)
+          && decision.at == request.time && validText(decision.reason, 500);
+      }
+      function clarifyWarning() {
+        let response = request.resource.data.clarification;
+        return warningOpen(resource.data) && resource.data.authorId == request.auth.uid
+          && 'detailRequest' in resource.data && !('clarification' in resource.data) && !('verification' in resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clarification'])
+          && response.keys().hasAll(['by', 'at', 'body']) && response.keys().hasOnly(['by', 'at', 'body'])
+          && response.by == request.auth.uid && response.at == request.time && validText(response.body, 2000);
       }
       function replyActivity() {
         let data = request.resource.data;
@@ -128,7 +149,7 @@ service cloud.firestore {
       }
       allow read: if signedIn();
       allow create: if signedIn() && validPost();
-      allow update: if signedIn() && (replyActivity() || confirmationActivity() || verifierApproval() || resolveWarning() || acceptedAnswer());
+      allow update: if signedIn() && (replyActivity() || confirmationActivity() || verifierApproval() || resolveWarning() || acceptedAnswer() || reviewDecision('rejection') || reviewDecision('detailRequest') || clarifyWarning());
       allow delete: if false;
 
       match /confirmations/{uid} {

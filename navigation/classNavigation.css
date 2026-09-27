@@ -1,0 +1,27 @@
+.class-journey.has-class-navigation{max-height:54dvh;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding:18px 24px}
+.class-journey.has-class-navigation .class-journey-course{padding-top:6px;gap:8px}
+.class-journey.has-class-navigation .class-journey-course strong{font-size:14px}
+.class-journey.has-class-navigation :is(.class-journey-course,.class-journey-time)>.cs-icon{width:16px;height:16px;flex-basis:16px}
+.class-journey.has-class-navigation .class-journey-course div>span{display:none}
+.class-journey.has-class-navigation .class-journey-time{margin:5px 0 8px;font-size:12px;gap:8px}
+.class-journey.has-class-navigation .class-journey-room{font-size:22px}
+.class-journey.has-class-navigation .class-journey-building{font-size:13px;margin-bottom:10px}
+.nav-class-route{border-top:1px solid var(--cs-border);padding-top:12px;font-size:13px}
+.nav-class-route label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:600}
+.nav-class-route select,.nav-class-route input{border:1px solid var(--cs-border);border-radius:8px;background:var(--cs-surface);color:var(--cs-text);padding:8px;min-height:38px;font:inherit}
+.nav-class-route select{min-width:125px}
+.nav-class-estimate{font-size:23px;line-height:1.25;font-weight:700;letter-spacing:-.3px;margin:12px 0 5px}
+.nav-class-status{margin:10px 0 5px;line-height:1.5}
+.nav-class-origin{font-size:11px;color:var(--cs-muted);overflow-wrap:anywhere;margin:5px 0 10px}
+.nav-class-route button{min-height:36px;padding:7px 12px;border:1px solid var(--cs-border);border-radius:8px;background:var(--cs-surface);color:var(--cs-text);font-size:12px}
+.nav-class-route button:hover{background:var(--cs-selected)}
+.nav-class-route .nav-class-live{margin-bottom:8px}
+.nav-class-route details{margin:7px 0 10px;font-size:12px}
+.nav-class-route summary{cursor:pointer;min-height:30px;line-height:30px}
+.nav-class-start label{display:block;margin:4px 0 8px}.nav-class-start input{display:block;width:100%;margin-top:5px;font-weight:400}
+.nav-class-start-actions{display:flex;gap:8px}.nav-class-start-actions button{flex:1}
+.nav-class-notes ul{padding-left:18px;color:var(--cs-muted);line-height:1.5}.nav-class-notes li{margin:5px 0}
+.nav-class-route[data-status=error] .nav-class-status{color:#b13b35}
+.nav-picking-start,.nav-picking-start .leaflet-interactive{cursor:crosshair!important}
+.class-journey.has-class-navigation .class-directions{min-height:38px;font-size:13px;margin-top:8px}
+@media(max-width:700px){.class-journey.has-class-navigation{padding:24px 18px max(12px,env(safe-area-inset-bottom));max-height:53dvh}.class-journey.has-class-navigation .class-journey-course{margin-inline:0}.class-journey.has-class-navigation .class-journey-room,.class-journey.has-class-navigation .class-journey-building,.class-journey.has-class-navigation .class-journey-state{margin-left:0}.class-journey.has-class-navigation .class-journey-time{margin-left:0}.nav-class-estimate{font-size:21px}}

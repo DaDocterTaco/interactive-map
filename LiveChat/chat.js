@@ -748,7 +748,7 @@ async function showChat(user) {
     discardOldLocalHistory();
     if (!chatPanel.open) chatPanel.showModal();
     try {
-        const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js?v=nav-5"), import("./forums/forumUI.js?v=forum-approved-4"), import("./people.js"), import("./peopleUI.js?v=nav-5"), import("./chatInfoUI.js?v=nav-5"), import("./chatViewport.js?v=responsive-1")]);
+        const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js?v=nav-5"), import("./forums/forumUI.js?v=polish-20260927-1"), import("./people.js"), import("./peopleUI.js?v=nav-5"), import("./chatInfoUI.js?v=nav-5"), import("./chatViewport.js?v=responsive-1")]);
         await modules[4].saveProfile(user);
         if (version !== viewVersion || !chatPanel.open) return;
         viewportController = modules[7].mountChatViewport(chatPanel);
