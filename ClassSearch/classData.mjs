@@ -34,7 +34,8 @@ export function createCatalog(data) {
         metadata: data.metadata,
         search({ mode = 'course', term = data.metadata.term_code, classId = '', course = '', professor = '', time = '' } = {}) {
             if (term !== data.metadata.term_code) return [];
-            const unifiedId = mode === 'auto' && /^\d+$/.test(String(course).trim());
+            const query = String(course).trim();
+            const unifiedId = mode === 'auto' && /^\d+$/.test(query) && byId.has(query);
             if (mode === 'id' || unifiedId) {
                 const id = String(unifiedId ? course : classId).trim();
                 if (!/^\d+$/.test(id)) return [];
@@ -46,8 +47,12 @@ export function createCatalog(data) {
             // and title words also work in the unified search field.
             const code = normalize(course).replace(/[\s-]/g, '').match(/^([a-z]{2,4})(\d{4}[a-z]?)$/);
             const prefix = normalize(course).replace(/[\s-]/g, '').match(/^[a-z]{2,4}\d{0,3}$/);
+            // Bare course numbers (2021) and number prefixes (202) search
+            // across departments. Existing exact class IDs keep precedence.
+            const number = query.match(/^\d{1,4}$/)?.[0];
             return sections.filter(section => (code
                 ? normalize(section.course_code).replace(/\s/g, '') === code[1] + code[2]
+                : number ? (section.course_code.match(/\d{4}/)?.[0] || '').startsWith(number)
                 : (prefix && normalize(section.course_code).replace(/\s/g, '').startsWith(prefix[0])) || wordsMatch(section.course_name, course))
                 && wordsMatch(section.instructor, professor)
                 && (!time || section.start_time === time))
@@ -68,6 +73,9 @@ export function createCatalogLoader(url, fetcher = fetch) {
         return pending;
     };
 }
+
+// Explore suggestions and the Classes tab share one lazily loaded snapshot.
+export const loadCampusCatalog = createCatalogLoader(new URL('./classes.json', import.meta.url));
 
 const dayNames = { M: 'Mon', Mo: 'Mon', T: 'Tue', Tu: 'Tue', W: 'Wed', We: 'Wed', Th: 'Thu', F: 'Fri', Fr: 'Fri', S: 'Sat', Sa: 'Sat', Su: 'Sun' };
 export const formatDays = days => days.map(day => dayNames[day] || day).join(' / ');

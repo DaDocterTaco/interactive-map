@@ -179,7 +179,7 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
         CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options?.detail; } }
     });
     return { get, state, media, preferences, document, documentEvents,
-        fire: (id, type = 'click', extra) => get(id).fire(type, extra), open: async () => { await get('open-chat').fire('click'); assert.ok(state.receive, 'Chat startup: ' + get('chat-status').textContent + ' / ' + get('connection-status').textContent); },
+        fire: (id, type = 'click', extra) => get(id).fire(type, extra), open: async ({chooseCampus = true} = {}) => { await get('open-chat').fire('click'); assert.ok(state.selectGroup, 'Chat startup: ' + get('chat-status').textContent + ' / ' + get('connection-status').textContent); if(chooseCampus) state.selectGroup(null); },
         rows: () => get('message-list').children.filter(child => child.classList.contains('message-row')),
         row: id => get('message-list').children.find(child => child.dataset.messageId === id),
         flushTimers(maxDelay = 300) { for (const [id, timer] of [...timers]) if (timer.delay <= maxDelay) { timers.delete(id); timer.fn(); } },
@@ -286,14 +286,18 @@ test('theme follows the system until chosen, persists, and profile shows the sig
     assert.equal(app.get('profile-name').textContent, 'TheGambler101'); assert.equal(app.get('profile-initials').textContent, 'TG');
 });
 
-test('mobile list/conversation navigation is remembered; forum tabs switch the active pane', async () => {
-    const app = createApp({ mobile: true, stored: { 'fiu-chat:mobile-view': 'list' } }); await app.open();
+test('chat entry shows the chooser; explicit selection opens a conversation and tabs return to browsing', async () => {
+    const app = createApp({ mobile: true, stored: { 'fiu-chat:mobile-view': 'conversation' } }); await app.open({chooseCampus:false});
+    assert.equal(app.state.receive, undefined, 'Opening Chats must not subscribe to Campus Chat');
     assert.equal(app.get('chat-panel').dataset.mobileView, 'list'); app.state.selectGroup(null);
     assert.equal(app.get('chat-panel').dataset.mobileView, 'conversation'); await app.fire('back-to-chats');
     assert.equal(app.get('chat-panel').dataset.mobileView, 'list'); assert.equal(app.preferences.get('fiu-chat:mobile-view'), 'list');
     await app.fire('forums-tab'); assert.equal(app.state.forumsActive, true); assert.equal(app.get('chats-sidebar').hidden, true);
     assert.equal(app.get('forums-panel').hidden, false); assert.equal(app.get('chat-panel').dataset.section, 'forums');
     await app.fire('chats-tab'); assert.equal(app.state.forumsActive, false); assert.equal(app.get('forums-panel').hidden, true);
+    assert.equal(app.get('chat-panel').dataset.mobileView,'list');
+    app.state.selectGroup(null);await app.fire('chat-panel','campus-chat-home');
+    assert.equal(app.get('chat-panel').dataset.mobileView,'list','Reentering from Community returns to the chooser');
 });
 
 test('Explore preserves an open conversation, draft and scroll; selecting a group exits discovery', async () => {

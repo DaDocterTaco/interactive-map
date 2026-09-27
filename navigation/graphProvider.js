@@ -2,7 +2,7 @@ import { NavigationError, point, distance, project, abortIfNeeded } from './geom
 
 const MODES = ['walk', 'bike', 'scooter'];
 // Product assumptions, not measured user speeds or campus speed limits (metres/sec).
-export const DEFAULT_SPEEDS = Object.freeze({ walk: 1.35, bike: 3.6, scooter: 3.0 });
+export const DEFAULT_SPEEDS = Object.freeze({ walk: 3 * 0.44704, bike: 15 * 0.44704, scooter: 15 * 0.44704 });
 
 class MinHeap {
   items = [];

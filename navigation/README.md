@@ -104,9 +104,9 @@ The bundled graph contains 4,537 points and 4,976 connected path segments from t
 
 Bike/scooter routes exclude steps. Walking can set `avoidSteps: true`, but that is **not wheelchair routing**: slopes, widths, kerbs, and lifts have not been surveyed. Road carriageways, indoor paths, polygon-only areas, and unsupported conditional-access ways are excluded from the campus extract. This reduces coverage, especially outside the campus core. It does not route off campus.
 
-Default speed assumptions are walking **1.35 m/s**, biking **3.6 m/s**, and scooter **3.0 m/s**. These are configurable product estimates, not measured user speeds or legal speed limits. Steps slow walking; known rough surfaces slow travel. Estimates exclude stops, crossing wait times, weather, crowds, indoor travel, parking/unlocking a device, and unverified endpoint access.
+Default speed assumptions are walking **3 mph (1.34112 m/s)**, biking **15 mph (6.7056 m/s)**, and scooter **15 mph (6.7056 m/s)**. These are configurable product estimates, not measured user speeds or legal speed limits. Steps slow walking; known rough surfaces slow travel. Estimates exclude stops, crossing wait times, weather, crowds, indoor travel, parking/unlocking a device, and unverified endpoint access.
 
-Riding permission is absent on many source paths. By default, bike/scooter travel uses walking speed and a `dismount` section where riding access is unknown. Set `allowUnverifiedRiding: true` only to show **provisional riding estimates**; warnings remain visible and explicit prohibitions remain in force. Scooter permission is independent of bicycle permission. The module does not establish current campus riding rules. Auditing path permissions and entrances is the next data step before presenting reliable public directions.
+Riding permission is absent on many source paths. By default, bike/scooter travel uses walking speed and a `dismount` section where riding access is unknown. Set `allowUnverifiedRiding: true` to show **provisional riding estimates**; the app's shared class/Explore route session uses this option for bike and scooter modes, in both manual planning and live GPS estimates. Warnings remain visible and explicit prohibitions and dismount sections remain in force. Scooter permission is independent of bicycle permission. The module does not establish current campus riding rules. Auditing path permissions and entrances is the next data step before presenting reliable public directions.
 
 ## Request options and result
 
@@ -118,7 +118,7 @@ await navigation.getRoute({
   avoidSteps: true,
   allowUnverifiedRiding: false,
   maxSnapMeters: 60, // 0–250; default 60; reject distant points
-  speeds: { walk: 1.35, bike: 3.6, scooter: 3.0 }, // metres/sec, >0 through 15
+  speeds: { walk: 1.34112, bike: 6.7056, scooter: 6.7056 }, // metres/sec, >0 through 15
   blockedLinkIds: ['42', '43'], // caller-supplied, validated closures
 }, { signal: abortController.signal });
 ```

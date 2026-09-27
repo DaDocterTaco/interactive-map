@@ -11,6 +11,31 @@ const writeEvent = "fiu-forum-write-finished";
 export function mountForums({ user }) {
     const $ = id => document.getElementById(id), events = new AbortController();
     const on = (id, type, fn) => $(id).addEventListener(type, fn, { signal: events.signal });
+    const filterPopup = $("forum-filter-options"), filterToggle = $("forum-filter-toggle");
+    function closeFilters() { if (filterPopup.matches?.(":popover-open")) filterPopup.hidePopover(); }
+    window.addEventListener("keydown", event => {
+        if (event.key !== "Escape" || !filterPopup.matches?.(":popover-open")) return;
+        event.preventDefault(); event.stopPropagation(); closeFilters(); filterToggle.focus({ preventScroll: true });
+    }, { signal: events.signal, capture: true });
+    on("forum-filter-options", "toggle", event => {
+        if (event.newState === "open") $("forum-filter-close").focus({ preventScroll: true });
+    });
+    on("forum-filter-options", "beforetoggle", event => {
+        filterToggle.setAttribute("aria-expanded", String(event.newState === "open"));
+        if (event.newState !== "open") return;
+        const rect = filterToggle.getBoundingClientRect(), viewport = window.visualViewport;
+        const left = viewport?.offsetLeft || 0, top = viewport?.offsetTop || 0;
+        const width = viewport?.width || window.innerWidth, height = viewport?.height || window.innerHeight;
+        const popupWidth = Math.min(360, width - 24), below = top + height - rect.bottom - 20;
+        filterPopup.style.width = `${popupWidth}px`;
+        filterPopup.style.left = `${Math.max(left + 12, Math.min(rect.right - popupWidth, left + width - popupWidth - 12))}px`;
+        filterPopup.style.bottom = "auto";
+        filterPopup.style.top = `${rect.bottom + 8}px`;
+        filterPopup.style.maxHeight = `${Math.max(0, below)}px`;
+    });
+    window.addEventListener("campus-tab-change", closeFilters, { signal: events.signal });
+    window.addEventListener("resize", closeFilters, { signal: events.signal });
+    on("forum-content", "scroll", closeFilters);
     // The dialog DOM survives closing, while each controller owns fresh cards.
     $("forum-post-list").replaceChildren();
     for (const item of document.querySelectorAll("[data-alert-filter]")) item.setAttribute("aria-pressed", String(item.dataset.alertFilter === "active"));
@@ -72,6 +97,7 @@ export function mountForums({ user }) {
     }
     function stopThread() { threadVersion++; replyVersion++; stopPost?.(); stopReplies?.(); stopPost = stopReplies = null; alerts.render(null); }
     function show(next, reset = true) {
+        if (next !== "forum-welcome") closeFilters();
         screen = next;
         for (const id of ["forum-welcome", "forum-compose", "forum-thread"]) $(id).hidden = id !== next;
         const state = next === "forum-welcome" ? "feed" : next === "forum-thread" ? "thread" : "compose";
@@ -130,6 +156,9 @@ export function mountForums({ user }) {
         }
         for (const id of ["forum-sidebar-saved", "forum-mobile-saved"]) { $(id).setAttribute("aria-pressed", String(view === "saved")); $(id).classList.toggle("is-active", view === "saved"); }
         $("forum-feed-title").textContent = view === "saved" ? "Saved discussions" : view === "alerts" ? "Campus alerts" : topic || "Campus forums";
+        const filterScope = view === "saved" ? "Saved" : reports ? "Alerts" : topic || "All topics";
+        const sortLabel = sort === "active" ? "Recently active" : sort === "helpful" ? "Helpful answers" : "Latest";
+        $("forum-filter-summary").textContent = `${filterScope} · ${sortLabel}`;
     }
     function renderPosts() {
         if (disposed) return;
@@ -402,8 +431,8 @@ export function mountForums({ user }) {
         setActive(value) {
             if (disposed || active === value) return; active = value; expiry.refresh();
             if (value) { listenPosts(); listenSaved(); const id = postIdFromURL(location.href); if (id) openPost(id, false); else if (screen === "forum-thread") back(false); else show(screen, false); }
-            else { rememberReply(); rememberCompose(); listVersion++; savedVersion++; stopPosts?.(); stopSaved?.(); stopThread(); alerts.setComposer(false); }
+            else { closeFilters(); rememberReply(); rememberCompose(); listVersion++; savedVersion++; stopPosts?.(); stopSaved?.(); stopThread(); alerts.setComposer(false); }
         },
-        dispose() { rememberReply(); rememberCompose(); disposed = true; active = false; listVersion++; savedVersion++; stopPosts?.(); stopSaved?.(); stopThread(); alerts.dispose(); expiry.dispose(); events.abort(); clearTimeout(toastTimer); $("forum-toast").hidden = true; }
+        dispose() { closeFilters(); rememberReply(); rememberCompose(); disposed = true; active = false; listVersion++; savedVersion++; stopPosts?.(); stopSaved?.(); stopThread(); alerts.dispose(); expiry.dispose(); events.abort(); clearTimeout(toastTimer); $("forum-toast").hidden = true; }
     };
 }

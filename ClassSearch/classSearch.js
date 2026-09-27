@@ -1,5 +1,5 @@
 import { locateOnMap } from './classMotion.mjs';
-import { createCatalogLoader, formatDays, formatTime, formatDate, dateRange } from './classData.mjs';
+import { loadCampusCatalog, formatDays, formatTime, formatDate, dateRange } from './classData.mjs?v=numeric-course-search-1';
 
 const el = (tag, text, className) => {
     const node = document.createElement(tag);
@@ -77,7 +77,7 @@ export function mountClassSearch({ map, L, navigation }) {
         extraDetails=el('details',null,'cu-class-more');const summary=el('summary','Section details');extraDetails.append(summary);const grid=$('.class-detail-grid');grid.before(extraDetails);extraDetails.append(grid);
     }
     const feedbackHeading=feedback.querySelector('strong'), feedbackDetail=feedback.querySelector('p');
-    const loadCatalog=createCatalogLoader(new URL('./classes.json',import.meta.url));
+    const loadCatalog=loadCampusCatalog;
     let catalog, matches=[], shown=0, selected=null, revision=0, searchTimer, exitTimer;
     let preview, previewPin, previewShape, marker, shape, cancelJourney, observer;
     let footprints, footprintPromise, openingForMap=false;

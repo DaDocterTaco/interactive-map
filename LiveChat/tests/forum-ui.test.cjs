@@ -61,6 +61,10 @@ const rows = () => elements['forum-reply-list'].children;
 const replies = [{ id: 'r1', authorId: 'bob', name: 'Bob', body: '<img src=x onerror=bad()>', createdAt: null }, { id: 'r2', parentId: 'r1', authorId: 'alice', name: 'Alice', body: 'Child', createdAt: null }];
 (async () => {
     let controller = mount({ user }); controller.setActive(true); savedCallback([], false);
+    assert.equal(elements['forum-filter-summary'].textContent, 'All topics · Latest');
+    elements['forum-mobile-sort'].value = 'active'; fire('forum-mobile-sort', 'change');
+    assert.equal(elements['forum-filter-summary'].textContent, 'All topics · Recently active');
+    elements['forum-mobile-sort'].value = 'newest'; fire('forum-mobile-sort', 'change');
     assert.equal(elements['forum-list-placeholder'].hidden, false); postsCallback([], true); assert.equal(elements['forum-empty'].hidden, true);
     postsCallback([], false); assert.equal(elements['forum-empty'].hidden, false); postsError(Error('offline')); assert.equal(elements['forum-empty'].hidden, true);
     assert.equal(elements['forum-error-retry'].hidden, false); postsCallback(all, false); assert.equal(elements['forum-error-retry'].hidden, true);
@@ -68,7 +72,9 @@ const replies = [{ id: 'r1', authorId: 'bob', name: 'Bob', body: '<img src=x one
     fire('forum-empty-clear'); const first = elements['forum-post-list'].children[0]; postsCallback(all, false); assert.equal(elements['forum-post-list'].children[0], first);
     const save = first.children[5].children[1]; save.focus(); failSave = true; await save.listeners.click(); assert.equal(save.getAttribute('aria-pressed'), 'false'); assert.equal(document.activeElement, save);
     failSave = false; await save.listeners.click(); assert.equal(save.getAttribute('aria-pressed'), 'true'); savedCallback(['p0'], false);
-    fire('forum-sidebar-saved'); assert.equal(elements['forum-post-list'].children.length, 1); fire('forum-sidebar-saved');
+    fire('forum-sidebar-saved'); assert.equal(elements['forum-post-list'].children.length, 1);
+    assert.equal(elements['forum-filter-summary'].textContent, 'Saved · Latest');
+    fire('forum-sidebar-saved');
     const staleSaved = savedCallback; controller.setActive(false); controller.setActive(true); postsCallback(all, false); savedCallback(['p1'], false); staleSaved(['p0'], false);
     fire('forum-sidebar-saved'); assert.equal(elements['forum-post-list'].children[0].id, 'forum-card-p1'); fire('forum-sidebar-saved');
     elements['forum-content'].scrollTop = 183;

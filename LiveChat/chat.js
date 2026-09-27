@@ -201,7 +201,7 @@ chatOptions?.addEventListener("click", event => {
     if (event.target.closest("button")) setMenu(false);
 });
 el("back-to-chats")?.addEventListener("click", () => {
-    setMenu(false); setMobileView("list"); el("chat-search").focus({ preventScroll: true });
+    setMenu(false); setMobileView("list"); el("chats-tab").focus({ preventScroll: true });
 });
 el("profile-button")?.addEventListener("click", async () => {
     if (!currentUser) return;
@@ -321,7 +321,7 @@ function selectExplore(open) {
     setMenu(false); stopTimeGesture();
     el("chat-info-panel")?.close();
     if (open) setMobileView("conversation", false);
-    else if (window.matchMedia("(max-width: 700px)").matches) setMobileView("list", false);
+    else if (window.CampusUI || window.matchMedia("(max-width: 700px)").matches) setMobileView("list", false);
     renderChatView();
 }
 function selectSection(section) {
@@ -342,8 +342,13 @@ function selectSection(section) {
     forumController?.setActive(forums);
     chatPanel.dispatchEvent(new CustomEvent("community-section-change", { detail: { section } }));
 }
-document.getElementById("chats-tab").addEventListener("click", () => selectSection("chats"));
+function showChatChooser() {
+    selectSection("chats"); setMobileView("list", false);
+    el("chats-tab").focus({ preventScroll: true });
+}
+document.getElementById("chats-tab").addEventListener("click", showChatChooser);
 document.getElementById("forums-tab").addEventListener("click", () => selectSection("forums"));
+chatPanel.addEventListener("campus-chat-home", showChatChooser);
 
 async function loadAuth() {
     if (location.protocol === "file:") {
@@ -769,14 +774,14 @@ async function showChat(user) {
     document.getElementById("chat-identity").textContent = "";
     if (el("profile-name")) el("profile-name").textContent = user.displayName;
     if (el("profile-initials")) el("profile-initials").textContent = initials(user.displayName);
-    setMobileView(readPreference("fiu-chat:mobile-view") === "list" ? "list" : "conversation", false);
+    setMobileView("list", false);
     clearTimeout(closeTimer); closing = false; chatPanel.classList.remove("is-closing");
     renderMessagePlaceholder("Opening your chats", "Getting your conversations ready…", true);
     connectionMessage("Connecting…", "loading");
     discardOldLocalHistory();
     if (!chatPanel.open) chatPanel.showModal();
     try {
-        const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js?v=nav-5"), import("./forums/forumUI.js?v=polish-20260927-1"), import("./people.js"), import("./peopleUI.js?v=nav-5"), import("./chatInfoUI.js?v=nav-5"), import("./chatViewport.js?v=responsive-1")]);
+        const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js?v=nav-5"), import("./forums/forumUI.js?v=forum-popup-4"), import("./people.js"), import("./peopleUI.js?v=nav-5"), import("./chatInfoUI.js?v=nav-5"), import("./chatViewport.js?v=responsive-1")]);
         await modules[4].saveProfile(user);
         if (version !== viewVersion || !chatPanel.open) return;
         viewportController = modules[7].mountChatViewport(chatPanel);
@@ -797,7 +802,10 @@ async function showChat(user) {
         infoController = modules[6].mountChatInfo({ user });
         forumController = modules[3].mountForums({ user });
         forumController.setActive(activeSection === "forums");
-        selectConversation(null, { reveal: false });
+        // Enter through the chooser. A message subscription starts only after
+        // the user selects Campus Chat, a group, or a direct conversation.
+        renderMessagePlaceholder("Choose a chat", "Select a conversation to see its messages.");
+        connectionMessage("", "");
         if (new URL(location.href).searchParams.has("forum")) selectSection("forums");
         window.dispatchEvent(new Event("campus-chat-ready"));
     } catch (error) {

@@ -1,7 +1,7 @@
 import { NavigationError, point, abortIfNeeded } from './geometry.js';
 import { createCampusLocationResolver } from './locations.js';
 export { NavigationError } from './geometry.js';
-export { createGraphProvider, DEFAULT_SPEEDS } from './graphProvider.js';
+export { createGraphProvider, DEFAULT_SPEEDS } from './graphProvider.js?v=mode-speeds-1';
 export { createLeafletRenderer } from './leafletRenderer.js';
 export { normalizeLocation, createLocationResolver, createCampusLocationResolver } from './locations.js';
 export { createLiveNavigation } from './liveNavigation.js';
@@ -19,7 +19,7 @@ export function createCampusProvider({ graphUrl = new URL('./data/campus-graph.j
             const response = await fetchImpl(graphUrl);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const [{ createGraphProvider }, graph] = await Promise.all([
-              import('./graphProvider.js'), response.json(),
+              import('./graphProvider.js?v=mode-speeds-1'), response.json(),
             ]);
             return createGraphProvider(graph);
           } catch (error) {

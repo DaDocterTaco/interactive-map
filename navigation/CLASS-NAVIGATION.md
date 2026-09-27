@@ -12,7 +12,7 @@ The main app now connects **Find this class** to the navigation engine. Select a
 
 GPS progress and ETA update continuously. Bad or stale readings pause the live estimate. Confirmed deviations trigger a throttled reroute. Two accurate readings near the requested building confirm arrival. A manually chosen start gives a static estimate until **Use live location** is selected. The chosen start and travel mode persist for this page session only.
 
-Routes lead along outdoor paths toward the building; the room is shown for reference. Entrance gaps and indoor travel are excluded. Bike/scooter estimates can match walking when riding permission is unknown; **Route notes** explains the assumptions. Spoken instructions, indoor floor plans and background tracking are not included.
+Routes lead along outdoor paths toward the building; the room is shown for reference. Entrance gaps and indoor travel are excluded. Estimates use 3 mph walking and 15 mph biking/scooting. Unknown riding access uses provisional riding times; explicit dismount sections still use walking speed. **Route details** explains the assumptions. Manual planning and live remaining time use the same mode speeds. Spoken instructions, indoor floor plans and background tracking are not included.
 
 ## Integration boundary
 

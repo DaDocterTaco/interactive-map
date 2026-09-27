@@ -27,7 +27,7 @@
         window.CampusUI?.registerDialog(document.getElementById('chat-panel'),'community');
         // Load handlers only after their buttons, forms, and panels are mounted.
         const handlers = document.createElement("script");
-        handlers.src = new URL("chat.js?v=campus-loop-1", scriptUrl).href;
+        handlers.src = new URL("chat.js?v=forum-popup-4", scriptUrl).href;
         handlers.onload = () => { openButton.disabled = false; if (new URL(location.href).searchParams.has("forum")) openButton.click(); };
         handlers.onerror = () => { status.textContent = "Chat could not load. Refresh the page to try again."; };
         document.body.append(handlers);

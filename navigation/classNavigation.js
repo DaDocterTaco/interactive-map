@@ -1,5 +1,5 @@
-import { createNavigation, createLeafletRenderer } from './index.js';
-import { createClassNavigationSession } from './classNavigationSession.js';
+import { createNavigation, createLeafletRenderer, DEFAULT_SPEEDS } from './index.js?v=mode-speeds-1';
+import { createClassNavigationSession } from './classNavigationSession.js?v=mode-speeds-1';
 const normalized = value => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 export function startSuggestions(places, value) {
   const q = normalized(value);
@@ -21,6 +21,15 @@ export function routeReady(state, now=Date.now()) {
   return ['navigating','arrived'].includes(state.status) && state.locationStatus==='good' &&
     !!state.position && now-state.position.timestamp<15000 && !state.offRoute;
 }
+// Planning never starts guidance, even when GPS is enabled elsewhere in the app.
+export function routeAction(state, phase, now=Date.now()) {
+  if (!['preview','active'].includes(phase)) return null;
+  if (state?.source==='manual') return 'close-estimate';
+  if (state?.source!=='live') return null;
+  if (state.status==='arrived') return 'finish-guidance';
+  if (phase==='active') return 'end-guidance';
+  return routeReady(state,now) ? 'start-guidance' : null;
+}
 export function locationFeedback(state) {
   const messages={denied:'Location is blocked in your browser. Choose a start below.',outside:'You’re outside campus. Choose a campus starting point.',weak:'Your device’s location is too approximate. Choose a start below.',stale:'Your location is out of date. Retry or choose a start.',paused:'Live location is paused. Retry or choose a start.',stopped:'Live location is off. Choose a start or retry.',insecure:'Live location needs a secure connection (HTTPS). Choose a start below.',unavailable:'Your device couldn’t find your location. Choose a start below.',unsupported:'This browser can’t provide live location. Choose a start below.',timeout:'Your device didn’t return a location. Choose a start below.','boundary-error':'Campus location data couldn’t load. Retry or choose a start.',invalid:'Your device hasn’t found a reliable location. Choose a start below.'};
   if(state?.source==='manual')return null;
@@ -37,7 +46,7 @@ const modeIcons={walk:'<circle cx="13" cy="4" r="2"/><path d="m10 8 3-1 3 5 3 1M
 export function createClassNavigation({map,L,locationServices,navigation=createNavigation({cacheSize:0})}) {
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   const renderer=createLeafletRenderer({map,L,fitBounds:false});
-  let panel,root,input,status,suggestions,showButton,liveButton,summaryMetric,summaryStatus,primary,summaryTitle,summaryOrigin,notes,noteList;
+  let panel,root,input,status,suggestions,showButton,liveButton,summaryMetric,summaryStatus,primary,summaryTitle,summaryOrigin,summaryKind,notes,noteList;
   let destination,finishCallback,currentRoute,lastState,phase='setup',picking=false,disposed=false,announced=false;
   let places=[],placesTask,results=[],activeOption=-1,inputTimer,frameTimer,committed='',manualLabel='',editing=false;
   let generation=0;
@@ -84,14 +93,18 @@ export function createClassNavigation({map,L,locationServices,navigation=createN
     }
     liveButton.textContent=state?.source==='manual'?'Use live location':issue?'Retry location':'Live location';
     liveButton.disabled=state?.source==='live'&&!issue;
-    showButton.disabled=!ready;showButton.textContent='Show route';
+    showButton.disabled=!ready;showButton.textContent=state?.source==='manual'?'See travel time':'Show route';
     const metric=state?.source==='live'&&phase==='active'?state?.progress&&{seconds:state.progress.remainingDurationSeconds,metres:state.progress.remainingDistanceMeters}:state?.route&&{seconds:state.route.durationSeconds,metres:state.route.distanceMeters};
     summaryMetric.textContent=metric?`${Math.max(1,Math.ceil(metric.seconds/60))} min · ${metric.metres<1000?Math.round(metric.metres)+' m':(metric.metres/1000).toFixed(1)+' km'}`:'Route unavailable';
     summaryOrigin.textContent=state?.source==='manual'?`From ${manualLabel||state.originLabel}`:'From your current location';
-    summaryStatus.textContent=state?.status==='arrived'?'You’re near your destination.':phase==='active'?(issue||(state?.offRoute?'Updating your route…':'Following your location')):state?.source==='manual'?'Preview only · live tracking is off':issue||'Ready when you are';
+    summaryKind.textContent=state?.source==='manual'?({walk:'Walking estimate',bike:'Cycling estimate',scooter:'Scooter estimate'}[state.mode]||'Travel time estimate'):phase==='active'?'GPS guidance':'Route preview';
+    summaryKind.parentElement.setAttribute('aria-label',state?.source==='manual'?'Travel time estimate':'Route preview');
+    const assumedMph=Math.round(DEFAULT_SPEEDS[state?.mode||'walk']/0.44704);
+    summaryStatus.textContent=state?.source==='manual'?`Based on ${assumedMph} mph · time may vary.`:state?.status==='arrived'?'You’re near your destination.':phase==='active'?(issue||(state?.offRoute?'Updating your route…':'Following your location')):issue||'Ready when you are';
     summaryStatus.dataset.tone=issue?'error':'normal';
-    primary.textContent=state?.status==='arrived'?'Finish route':phase==='active'?'End route':state?.source==='manual'?'Finish route':'Start route';
-    primary.disabled=phase!=='active'&&state?.source!=='manual'&&state?.status!=='arrived'&&!ready;
+    const action=routeAction(state,phase);
+    primary.textContent=({'close-estimate':'Close estimate','finish-guidance':'Finish route','end-guidance':'End route','start-guidance':'Start route'})[action]||'Start route';
+    primary.disabled=!action;
     noteList.replaceChildren(...(state?.route?.warnings||[]).map(value=>node('li',value)));notes.hidden=!state?.route?.warnings?.length;
     if(phase==='active')announceGuidance(state?.source==='live'&&ready&&state.status!=='arrived');
   }
@@ -148,11 +161,12 @@ export function createClassNavigation({map,L,locationServices,navigation=createN
     showButton=button('Show route','nav-primary nav-show');showButton.disabled=true;
     setup.append(node('h3','Travel by','nav-label'),modes,form,showButton);
     const preview=node('section','', 'nav-preview');preview.setAttribute('aria-label','Route preview');
+    summaryKind=node('p','', 'nav-preview-kind');
     const topline=node('div','', 'nav-preview-top');summaryTitle=node('h2','', 'nav-preview-title');summaryMetric=node('strong','', 'nav-preview-metric');topline.append(summaryTitle,summaryMetric);
     summaryOrigin=node('p','', 'nav-preview-origin');summaryStatus=node('p','', 'nav-preview-status');summaryStatus.setAttribute('role','status');
     const previewActions=node('div','', 'nav-preview-actions');const back=button('Edit route','nav-secondary');primary=button('Start route','nav-primary');previewActions.append(back,primary);
     notes=document.createElement('details');notes.className='nav-class-notes';noteList=node('ul');notes.append(node('summary','Route details'),noteList);
-    preview.append(topline,summaryOrigin,summaryStatus,previewActions,notes);
+    preview.append(summaryKind,topline,summaryOrigin,summaryStatus,previewActions,notes);
     const picker=node('section','', 'nav-picker');const cancel=button('Cancel','nav-secondary');picker.append(node('h2','Tap your starting point'),node('p','Choose a building or path on the map.'),cancel);
     root.append(setup,preview,picker);panel.append(root);
     input.addEventListener('input',()=>{
@@ -172,7 +186,11 @@ export function createClassNavigation({map,L,locationServices,navigation=createN
     cancel.addEventListener('click',()=>{cancelPick();setPhase('setup');});
     showButton.addEventListener('click',()=>{if(routeReady(lastState)&&!editing){setPhase('preview');primary.focus({preventScroll:true});}});
     back.addEventListener('click',()=>{setPhase('setup');input.focus({preventScroll:true});});
-    primary.addEventListener('click',()=>{if(phase==='active'||lastState?.source==='manual'||lastState?.status==='arrived'){finish();return;}if(routeReady(lastState)){setPhase('active');announceGuidance(true);}});
+    primary.addEventListener('click',()=>{
+      const action=routeAction(lastState,phase);
+      if(action==='start-guidance'){setPhase('active');announceGuidance(true);}
+      else if(action){finish();}
+    });
   }
   const onLayout=()=>{if(destination&&phase==='preview')scheduleFrame();};
   const onView=()=>{if(destination&&phase==='preview')scheduleFrame();};

@@ -1,4 +1,5 @@
 import { createLocationTracker } from './locationTracker.js';
+import { directionCone } from './direction.mjs';
 
 const messages = {
   idle: 'Find your position on campus.',
@@ -38,6 +39,7 @@ export function mountLocationServices({
   let tracker = null;
   let marker = null;
   let accuracyCircle = null;
+  let cone = null, heading = null;
   let loading = false;
   let disposed = false;
   let request = 0;
@@ -56,6 +58,7 @@ export function mountLocationServices({
   function clearLayers() {
     if (marker && map.hasLayer(marker)) map.removeLayer(marker);
     if (accuracyCircle && map.hasLayer(accuracyCircle)) map.removeLayer(accuracyCircle);
+    if (cone && map.hasLayer(cone)) map.removeLayer(cone);
   }
 
   function render() {
@@ -103,7 +106,22 @@ export function mountLocationServices({
       });
     } else marker.setLatLng(point);
     if (!map.hasLayer(accuracyCircle)) accuracyCircle.addTo(map);
+    renderDirection();
     if (!map.hasLayer(marker)) marker.addTo(map);
+  }
+
+  function renderDirection() {
+    const {fix,status}=state;
+    if(heading===null||!fix||!['tracking','weak','outside'].includes(status)){
+      if(cone&&map.hasLayer(cone))map.removeLayer(cone);
+      return;
+    }
+    const points=directionCone(fix,heading);
+    if(!cone)cone=L.polygon(points,{color:'#1676d2',weight:1,opacity:.3,
+      fillColor:'#2785dd',fillOpacity:.24,interactive:false});
+    else cone.setLatLngs(points);
+    if(!map.hasLayer(cone))cone.addTo(map);
+    marker?.bringToFront?.();
   }
 
   function setState(nextState) {
@@ -231,6 +249,7 @@ export function mountLocationServices({
   else if (!geolocation) setState({ status: 'unsupported', tracking: false, fix: null, markerVisible: false });
 
   return { start, stop: stopTracking, center: centerOnFix, getState: snapshot,
+    setHeading(value){if(disposed)return;heading=Number.isFinite(value)?value:null;renderDirection();},
     subscribe(listener) {
       if (typeof listener !== 'function') throw new TypeError('Supply a location listener.');
       if (disposed) return () => {};

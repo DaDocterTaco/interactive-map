@@ -7,6 +7,22 @@ import {createCatalog,createCatalogLoader,formatTime,formatDays} from './classDa
 const data=JSON.parse(readFileSync(new URL('./classes.json',import.meta.url)));
 const catalog=createCatalog(data);
 
+test('bare course numbers and numeric prefixes find sections across departments',()=>{
+    for(const course of ['2021','202',' 2021 ']) {
+        const expected=data.sections.filter(row=>row.course_code.match(/\d{4}/)?.[0].startsWith(course.trim())).map(row=>row.class_id).sort();
+        const actual=catalog.search({mode:'auto',course});
+        assert.ok(expected.length>0);
+        assert.deepEqual(actual.map(row=>row.class_id).sort(),expected);
+    }
+    const rows=catalog.search({mode:'auto',course:'2021'});
+    assert.ok(rows.some(row=>row.course_code==='ACG 2021'));
+    const first=rows[0];
+    assert.deepEqual(catalog.search({mode:'auto',course:'2021',professor:first.instructor,time:first.start_time}),rows.filter(row=>row.instructor===first.instructor&&row.start_time===first.start_time));
+    assert.deepEqual(catalog.search({mode:'auto',course:'2021',professor:'Nobody Matches'}),[]);
+    assert.deepEqual(catalog.search({mode:'auto',course:'999999'}),[]);
+    assert.deepEqual(catalog.search({mode:'id',classId:'2021'}),[]);
+});
+
 test('unified search handles IDs, department prefixes and partial numbers with filters',()=>{
     const expected=catalog.search({mode:'id',classId:'84848'});
     assert.deepEqual(catalog.search({mode:'auto',course:'84848'}),expected);

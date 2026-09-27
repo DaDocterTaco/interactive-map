@@ -1,3 +1,4 @@
+import {createDirectionTracker,headingDelta} from '../locationservices/direction.mjs';
 /** GPS ownership is independent of camera ownership: browsing never stops GPS. */
 export function visibleMapAnchor({width,height,panelTop,topInset=82,navigating=false}) {
   const bottom=Math.min(height,Math.max(topInset+80,Number.isFinite(panelTop)?panelTop-16:height-20));
@@ -12,7 +13,7 @@ export function usableFix(fix,now=Date.now()) {
 export function walkingZoom(accuracy,maxZoom=19) {
   return Math.min(maxZoom,accuracy<=50?19:accuracy<=150?18:accuracy<=400?17:16);
 }
-export function createCampusCamera({map,locationServices,ui,now=Date.now}) {
+export function createCampusCamera({map,locationServices,ui,now=Date.now,directionFactory=createDirectionTracker}) {
   let mode='explore',latest=null,navigating=false,layoutTimer,moving=false,disposed=false;
   let lastDrawn=null,focusedPlace=null,firstFollow=false,precisionPending=false;
   let locationStatus='idle',overviewing=true;
@@ -20,6 +21,22 @@ export function createCampusCamera({map,locationServices,ui,now=Date.now}) {
   const button=document.getElementById('cu-recenter'),feedback=document.getElementById('cu-location-feedback');
   const terminal=new Set(['denied','stopped','timeout','unavailable','insecure','unsupported','boundary-error']);
   const live=()=>usableFix(latest,now())&&['tracking','weak','outside'].includes(locationStatus);
+  let heading=null,lastHeading=null,compassNotice='';
+  const direction=directionFactory({now,onChange:s=>{
+    if(disposed)return;
+    heading=Number.isFinite(s.heading)?s.heading:null;
+    locationServices.setHeading?.(heading);
+    if(heading!==null){
+      compassNotice='';
+      if(mode==='follow'&&live()&&map.campusExperience?.active&&
+        (lastHeading===null||Math.abs(headingDelta(lastHeading,heading))>=3))follow({force:true});
+    }else if(['denied','unsupported','insecure','unavailable','stale'].includes(s.status)){
+      const message=s.status==='denied'?'Compass access is off. Your location still works.':
+        'Compass direction unavailable. Your location still works.';
+      if(compassNotice!==message){compassNotice=message;ui.announce(message);}
+    }
+    updateButton();
+  }});
   locationServices.setFollowing(false);
   function updateZoomButtons(){
     const plus=document.querySelector?.('.cu-map-zoom [data-zoom="1"]');
@@ -28,10 +45,10 @@ export function createCampusCamera({map,locationServices,ui,now=Date.now}) {
     if(minus)minus.disabled=map.getZoom()<=14.01;
   }
   map.on('zoomend',updateZoomButtons);updateZoomButtons();
-  function state(){return {mode,navigating,fix:latest?{...latest}:null};}
+  function state(){return {mode,navigating,heading,fix:latest?{...latest}:null};}
   function updateButton(){
     const following=mode==='follow'&&live(),busy=locationStatus==='locating'||locationStatus==='preparing';
-    const label=busy?'Finding your location':following?'Following your location':terminal.has(locationStatus)&&locationStatus!=='stopped'?
+    const label=busy?'Finding your location':following?(heading!==null?'Following your location and direction':'Following your location'):terminal.has(locationStatus)&&locationStatus!=='stopped'?
       'Retry my location':latest?'Recenter and follow my location':'Find my location';
     button.setAttribute('aria-pressed',String(following));button.setAttribute('aria-label',label);
     button.title=label;button.setAttribute('aria-busy',String(busy));button.dataset.mode=following?'follow':'explore';
@@ -39,10 +56,12 @@ export function createCampusCamera({map,locationServices,ui,now=Date.now}) {
   }
   function frame(point,{zoom,animate=true,northUp=false}={}){
     const size=map.getSize(),rect=ui.sheet.getBoundingClientRect();
-    const anchor=visibleMapAnchor({width:size.x,height:size.y,panelTop:rect.top,topInset:innerWidth<=640?80:100,navigating});
+    const directional=mode==='follow'&&live()&&heading!==null;
+    const anchor=visibleMapAnchor({width:size.x,height:size.y,panelTop:rect.top,topInset:innerWidth<=640?80:100,navigating:navigating||directional});
     const z=zoom??map.getZoom();
     if(map.campusExperience?.active){
-      map.campusExperience.focusAt({lat:point.latitude,lng:point.longitude},z,anchor,{animate:animate&&!reduced.matches,northUp});
+      map.campusExperience.focusAt({lat:point.latitude,lng:point.longitude},z,anchor,{animate:animate&&!reduced.matches,northUp,heading:directional?heading:null});
+      lastHeading=directional?heading:null;
     }else{
       const target=map.project([point.latitude,point.longitude],z);
       const center=map.unproject([target.x+size.x/2-anchor.x,target.y+size.y/2-anchor.y],z);
@@ -63,6 +82,7 @@ export function createCampusCamera({map,locationServices,ui,now=Date.now}) {
     firstFollow=false;
   }
   async function recenter(){
+    void direction.start();
     overviewing=false;mode='follow';focusedPlace=null;firstFollow=true;
     ui.setSnap?.('peek');updateButton();
     if(live()){feedback.hidden=!['outside','weak'].includes(locationStatus);follow({force:true});ui.announce('Following your location');return;}
@@ -82,7 +102,8 @@ export function createCampusCamera({map,locationServices,ui,now=Date.now}) {
   const unsub=locationServices.subscribe(s=>{
     if(disposed)return;locationStatus=s.status;
     if(s.fix&&usableFix(s.fix,now()))latest={...s.fix};
-    if(terminal.has(s.status)){latest=null;mode='explore';firstFollow=false;precisionPending=false;}
+    if(terminal.has(s.status)){latest=null;mode='explore';firstFollow=false;precisionPending=false;direction.stop();}
+    else if(s.status==='paused'||s.status==='stale')direction.stop();
     feedback.textContent=errors[s.status]||(['locating','preparing'].includes(s.status)?'Finding your location…':'');
     feedback.hidden=!feedback.textContent;updateButton();
     if(s.markerVisible||s.status==='outside')follow();
@@ -112,7 +133,7 @@ export function createCampusCamera({map,locationServices,ui,now=Date.now}) {
   };
   window.addEventListener('campus-navigation-active',onNavigate);updateButton();
   return {recenter,explore,moveTo,zoomBy,getState:state,frame,dispose(){
-    disposed=true;unsub();clearTimeout(layoutTimer);map.off('dragstart',explore);map.off('zoomend',updateZoomButtons);button.removeEventListener('click',recenter);
+    disposed=true;direction.dispose();locationServices.setHeading?.(null);unsub();clearTimeout(layoutTimer);map.off('dragstart',explore);map.off('zoomend',updateZoomButtons);button.removeEventListener('click',recenter);
     container.removeEventListener('wheel',explore);window.removeEventListener('campus-map-interaction',explore);
     window.removeEventListener('campus-map-zoom',onZoom);window.removeEventListener('campus-panel-layout',onLayout);
     window.removeEventListener('campus-map-viewchange',onLayout);

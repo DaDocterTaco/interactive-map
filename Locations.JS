@@ -233,8 +233,8 @@ const buildings = [
     {
       "abbreviation": "OE",
       "full_name": "Owa Ehan",
-      "latitude": 25.758251,
-      "longitude": -80.372664,
+      "latitude": 25.758068,
+      "longitude": -80.372951,
       "description": ""
     },
     {

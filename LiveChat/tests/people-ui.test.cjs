@@ -1,7 +1,7 @@
 // A minimal DOM and service stub verify people UI behavior without a browser.
 const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
 const root = path.join(__dirname, '..');
-const code = fs.readFileSync(path.join(root, 'peopleUI.js'), 'utf8').replace(/^import[^\n]+\n/, '').replaceAll('export ', '');
+const code = fs.readFileSync(path.join(root, 'peopleUI.js'), 'utf8').replace(/^import[^\n]+\n/gm, '').replaceAll('export ', '');
 const elements = {};
 function element() { return {
     value: '', textContent: '', children: [], events: {}, attributes: {}, hidden: false, open: false,
@@ -23,8 +23,10 @@ const service = {
     async saveFriend() { saved++; friendsCallback([{ id: 'bob' }]); },
     async removeFriend() { removed++; friendsCallback([]); }
 };
-const mount = new Function('people', 'document', 'setTimeout', 'clearTimeout', code + '\nreturn mountPeople;')(service,
-    { getElementById: id => { assert.ok(elements[id], id); return elements[id]; }, createElement: element }, cb => { timer = cb; return 1; }, () => {});
+let profileOpened;
+const mount = new Function('people', 'document', 'setTimeout', 'clearTimeout', 'openProfile', 'paintAvatar', code + '\nreturn mountPeople;')(service,
+    { getElementById: id => { assert.ok(elements[id], id); return elements[id]; }, createElement: element }, cb => { timer = cb; return 1; }, () => {},
+    uid => { profileOpened=uid; }, (el,person) => { el.textContent=person.displayName.slice(0,2); });
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 (async () => {
@@ -35,9 +37,11 @@ const deferred = () => { let resolve, reject; const promise = new Promise((yes, 
     assert.equal(person.children[0].children[1].children[0].textContent, '<Bob>');
     assert.match(person.children[0].children[0].className, /^avatar avatar-tone-[0-4]$/);
     assert.equal(person.children[0].children[0].attributes['aria-hidden'], 'true');
-    assert.equal(person.children[1].textContent, 'Save');
-    assert.equal(person.children[1].attributes['aria-label'], 'Save friend <Bob>');
-    await person.children[1].events.click(); await tick(); assert.equal(saved, 1);
+    assert.equal(person.children[1].textContent, 'Profile');
+    await person.children[1].events.click(); assert.equal(profileOpened,'bob');
+    assert.equal(person.children[2].textContent, 'Save');
+    assert.equal(person.children[2].attributes['aria-label'], 'Save friend <Bob>');
+    await person.children[2].events.click(); await tick(); assert.equal(saved, 1);
     // Clearing search restores the saved friend, independently of the search result.
     elements['chat-search'].value = ''; elements['chat-search'].events.input(); await tick();
     assert.equal(elements['friends-list'].children.length, 1);
@@ -53,9 +57,9 @@ const deferred = () => { let resolve, reject; const promise = new Promise((yes, 
     assert.equal(elements['members-list'].children.length, 2);
     assert.equal(elements['members-list'].children.find(row => row.children[0].children[1].children[0].textContent.includes('(you)')).children[0].disabled, true);
     const member = elements['members-list'].children.find(row => row.children[0].children[1].children[0].textContent === '<Bob>');
-    assert.equal(member.children[1].textContent, 'Saved');
-    assert.equal(member.children[1].attributes['aria-label'], 'Remove friend <Bob>');
-    await member.children[1].events.click(); await tick(); assert.equal(removed, 1);
+    assert.equal(member.children[2].textContent, 'Saved');
+    assert.equal(member.children[2].attributes['aria-label'], 'Remove friend <Bob>');
+    await member.children[2].events.click(); await tick(); assert.equal(removed, 1);
     assert.equal(elements['direct-list'].children.length, 1, 'removing a friend keeps its direct conversation');
     assert.equal(elements['friends-section'].hidden, true);
     await member.children[0].events.click(); assert.equal(elements['members-panel'].open, false);

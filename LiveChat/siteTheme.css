@@ -19,19 +19,117 @@
 @media(max-width:640px) {#cu-account-controls {right:max(13px,env(safe-area-inset-right));gap:8px;}}
 @media(max-height:520px) {#cu-account-controls {top:max(8px,env(safe-area-inset-top));}}
 
-/* Carry the existing dark palette through the shared map shell. */
-:root[data-chat-theme=dark] {--cu-navy:#f5f5ff;--cu-muted:#aec5ec;--cu-line:#344e6c;}
-:root[data-chat-theme=dark] :is(#campus-sheet,.cu-brand,.cu-college-dropdown,.cu-map-zoom,.cu-recenter,#cu-gesture-help,#cu-location-feedback,.cu-hub>button,.cu-place-row) {background:#09192b;color:var(--cu-navy);border-color:var(--cu-line);}
-:root[data-chat-theme=dark] .map-page .campus-profile-launch {background:#09192b!important;color:var(--cu-navy)!important;}
-:root[data-chat-theme=dark] .map-page .campus-profile-launch .cp-avatar {background:#143561!important;color:#aec5ec!important;}
-:root[data-chat-theme=dark] #campus-sheet :is(.cu-embedded,.cu-map-card,.cu-tabs,.assistant-header,.assistant-form,.class-result,.class-footer) {background:#09192b;color:var(--cu-navy);border-color:var(--cu-line);}
-:root[data-chat-theme=dark] #campus-sheet #events-dialog {background:#09192b!important;--ev-navy:#f5f5ff;--ev-muted:#aec5ec;--ev-line:#344e6c;--ev-surface:#09192b;--ev-tint:#143561;}
-:root[data-chat-theme=dark] #campus-sheet :is(.class-search-input,#class-filter-toggle,.cu-search,.assistant-history,.cu-collapse) {background:#102135;color:var(--cu-navy);}
-:root[data-chat-theme=dark] :is(.cu-search input,.cu-college-option,.cu-place-row) {color:var(--cu-navy);}
-:root[data-chat-theme=dark] :is(.cu-place-row:hover,.cu-hub>button:hover,.cu-college-option:hover,.cu-map-zoom button:hover) {background:#143561;}
-:root[data-chat-theme=dark] #campus-sheet .class-result.is-selected>.class-result-choice {background:#143561;}
-:root[data-chat-theme=dark] #campus-sheet .class-footer {box-shadow:0 -8px 12px #09192bde;}
-:root[data-chat-theme=dark] #campus-sheet .nav-class-route {--cs-border:#344e6c;--cs-surface:#09192b;--cs-text:#f5f5ff;--cs-muted:#aec5ec;--cs-selected:#143561;}
-:root[data-chat-theme=dark] #campus-sheet .assistant-message:not(.from-user) {background:#253b59;color:#f5f5ff;}
-:root[data-chat-theme=dark] #campus-sheet .assistant-form input {background:#102135;color:#f5f5ff;border-color:#344e6c;}
-:root[data-chat-theme=dark] .cu-report {color:#102351;}
+/* Theme pairs are shared by the shell and embedded features. Keep link ink
+   separate from blue fills: white button labels need a dark background. */
+:root {
+    --cu-navy:#102351;--cu-muted:#5b6b85;--cu-placeholder:#5b6b85;
+    --cu-surface:#fff;--cu-input:#eef1f6;--cu-selected:#edf4ff;--cu-hover:#e4eeff;
+    --cu-line:#d8dfef;--cu-control-border:#74839b;--cu-link:#0754d4;--cu-blue:#0754d4;
+    --cu-color-scheme:light;--chat-muted:#5b6b85;--chat-surface:#fff;
+    --chat-sidebar:#f4f6fc;--chat-input:#fff;--chat-primary:#0754d4;
+}
+:root[data-chat-theme=dark] {
+    --cu-navy:#f5f5ff;--cu-muted:#aec5ec;--cu-placeholder:#aec5ec;
+    --cu-surface:#09192b;--cu-input:#102135;--cu-selected:#143561;--cu-hover:#1c416e;
+    --cu-line:#344e6c;--cu-control-border:#89a2c4;--cu-link:#8bbaff;--cu-blue:#0754d4;
+    --cu-color-scheme:dark;--chat-muted:#aec5ec;--chat-surface:#09192b;
+    --chat-sidebar:#102135;--chat-input:#102135;--chat-primary:#0754d4;
+}
+:root :is(#campus-sheet,.cu-brand,.cu-college-dropdown,.cu-map-zoom,.cu-recenter,#cu-gesture-help,#cu-location-feedback,.cu-hub>button,.cu-place-row) {
+    background:var(--cu-surface);color:var(--cu-navy);border-color:var(--cu-line);
+}
+:root #campus-sheet :is(.cu-embedded,.cu-map-card,.cu-tabs,.assistant-header,.assistant-form,.class-result,.class-footer,.ev-surface) {
+    background:var(--cu-surface);color:var(--cu-navy);border-color:var(--cu-line);
+}
+:root #campus-sheet :is(.class-search-input,#class-filter-toggle,.cu-search,.assistant-history,.cu-collapse,.ev-search) {
+    background:var(--cu-input);color:var(--cu-navy);
+}
+:root :is(.cu-place-row:hover,.cu-hub>button:hover,.cu-college-option:hover,.cu-map-zoom button:hover,.cu-tabs button:hover) {background:var(--cu-hover);color:var(--cu-navy);}
+:root .cu-place-row::before {background:var(--cu-selected);}
+:root .cu-place-row>.cu-icon:last-child {color:var(--cu-muted);}
+:root .cu-college-option {background:var(--cu-selected);color:var(--cu-navy);border-color:var(--cu-control-border);}
+:root :is(.cu-college-option small,.cu-college-dropdown p,#cu-gesture-help) {color:var(--cu-muted);}
+:root #cu-gesture-help strong {color:var(--cu-navy);}
+:root .cu-tabs button[aria-selected=true] {color:var(--cu-link);background:radial-gradient(circle at 50% 26px,var(--cu-selected) 22px,transparent 23px);}
+:root :is(.cu-save-place,.cu-recenter[aria-pressed=true],.cu-save-place[aria-pressed=true],#campus-sheet .cu-event-return>button) {background:var(--cu-selected);color:var(--cu-link);}
+:root .cu-report {color:#102351;}
+:root .cu-handle>span {background:var(--cu-control-border);}
+:root .cu-handle:hover>span {background:var(--cu-muted);}
+:root .map-page .campus-profile-launch {background:var(--cu-surface)!important;color:var(--cu-navy)!important;}
+:root .map-page .campus-profile-launch .cp-avatar {background:var(--cu-selected)!important;color:var(--cu-link)!important;}
+
+/* Opaque label plates are independent of both the theme and map pixels. */
+:root .map-page .campus-pin .cu-building-label {
+    color:#102351;text-shadow:none;padding:2px;box-sizing:border-box;width:auto;
+}
+:root .map-page .cu-building-marker {color:#102351;}
+:root .map-page .cu-building-marker>.cu-icon {
+    background-color:#102351;filter:drop-shadow(0 0 2px #fff);
+}
+:root .map-page .cu-building-marker {
+    background:#fff;border:1px solid #74839b;border-radius:9px;padding:3px;
+}
+:root .map-page div.cu-building-marker {background:transparent;border:0;padding:0;}
+:root .map-page span.cu-building-marker {display:flex;flex-direction:column;align-items:center;width:100%;min-height:42px;box-sizing:border-box;}
+:root .map-page .cu-building-label {display:block;color:#102351;font:650 12px/1.2 Inter,system-ui;text-align:center;text-shadow:none;}
+/* Class route de-emphasis must not make readable building names translucent. */
+:root .class-map-focused .leaflet-marker-pane>.cu-building-marker {opacity:1;}
+:root body.map-page .campus-tools [data-action=north] {color:#0754d4;}
+:root .cu-selected-marker {color:#0754d4;background:#fff;border-radius:50%;border:1px solid #74839b;filter:none;}
+
+/* Local class tokens must track the shell even inside route/detail cards. */
+:root #campus-sheet :is(#class-dialog,.class-journey,.class-map-nav,.nav-class-route) {
+    --cs-text:var(--cu-navy);--cs-muted:var(--cu-muted);--cs-border:var(--cu-line);
+    --cs-surface:var(--cu-surface);--cs-sidebar:var(--cu-surface);--cs-selected:var(--cu-selected);--cs-blue:var(--cu-link);
+    --chat-text:var(--cu-navy);--chat-muted:var(--cu-muted);--chat-surface:var(--cu-surface);--chat-input:var(--cu-input);--chat-border:var(--cu-line);
+    color:var(--cu-navy);color-scheme:var(--cu-color-scheme);
+}
+:root #campus-sheet .class-result.is-selected>.class-result-choice {background:var(--cu-selected);}
+:root #campus-sheet .class-result-choice:hover {background:var(--cu-hover);}
+:root #campus-sheet :is(.class-result-check,.class-book) {background:var(--cu-blue);color:#fff;}
+:root #campus-sheet :is(#class-query,#class-filter-toggle) {color:var(--cu-navy)!important;}
+:root #campus-sheet :is(#class-filters input,#class-location-choice,.nav-class-route input) {border-color:var(--cu-control-border);}
+:root #campus-sheet .class-footer {box-shadow:0 -8px 12px var(--cu-surface);}
+:root #campus-sheet .nav-class-route button:hover:not(:disabled):not(.nav-primary) {background:var(--cu-hover);}
+:root #campus-sheet .nav-class-route .nav-mode[aria-pressed=true] {color:var(--cu-link);border-color:var(--cu-link);box-shadow:inset 0 0 0 1px var(--cu-link);}
+
+/* Events changes the foreground and every nested surface together. */
+:root #campus-sheet #events-dialog {
+    --ev-navy:var(--cu-navy);--ev-muted:var(--cu-muted);--ev-line:var(--cu-line);
+    --ev-surface:var(--cu-surface);--ev-tint:var(--cu-selected);--ev-blue:var(--cu-link);
+    background:var(--cu-surface)!important;color-scheme:var(--cu-color-scheme);
+}
+:root #campus-sheet .ev-card.is-open {background:var(--cu-selected);}
+:root #campus-sheet :is(.ev-action.primary,.ev-filter-count,.ev-brand) {background:var(--cu-blue);color:#fff;}
+:root #campus-sheet .ev-action.primary:hover {background:#0042ae;}
+:root #campus-sheet .ev-action:not(.primary):hover {background:var(--cu-hover);}
+:root #campus-sheet :is(.ev-select,.ev-filters select,.ev-filter-button) {border-color:var(--cu-control-border);}
+:root #campus-sheet .ev-filters select {color:var(--cu-navy);}
+:root #campus-sheet .assistant-message:not(.from-user) {background:var(--chat-incoming);color:var(--cu-navy);}
+:root #campus-sheet .assistant-form input {background:var(--cu-input);color:var(--cu-navy);border-color:var(--cu-control-border);}
+:root .cu-assistant-retry {background:var(--cu-surface);color:var(--cu-link);border-color:var(--cu-control-border);}
+
+/* All empty fields receive an explicit, fully opaque placeholder. */
+:root body :is(input,textarea)::placeholder {color:var(--cu-placeholder)!important;opacity:1!important;}
+:root .cp-dialog {--cp-accent:var(--cu-link);}
+:root .cp-dialog :is(.cp-interest-composer,.cp-avatar-option-art) {border-color:var(--cu-control-border);}
+:root .cp-dialog .cp-discovery input:not(:checked)::before {background:var(--cu-surface);}
+:root .cp-dialog .cp-discovery input:checked {border-color:var(--cu-link);}
+:root .cp-avatar:not(.cp-editor-avatar):not(.cp-preview-avatar) {color:var(--cu-link);}
+
+/* Dark Pulse uses the same distinction between readable accent ink and fill. */
+:root[data-chat-theme=dark] .pulse-dialog {--pulse-blue:#0754d4;}
+:root .pulse-dialog :is(.pulse-available,.pulse-text-button,.pulse-new-messages,.pulse-tabs>button[aria-selected=true],.pulse-spot .pulse-secondary,.pulse-mobile-arrival .pulse-secondary) {color:var(--cu-link);}
+:root .pulse-dialog :is(.pulse-details .pulse-icon,.pulse-chat-empty>.pulse-icon,.pulse-meetup-mobile-summary>.pulse-icon) {color:var(--cu-link);}
+
+/* Two contrasting edges remain visible on both terrain and panel surfaces.
+   Inset shadows protect the halo from clipping at scroll-container edges. */
+:root body :is(button,a,input,textarea,select,summary,[tabindex]):focus-visible,
+:root .cp-avatar-option:has(input:focus-visible) .cp-avatar-option-art,
+:root .cp-activity-option:has(input:focus-visible) {
+    outline:2px solid #102351!important;outline-offset:3px!important;
+    box-shadow:0 0 0 3px #fff,inset 0 0 0 2px #fff,inset 0 0 0 4px #102351!important;
+}
+:root :is(.class-search-input,.ev-search,.cp-interest-composer,.cu-search):focus-within {
+    outline:2px solid #102351;outline-offset:3px;box-shadow:0 0 0 3px #fff;
+}

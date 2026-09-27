@@ -17,7 +17,7 @@ test('routes along connected edges and emits GeoJSON in longitude/latitude order
   const graph = fixture(); const provider = createGraphProvider(graph);
   const route = await provider.getRoute(req(graph));
   assert.ok(route.distanceMeters > 200 && route.distanceMeters < 220);
-  assert.ok(Math.abs(route.durationSeconds - route.distanceMeters / 1.35) < 1e-8);
+  assert.ok(Math.abs(route.durationSeconds - route.distanceMeters / 1.34112) < 1e-8);
   assert.deepEqual(route.geometry.coordinates[0], [-80, 25]);
   assert.deepEqual(route.geometry.coordinates.at(-1), [-79.999, 25.001]);
   assert.equal(route.geometry.coordinates.length, 3);
@@ -35,11 +35,14 @@ test('fastest accounts for slower steps while shortest minimizes actual distance
   assert.deepEqual(fastest.linkIds, ['1', '2']);
 });
 
-test('walk, bike, and scooter have separate configurable time estimates', async () => {
+test('flat paths use 3 mph walking and 15 mph biking/scooting, with configurable overrides', async () => {
   const graph = lineGraph(); const provider = createGraphProvider(graph);
   const routes = await Promise.all(['walk', 'bike', 'scooter'].map(mode => provider.getRoute(req(graph, 0, 1, { mode }))));
-  assert.ok(routes[1].durationSeconds < routes[2].durationSeconds);
-  assert.ok(routes[2].durationSeconds < routes[0].durationSeconds);
+  // One mile takes 20 minutes at 3 mph and 4 minutes at 15 mph.
+  for (const [i, secondsPerMile] of [1200, 240, 240].entries()) {
+    assert.ok(Math.abs(routes[i].durationSeconds / routes[i].distanceMeters * 1609.344 - secondsPerMile) < 1e-8);
+  }
+  assert.equal(routes[1].durationSeconds, routes[2].durationSeconds);
   const slow = await provider.getRoute(req(graph, 0, 1, { mode: 'bike', speeds: { bike: 1 } }));
   assert.equal(slow.durationSeconds, slow.distanceMeters);
 });
@@ -89,6 +92,11 @@ test('dismount sections follow pedestrian direction, not vehicle direction', asy
   const graph = lineGraph(profile({ access: { walk: 'travel', bike: 'dismount', scooter: 'dismount' }, direction: { bike: 1 } }));
   const route = await createGraphProvider(graph).getRoute(req(graph, 1, 0, { mode: 'bike' }));
   assert.equal(route.steps[0].activity, 'dismount');
+  for (const mode of ['bike','scooter']) {
+    const ridingEstimate = await createGraphProvider(graph).getRoute(req(graph, 1, 0, { mode, allowUnverifiedRiding:true }));
+    assert.equal(ridingEstimate.steps[0].activity, 'dismount');
+    assert.ok(Math.abs(ridingEstimate.durationSeconds - ridingEstimate.distanceMeters / 1.34112) < 1e-8);
+  }
 });
 
 test('disconnected paths and visual crossings never produce an invented route', async () => {

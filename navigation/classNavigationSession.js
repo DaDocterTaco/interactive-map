@@ -28,7 +28,10 @@ export function createClassNavigationSession({ navigation, locationServices, ren
     const token = ++revision;
     releaseFeed(); active = true;
     priorFollowing = locationServices.getFollowing(); locationServices.setFollowing(false);
-    const pending = live.start({ to: destination, mode, ...(source === 'manual' ? { from: origin } : {}) });
+    // Riding modes use provisional riding estimates where access data is missing.
+    // The provider still respects explicit prohibitions, steps, and dismount sections.
+    const pending = live.start({ to: destination, mode, allowUnverifiedRiding: mode !== 'walk',
+      ...(source === 'manual' ? { from: origin } : {}) });
     if (source === 'live') {
       const current = locationServices.getState();
       ownsWatch = !current.tracking && current.status !== 'preparing';

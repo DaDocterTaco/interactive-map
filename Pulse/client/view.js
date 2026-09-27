@@ -33,30 +33,29 @@ export const pulseMarkup = `
     <section class="pulse-stage" data-stage="idle" hidden>
       <div class="pulse-stage-scroll pulse-setup-grid">
         <div class="pulse-intro-pane">
-          <p class="pulse-eyebrow pulse-mobile-only">FIU · MMC</p><h2>Meet other Panthers during your break.</h2><p class="pulse-subtitle pulse-intro-description">Choose an activity and your free time. Pulse finds 1–3 other students and suggests a place on campus to meet in person. You choose whether to join.</p>
-          <ol class="pulse-how-it-works" aria-label="How Pulse works"><li><span class="pulse-step-number" aria-hidden="true">1</span><span>Choose an activity</span></li><li><span class="pulse-step-number" aria-hidden="true">2</span><span>Get matched</span></li><li><span class="pulse-step-number" aria-hidden="true">3</span><span>Accept and meet</span></li></ol>
+          <h2>Find your people.</h2><p class="pulse-subtitle pulse-intro-description">Meet a few Panthers during your break.</p>
           <p class="pulse-note" data-idle-note hidden></p>
           <form data-optin id="pulse-optin">
-            <fieldset><legend>I’m up for</legend><span class="pulse-choice-help">Choose one or more</span><div class="pulse-activities">
+            <fieldset><legend>What sounds good?</legend><span class="pulse-choice-help">Pick one or more</span><div class="pulse-activities">
               <label class="pulse-choice"><input type="checkbox" name="activity" value="coffee" checked><span>${i('coffee')}<strong>Coffee</strong><b class="pulse-choice-check">${i('check')}</b></span></label>
               <label class="pulse-choice"><input type="checkbox" name="activity" value="food"><span>${i('tools-kitchen-2')}<strong>Food</strong><b class="pulse-choice-check">${i('check')}</b></span></label>
               <label class="pulse-choice"><input type="checkbox" name="activity" value="chat"><span>${i('message-circle')}<strong>Hang out</strong><b class="pulse-choice-check">${i('check')}</b></span></label>
             </div></fieldset>
-            <div class="pulse-columns"><label class="pulse-field"><span>I’m free for</span><span class="pulse-select"><select name="minutes"><option value="30">30 minutes</option><option value="45" selected>45 minutes</option><option value="60">1 hour</option><option value="90">90 minutes</option></select>${i('chevron-down')}</span></label>
-              <label class="pulse-field"><span>I can walk up to</span><span class="pulse-select"><select name="walk"><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option></select>${i('chevron-down')}</span></label></div>
-            <label class="pulse-field"><span>I’m starting near</span><span class="pulse-select"><select name="startingSpot"><option value="">Loading meeting spots…</option></select>${i('chevron-down')}</span></label>
-            ${button('location', 'Use my current location', 'map-pin', 'pulse-text-button')}
+            <div class="pulse-columns"><label class="pulse-field"><span>Free for</span><span class="pulse-select"><select name="minutes"><option value="30">30 minutes</option><option value="45" selected>45 minutes</option><option value="60">1 hour</option><option value="90">90 minutes</option></select>${i('chevron-down')}</span></label>
+              <label class="pulse-field"><span>Walk up to</span><span class="pulse-select"><select name="walk"><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option></select>${i('chevron-down')}</span></label></div>
+            <label class="pulse-field pulse-start-field"><span>Starting near <small>Check or change</small></span><span class="pulse-select"><select name="startingSpot"><option value="">Loading meeting spots…</option></select>${i('chevron-down')}</span></label>
+            ${button('location', 'Use my location', 'map-pin', 'pulse-text-button')}
             <p class="pulse-privacy">${i('lock')}<span data-location-note>Your starting point stays private.</span></p>
             <p class="pulse-note" data-catalog hidden></p>
           </form>
         </div>
         <aside class="pulse-context"><h3>Meet somewhere familiar</h3>${mapPanel('catalog')}<div class="pulse-venue-list" data-venues></div><p class="pulse-fine">Possible meeting spots. Your group’s plan picks the place.</p></aside>
       </div>
-      <footer class="pulse-footer"><p><strong>Small groups. A little free time.</strong><span>2–4 people total, including you.</span></p><button class="pulse-primary" type="submit" form="pulse-optin" data-find><span data-button-label>Find my group</span>${i('arrow-right')}</button></footer>
+      <footer class="pulse-footer"><p><span>2–4 people · You choose whether to join.</span></p><button class="pulse-primary" type="submit" form="pulse-optin" data-find><span data-button-label>Find my group</span>${i('arrow-right')}</button></footer>
     </section>
     <section class="pulse-stage pulse-simple-stage" data-stage="waiting" hidden>
-      <div class="pulse-simple-content pulse-waiting-content"><span class="pulse-badge pulse-available">You’re available</span><span class="pulse-orbit is-waiting">${i('wave-sine')}</span><h2>A good connection<br>takes a moment.</h2><p class="pulse-subtitle">We’re looking for Panthers with time for the same activity.</p>
-        <div class="pulse-info">${i('info-circle')}<p><strong>Keep exploring the app while we look.</strong><span>We’ll notify you here when we find a group. Keep this browser tab open.</span></p></div>
+      <div class="pulse-simple-content pulse-waiting-content"><div class="pulse-search-status" role="status"><span class="pulse-search-spinner" aria-hidden="true">${i('loader-2')}</span><span class="pulse-search-active">Searching for a group</span><span class="pulse-search-offline">Waiting for connection</span><span class="pulse-search-attention">Search needs attention</span></div><h2>Finding your people…</h2>
+        <div class="pulse-info">${i('info-circle')}<p><strong>We’ll let you know when there’s a match.</strong><span>Keep this tab open while you explore.</span></p></div>
         ${button('explore', 'Keep exploring', 'arrow-right', 'pulse-primary pulse-wide pulse-keep-exploring')}
         <div class="pulse-wait-detail"><span>${i('coffee')}<span data-wait-activities></span></span><span>${i('clock')}<strong data-wait-timer></strong></span><span>${i('walk')}<span data-wait-walk></span></span></div>
         <div class="pulse-wait-location">${i('map-pin')}<div><small>Starting near</small><strong data-wait-location></strong></div></div>

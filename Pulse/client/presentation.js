@@ -12,6 +12,8 @@ const place = spot => { const [name, area] = spot.name.split(' · '); return { n
 export function createPresentation({ dialog, L, getState, showOnMap, getProfile, openProfile, paintAvatar }) {
   const $ = key => dialog.querySelector(`[data-${key}]`);
   const small = matchMedia('(max-width:700px)'), reduced = matchMedia('(prefers-reduced-motion:reduce)');
+  // The campus panel stays narrow on desktop, so it also needs Details / Chat tabs.
+  const compact = () => !!dialog.dataset.embedded || small.matches;
   const maps = createMapPreviews({ dialog, L });
   const profiles = new Map(), requests = new Set(), signatures = new WeakMap();
   let disposed = false, tab = 'details', unread = 0, group = '', toastTimer, frame, lastMessages = new Set(), messageGroup = '', catalogKey = '';
@@ -73,16 +75,16 @@ export function createPresentation({ dialog, L, getState, showOnMap, getProfile,
   function syncTabs() {
     const { meetup, user } = getState();
     const chatOpen = meetup && ['confirmed', 'ended'].includes(meetup.status) && millis(meetup.chatClosesAt) > Date.now() && meetup.participantIds.includes(user?.uid);
-    $('details-panel').hidden = small.matches && tab !== 'details';
-    $('chat').hidden = !chatOpen || (small.matches && tab !== 'chat');
-    $('chat-closed').hidden = !!chatOpen || (small.matches && tab !== 'chat');
+    $('details-panel').hidden = compact() && tab !== 'details';
+    $('chat').hidden = !chatOpen || (compact() && tab !== 'chat');
+    $('chat-closed').hidden = !!chatOpen || (compact() && tab !== 'chat');
     for (const key of ['details', 'chat']) {
       const control = dialog.querySelector(`[data-tab=${key}]`), panel = key === 'details' ? $('details-panel') : $('chat');
       control.setAttribute('aria-selected', String(key === tab)); control.tabIndex = key === tab ? 0 : -1;
-      if (small.matches) { panel.setAttribute('role', 'tabpanel'); panel.setAttribute('aria-labelledby', control.id); }
+      if (compact()) { panel.setAttribute('role', 'tabpanel'); panel.setAttribute('aria-labelledby', control.id); }
       else { panel.removeAttribute('role'); panel.removeAttribute('aria-labelledby'); }
     }
-    if (dialog.open && (!small.matches || tab === 'chat')) unread = 0;
+    if (dialog.open && (!compact() || tab === 'chat')) unread = 0;
     $('unread').hidden = !unread; $('unread').textContent = String(unread);
     dialog.querySelector('[data-tab=chat]').setAttribute('aria-label', unread ? `Chat, ${unread} unread ${unread === 1 ? 'message' : 'messages'}` : 'Chat');
   }

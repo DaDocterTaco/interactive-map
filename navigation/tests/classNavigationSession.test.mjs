@@ -7,7 +7,7 @@ const from = { lat: 25, lng: -80 }, to = { lat: 25, lng: -79.998 };
 const graph = { schemaVersion: 1, nodes: [[25, -80], [25, -79.998]], links: [[0, 1, 0]],
   profiles: [{ kind: 'footway', access: { walk: 'travel', bike: 'travel', scooter: 'travel' } }] };
 const flush = () => new Promise(resolve => setImmediate(resolve));
-function fixture({ preexisting = false } = {}) {
+function fixture({ preexisting = false, graphData = graph } = {}) {
   let state = { status: preexisting ? 'tracking' : 'idle', tracking: preexisting, markerVisible: false, fix: null };
   let following = true, watches = preexisting ? 1 : 0, stops = 0, timestamp = Date.now();
   const listeners = new Set(), results = [];
@@ -17,7 +17,7 @@ function fixture({ preexisting = false } = {}) {
     start() { if (!state.tracking) { watches++; state = { ...state, tracking: true, status: 'locating' }; } },
     stop() { stops++; state = { status: 'stopped', tracking: false, markerVisible: false, fix: null }; for (const l of listeners) l(state); },
   };
-  const navigation = createNavigation({ provider: createGraphProvider(graph), cacheSize: 0,
+  const navigation = createNavigation({ provider: createGraphProvider(graphData), cacheSize: 0,
     resolveLocation: createLocationResolver({ places: [{ id: 'START', name: 'Test start', ...from }] }) });
   const session = createClassNavigationSession({ navigation, locationServices: source, onState: value => results.push(value) });
   return { session, source, results, listeners,
@@ -79,4 +79,29 @@ test('a fresh route setup can prefer live GPS after a previous manual route', as
   await f.session.start({to,preferLive:true});f.emit();await flush();
   assert.equal(f.session.getState().source,'live');assert.equal(f.session.getState().status,'navigating');
   assert.equal(f.listeners.size,1);f.session.dispose();assert.equal(f.listeners.size,0);
+});
+
+test('manual plans and live remaining time use riding speeds when riding data is missing', async () => {
+  const graphData = {...graph, profiles:[{kind:'footway',access:{walk:'travel',bike:'unverified',scooter:'unverified'}}]};
+  const f=fixture({graphData});
+  try {
+    await f.session.start({to}); await f.session.useManual('START');
+    const walking=f.session.getState().route;
+    assert.ok(Math.abs(walking.durationSeconds-walking.distanceMeters/1.34112)<1e-8);
+    for(const mode of ['bike','scooter']) {
+      await f.session.setMode(mode);
+      const route=f.session.getState().route;
+      assert.ok(Math.abs(route.durationSeconds-route.distanceMeters/6.7056)<1e-8);
+      assert.equal(route.steps[0].activity,mode);
+      assert.ok(route.warnings.some(w=>w.includes('provisional')));
+      assert.ok(Math.abs(route.durationSeconds*5-walking.durationSeconds)<1e-8);
+      await f.session.useLive(); f.emit(); await flush();
+      f.emit('tracking',{lat:25,lng:-79.9999}); await flush();
+      const state=f.session.getState();
+      assert.equal(state.source,'live');
+      assert.ok(state.progress.fractionComplete>0);
+      assert.ok(Math.abs(state.progress.remainingDurationSeconds-state.progress.remainingDistanceMeters/6.7056)<1e-8);
+      await f.session.useManual('START');
+    }
+  } finally { f.session.dispose(); }
 });
