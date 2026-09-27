@@ -8,3 +8,4 @@ node_modules/
 service-account*.json
 .integration-backup/
 .install-manifest.json
+.ui-baseline/

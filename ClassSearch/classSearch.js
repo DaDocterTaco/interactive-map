@@ -17,7 +17,8 @@ const schedule = section => {
 export function mountClassSearch({ map, L, navigation }) {
     const openButton = document.getElementById('open-class');
     if (!openButton || document.getElementById('class-dialog')) return;
-    const mobile = matchMedia('(max-width: 700px)');
+    const embedded = Boolean(window.CampusUI);
+    const mobile = embedded ? {matches:true,addEventListener(){}} : matchMedia('(max-width: 700px)');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     const dialog = el('dialog');
     dialog.id = 'class-dialog'; dialog.setAttribute('aria-labelledby','class-title');
@@ -27,7 +28,7 @@ export function mountClassSearch({ map, L, navigation }) {
         <header class="class-header"><span class="class-book">${icon('book')}</span><div><h2 id="class-title">Find a class</h2><p id="class-term">Fall 2026 · MMC</p></div></header>
         <form id="class-search-form" role="search" aria-label="Find a class">
           <div class="class-search-line"><div class="class-search-input">${icon('search')}<input id="class-query" aria-label="Course, title or class ID" placeholder="Course, title or class ID" maxlength="100" autocomplete="off" spellcheck="false" enterkeyhint="search"><button type="button" class="cs-icon-button" id="class-clear-query" aria-label="Clear search" hidden>${icon('close')}</button></div>
-          <button type="button" id="class-filter-toggle" aria-expanded="false" aria-controls="class-filters">${icon('filters')}<span>Filters</span><span id="class-filter-count" hidden></span>${icon('right')}</button></div>
+          <button type="button" id="class-filter-toggle" aria-label="Filter classes" aria-expanded="false" aria-controls="class-filters">${icon('filters')}<span>Filters</span><span id="class-filter-count" hidden></span>${icon('right')}</button></div>
           <div id="class-filters" hidden><label>Professor<input id="class-professor" placeholder="e.g. Whittaker" maxlength="100" autocomplete="off"></label><label>Start time<input id="class-time" type="time"></label><button type="button" id="class-reset-filters">Reset filters</button></div>
           <button type="submit" class="cs-sr-only">Search classes</button>
         </form>
@@ -54,6 +55,7 @@ export function mountClassSearch({ map, L, navigation }) {
         </div>
       </section>`;
     document.body.append(dialog);
+    window.CampusUI?.registerDialog(dialog,'classes',{opener:'open-class'});
     const journey = el('section',null,'class-journey'); journey.hidden=true;
     journey.setAttribute('aria-label','Class location');
     journey.innerHTML=`<div class="class-journey-handle" aria-hidden="true"></div><button type="button" class="class-dismiss cs-icon-button" aria-label="Dismiss class location">${icon('close')}</button>
@@ -68,10 +70,22 @@ export function mountClassSearch({ map, L, navigation }) {
     const $ = selector => dialog.querySelector(selector);
     const query=$('#class-query'), results=$('#class-results'), status=$('#class-status'), pane=$('.class-detail-pane');
     const detail=$('.class-detail-content'), feedback=$('#class-feedback'), more=$('#class-more');
+    let courseSummary,extraDetails;
+    if(embedded){
+        $('#class-title').textContent='Classes';
+        courseSummary=el('div',null,'cu-course-summary');courseSummary.hidden=true;$('.class-results-heading').before(courseSummary);
+        extraDetails=el('details',null,'cu-class-more');const summary=el('summary','Section details');extraDetails.append(summary);const grid=$('.class-detail-grid');grid.before(extraDetails);extraDetails.append(grid);
+    }
+    const feedbackHeading=feedback.querySelector('strong'), feedbackDetail=feedback.querySelector('p');
     const loadCatalog=createCatalogLoader(new URL('./classes.json',import.meta.url));
     let catalog, matches=[], shown=0, selected=null, revision=0, searchTimer, exitTimer;
     let preview, previewPin, previewShape, marker, shape, cancelJourney, observer;
     let footprints, footprintPromise, openingForMap=false;
+    let searchLoading;
+    function clearSearchLoading(){
+        searchLoading?.remove();searchLoading=null;
+        feedbackHeading.hidden=false;feedbackDetail.hidden=false;
+    }
     const locationLayer=L.layerGroup().addTo(map);
     const loadFootprints=()=>footprintPromise ||= fetch(new URL('./buildings.geojson',import.meta.url))
         .then(r=>r.ok?r.json():null).then(data=>{footprints=data;return data;}).catch(()=>null);
@@ -113,11 +127,11 @@ export function mountClassSearch({ map, L, navigation }) {
     function placeDetails() {
         const article=selected && results.querySelector(`[data-class-id="${CSS.escape(selected.section.class_id)}"]`);
         if(mobile.matches&&article) article.append(pane); else dialog.append(pane);
-        $('#locate-class').innerHTML=icon('directions')+`<span>${navigation?'Find this class':mobile.matches?'Show on map':'Directions'}</span>`;
+        $('#locate-class').innerHTML=icon('directions')+`<span>${navigation?'Directions to class':mobile.matches?'Show on map':'Directions'}</span>`;
         requestAnimationFrame(updatePreview);
     }
     function hideJourney(removePin=false) {
-        navigation?.stop();
+        if(removePin) navigation?.stop();
         cancelJourney?.(); journey.hidden=true; mapNav.hidden=true;
         document.body.classList.remove('class-location-active');
         map.getContainer().classList.remove('class-map-focused');
@@ -147,10 +161,17 @@ export function mountClassSearch({ map, L, navigation }) {
         section.locations.forEach((loc,index)=>{const option=el('option',`${loc.building.code} · Room ${loc.room} · ${dateRange(loc.dates)}`);option.value=index;option.selected=loc===location;locationChoice.append(option);});
         $('#class-location-label').hidden=section.locations.length<2;
         if(changed) $('.class-dates').open=false;
-        placeDetails(); announce(`${section.course_code}, section ${section.section} selected. ${location.building.code}, room ${location.room}.`);
+        if(embedded){extraDetails.open=true;const meta=results.querySelector(`[data-class-id="${CSS.escape(section.class_id)}"] .cu-room-meta`);if(meta)meta.textContent=`${location.building.code} · Room ${location.room}`;window.CampusUI.setSnap('half');}
+        placeDetails();
+        if(embedded)requestAnimationFrame(()=>{
+            const host=window.CampusUI.host('classes'),row=results.querySelector('.class-result.is-selected');
+            if(row)host.scrollTo({top:Math.max(0,host.scrollTop+row.getBoundingClientRect().top-host.getBoundingClientRect().top-8),behavior:reduced.matches?'instant':'smooth'});
+        });
+        announce(`${section.course_code}, section ${section.section} selected. ${location.building.code}, room ${location.room}.`);
     }
     function showFeedback(title,message,retry=false) {
-        feedback.hidden=false;feedback.querySelector('strong').textContent=title;feedback.querySelector('p').textContent=message;$('#class-retry').hidden=!retry;
+        clearSearchLoading();
+        feedback.hidden=false;feedbackHeading.textContent=title;feedbackDetail.textContent=message;$('#class-retry').hidden=!retry;
     }
     function renderMore() {
         const end=Math.min(shown+12,matches.length);
@@ -161,13 +182,17 @@ export function mountClassSearch({ map, L, navigation }) {
             button.innerHTML=`<span class="class-result-check">${icon('check')}</span><span class="class-result-copy"></span>${icon('right')}`;
             const copy=button.querySelector('.class-result-copy');
             const meta=el('small');meta.append(el('span',`${section.section} · ${formatDays(section.days)}`,'class-result-desktop-meta'),el('span',`Section ${section.section}`,'class-result-mobile-meta'));
-            copy.append(el('strong',section.course_code),el('span',section.course_name),meta);
+            if(embedded&&matches.every(s=>s.course_code===section.course_code)){
+                copy.append(el('strong',`Section ${section.section}`),el('span',schedule(section)),el('small',`${section.locations[0].building.code} · Room ${section.locations[0].room}`,'cu-room-meta'));
+            }else copy.append(el('strong',section.course_code),el('span',section.course_name),meta);
             button.addEventListener('click',()=>{if(mobile.matches&&selected?.section===section){clearSelection();announce('Selection cleared.');}else choose(section);});
             row.append(button);results.append(row);
         }
         more.hidden=shown>=matches.length;more.textContent=`Show more sections (${matches.length-shown} remaining)`;
     }
     function invalidateSearch() {
+        if(courseSummary)courseSummary.hidden=true;
+        clearSearchLoading();
         revision++; clearTimeout(searchTimer); clearSelection();results.replaceChildren();matches=[];shown=0;more.hidden=true;
         $('.class-results-scroll').removeAttribute('aria-busy');dialog.classList.remove('is-searching');
     }
@@ -177,17 +202,20 @@ export function mountClassSearch({ map, L, navigation }) {
         if(!value){showFeedback('Find your section','Search by course, title or class ID.');announce('Enter a course, title or class ID.');return;}
         dialog.classList.add('is-searching');$('.class-results-scroll').setAttribute('aria-busy','true');
         showFeedback('Finding your class…','Checking sections and meeting times.');announce('Searching the MMC class catalog.');
+        searchLoading=window.CampusLoopLoading?.mount(feedback,{label:'Finding your class…',detail:'Checking sections and meeting times.',compact:true});
+        if(searchLoading){feedbackHeading.hidden=true;feedbackDetail.hidden=true;}
         try {
             catalog=await loadCatalog();if(current!==revision||!dialog.open)return;
             $('#class-term').textContent=`${catalog.metadata.term_name} · ${catalog.metadata.campus}`;
             matches=catalog.search({mode:'auto',course:value,professor:$('#class-professor').value,time:$('#class-time').value});
+            if(courseSummary){const grouped=matches.length&&matches.every(s=>s.course_code===matches[0].course_code);courseSummary.hidden=!grouped;if(grouped)courseSummary.replaceChildren(el('strong',matches[0].course_name),el('span',matches[0].course_code));$('.class-results-heading h3').textContent=grouped?'Choose a section':'Results';}
             $('#class-count').textContent=`${matches.length} ${matches.length===1?'result':'results'}`;
             if(matches.length){feedback.hidden=true;renderMore();announce(`${matches.length} matching sections. Choose a section.`);}
             else{showFeedback('No matching sections','Try a shorter course name or remove a filter. Only mapped MMC classes are included.');announce('No matching sections. Try another search or remove a filter.');}
         }catch{
             if(current!==revision||!dialog.open)return;
             showFeedback('Couldn’t load classes','Your search is saved. Check your connection and try again.',true);announce('Could not load classes. Try again.');
-        }finally{if(current===revision){dialog.classList.remove('is-searching');$('.class-results-scroll').removeAttribute('aria-busy');}}
+        }finally{if(current===revision){clearSearchLoading();dialog.classList.remove('is-searching');$('.class-results-scroll').removeAttribute('aria-busy');}}
     }
     function onInput() {
         invalidateSearch();$('#class-clear-query').hidden=!query.value;
@@ -214,7 +242,9 @@ export function mountClassSearch({ map, L, navigation }) {
         if(!selected&&query.value&&!matches.length)search();
     }
     function close() {
+        if(embedded){window.CampusUI.closeToMap();return;}
         if(!dialog.open)return;
+        clearSearchLoading();
         revision++;clearTimeout(searchTimer);
         dialog.classList.add('is-closing');
         exitTimer=setTimeout(()=>{dialog.close();dialog.classList.remove('is-closing');},reduced.matches?0:180);
@@ -222,7 +252,7 @@ export function mountClassSearch({ map, L, navigation }) {
     openButton.addEventListener('click',open);$('.class-close').addEventListener('click',close);
     dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
     dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)close();});
-    dialog.addEventListener('close',()=>{revision++;clearTimeout(searchTimer);if(!openingForMap)openButton.focus({preventScroll:true});});
+    dialog.addEventListener('close',()=>{clearSearchLoading();revision++;clearTimeout(searchTimer);if(!openingForMap)openButton.focus({preventScroll:true});});
     function finishJourney(state,message) {
         const focusOnStop=document.activeElement===journey.querySelector('.class-stop');
         journey.dataset.state=state;journey.querySelector('.class-journey-state span:last-child').textContent=message;
@@ -247,6 +277,7 @@ export function mountClassSearch({ map, L, navigation }) {
         journey.querySelector('.class-journey-time > span:last-child').textContent=schedule(section);
         openingForMap=true;dialog.close();openingForMap=false;
         journey.hidden=false;mapNav.hidden=false;document.body.classList.add('class-location-active');
+        if(embedded){window.CampusUI.showSubview('classes',journey);journey.prepend(mapNav);}
         map.getContainer().classList.add('class-map-focused');map.zoomControl?.setPosition('topright');
         journey.dataset.state='moving';journey.querySelector('.class-journey-state span:last-child').textContent='Locating building…';
         journey.querySelector('.class-stop').hidden=false;journey.querySelector('.class-directions').hidden=true;
@@ -254,7 +285,7 @@ export function mountClassSearch({ map, L, navigation }) {
         if(navigation) {
             finishJourney('located','Class location');
             journey.querySelector('.class-directions span:last-child').textContent='Show route';
-            void navigation.start({section,location,panel:journey});
+            void navigation.start({section,location,panel:journey,onFinish:open});
             return;
         }
         requestAnimationFrame(()=>{
@@ -274,8 +305,8 @@ export function mountClassSearch({ map, L, navigation }) {
     $('#locate-class').addEventListener('click',locate);
     journey.querySelector('.class-stop').addEventListener('click',()=>{cancelJourney?.();journey.querySelector('.class-directions').focus();});
     journey.querySelector('.class-directions').addEventListener('click',()=>navigation?navigation.frame():locate());
-    journey.querySelector('.class-dismiss').addEventListener('click',()=>{hideJourney(true);openButton.focus();});
-    mapNav.querySelector('.class-return').addEventListener('click',open);
+    journey.querySelector('.class-dismiss').addEventListener('click',()=>{hideJourney(true);open();});
+    mapNav.querySelector('.class-return').addEventListener('click',()=>{navigation?.stop();open();});
     mobile.addEventListener('change',()=>{if(dialog.open)placeDetails();});
     reduced.addEventListener('change',()=>{if(reduced.matches&&journey.dataset.state==='moving'&&!journey.hidden)locate();});
     window.addEventListener('resize',()=>{if(!journey.hidden){if(navigation)navigation.frame();else{cancelJourney?.();finishJourney('paused','Map resized · tap Directions to center');}}});

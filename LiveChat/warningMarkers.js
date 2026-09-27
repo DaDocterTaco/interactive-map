@@ -52,7 +52,7 @@ export function createWarningLayer({ map, L }) {
             const report = latestReports.find(item => item.id === id && valid(item));
             if (!report) return false;
             const key = `${report.location.latitude},${report.location.longitude}`;
-            map.setView([report.location.latitude, report.location.longitude], 18, { animate: !matchMedia("(prefers-reduced-motion: reduce)").matches });
+            if(window.CampusApp)window.CampusApp.camera.moveTo(report.location,{zoom:18});else map.setView([report.location.latitude, report.location.longitude], 18, { animate: !matchMedia("(prefers-reduced-motion: reduce)").matches });
             markers.get(key)?.openPopup(); return true;
         },
         setReports(reports, cached = false) {

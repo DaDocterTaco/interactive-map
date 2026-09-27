@@ -12,14 +12,14 @@ export function mountMapWarnings({ map, L }) {
     function openReport(id) {
         if (!id || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) return;
         const url = new URL(location.href); url.searchParams.set("forum", id); url.searchParams.delete("alert"); history.replaceState(history.state, "", url);
-        nav.hidden = true; document.getElementById("open-chat")?.click();
+        window.CampusUI?.clearMapView('community');nav.hidden = true; document.getElementById("open-chat")?.click();
     }
     function locate(event) {
         const id = event.detail?.id;
         if (!view.focusReport(id)) { window.dispatchEvent(new CustomEvent("fiu-alert-locate-failed")); return; }
         returnId = id; document.getElementById("chat-panel")?.close();
         const url = new URL(location.href); url.searchParams.delete("forum"); url.searchParams.delete("alert"); history.replaceState(history.state, "", url);
-        nav.hidden = false; nav.focus({ preventScroll: true });
+        if(window.CampusUI){window.CampusUI.showMapCard('community',{title:'Alert location',description:'Verified report on the map',backLabel:'Back to alert',onBack:()=>openReport(returnId)});nav.hidden=true;}else{nav.hidden = false; nav.focus({ preventScroll: true });}
         requestAnimationFrame(() => { map.invalidateSize({ pan: false }); view.focusReport(id); });
     }
     const open = event => openReport(event.detail?.id);

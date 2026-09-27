@@ -1,0 +1,38 @@
+import {createCampusCamera} from './camera.mjs';
+const names={GL:'Green Library',GC:'Graham Center',PG5:'PG5 Market Station'};
+const types={GL:'Library',GC:'Student center',PG5:'Classes & dining'};
+export async function mountCampusExplorer({map,L,locationServices,navigation}) {
+ const ui=window.CampusUI,camera=createCampusCamera({map,locationServices,ui});
+ const api={map,locationServices,camera,navigation};window.CampusApp=api;
+ const input=document.getElementById('campus-query'),results=document.getElementById('campus-results'),detail=document.getElementById('place-detail'),home=document.querySelector('.cu-explore-home');
+ let buildings=[],savedMode=false,selected=null,marker=null;
+ const read=key=>{try{const v=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(v)?v.filter(x=>typeof x==='string'):[];}catch{return [];}};
+ const save=(key,v)=>{try{localStorage.setItem(key,JSON.stringify(v));}catch{ui.announce('Your browser could not save this preference.');}};
+ let recent=read('campus:recent'),saved=read('campus:saved');
+ const text=(tag,value,cls)=>{const n=document.createElement(tag);n.textContent=value;if(cls)n.className=cls;return n;};
+ function render(){results.replaceChildren();const q=input.value.trim().toLowerCase();document.getElementById('places-heading').textContent=q?'Search results':savedMode?'Saved places':recent.length?'Recent':'Popular places';
+   let matches=q?buildings.filter(b=>`${b.abbreviation} ${b.full_name} ${names[b.abbreviation]||''}`.toLowerCase().includes(q)):savedMode?saved.map(c=>buildings.find(b=>b.abbreviation===c)).filter(Boolean):(recent.length?recent:['GL','GC']).map(c=>buildings.find(b=>b.abbreviation===c)).filter(Boolean);
+   for(const building of matches.slice(0,12)){const b=document.createElement('button');b.type='button';b.className='cu-place-row';b.innerHTML=ui.icon(building.abbreviation==='GL'?'book':building.abbreviation==='GC'?'users':'map-pin')+'<span></span>'+ui.icon('chevron-right');b.children[1].append(text('strong',names[building.abbreviation]||building.full_name),text('small',`${building.abbreviation} · ${types[building.abbreviation]||'Campus building'}`));b.addEventListener('click',()=>showBuilding(building));results.append(b);}
+   if(q){const b=document.createElement('button');b.type='button';b.className='cu-place-row';b.innerHTML=ui.icon('school')+'<span></span>'+ui.icon('chevron-right');b.children[1].append(text('strong',`Find “${input.value.trim()}” in classes`),text('small','Search course names, codes and class IDs'));b.addEventListener('click',()=>{ui.activate('classes');const query=document.getElementById('class-query');query.value=input.value.trim();query.dispatchEvent(new Event('input',{bubbles:true}));query.focus({preventScroll:true});});results.append(b);}
+   if(!matches.length&&!q)results.append(text('p',savedMode?'Save a building to find it quickly here.':'Campus places are loading…','cu-empty'));
+ }
+ function showBuilding(b){navigation.stop();detail.classList.remove('is-routing');delete detail.dataset.routePhase;selected=b;recent=[b.abbreviation,...recent.filter(c=>c!==b.abbreviation)].slice(0,8);save('campus:recent',recent);home.hidden=true;detail.hidden=false;detail.replaceChildren();
+   const back=document.createElement('button');back.type='button';back.className='cu-back';back.innerHTML=ui.icon('arrow-left')+'Explore';back.addEventListener('click',()=>{ui.clearMapView('explore');detail.hidden=true;home.hidden=false;if(route.hidden){marker?.remove();marker=null;}render();});
+   const header=text('div',null,'cu-place-heading'),heading=text('h2',names[b.abbreviation]||b.full_name),bookmark=document.createElement('button');bookmark.type='button';bookmark.className='cu-save-place';bookmark.innerHTML=ui.icon('bookmark');
+   const refreshSave=()=>{const exists=saved.includes(b.abbreviation);bookmark.setAttribute('aria-pressed',String(exists));bookmark.setAttribute('aria-label',exists?'Remove saved place':'Save this place');};refreshSave();bookmark.addEventListener('click',()=>{saved=saved.includes(b.abbreviation)?saved.filter(c=>c!==b.abbreviation):[b.abbreviation,...saved];save('campus:saved',saved);refreshSave();ui.announce(saved.includes(b.abbreviation)?'Place saved':'Place removed from saved');});header.append(heading,bookmark);
+   const directions=document.createElement('button');directions.type='button';directions.className='cu-primary';directions.innerHTML='Directions '+ui.icon('arrow-right');
+   const route=document.createElement('section');route.hidden=true;route.className='cu-place-route';
+   directions.addEventListener('click',()=>{route.hidden=false;directions.hidden=true;detail.classList.add('is-routing');const building={code:b.abbreviation,name:b.full_name,latitude:b.latitude,longitude:b.longitude};route.append(stop);ui.showMapView('explore',detail);navigation.start({location:{building},panel:route,onFinish:()=>{route.hidden=true;directions.hidden=false;detail.classList.remove('is-routing');delete detail.dataset.routePhase;ui.showMapView('explore',detail);}});});
+   const stop=document.createElement('button');stop.type='button';stop.className='cu-back';stop.textContent='Stop directions';stop.addEventListener('click',()=>{navigation.stop();route.hidden=true;directions.hidden=false;detail.classList.remove('is-routing');window.dispatchEvent(new CustomEvent('campus-navigation-active',{detail:{active:false}}));ui.announce('Directions stopped');});route.append(stop);
+   detail.append(back,header,text('p',`${b.abbreviation} · ${types[b.abbreviation]||'Campus building'}`),directions,route);ui.showMapView('explore',detail);
+   if(marker)marker.remove();marker=L.marker([b.latitude,b.longitude],{title:b.full_name,icon:L.divIcon({className:'cu-selected-marker',html:ui.icon('map-pin'),iconSize:[36,42],iconAnchor:[18,40]})}).addTo(map);
+   camera.moveTo(b,{zoom:18,animate:true});
+ }
+ input.addEventListener('input',render);document.getElementById('campus-search').addEventListener('submit',e=>{e.preventDefault();ui.setSnap('half');render();results.querySelector('button')?.focus();});document.getElementById('cu-saved').addEventListener('click',e=>{savedMode=!savedMode;e.currentTarget.setAttribute('aria-pressed',String(savedMode));input.value='';render();});
+ try{const r=await fetch('Buildings.json');if(!r.ok)throw Error();buildings=await r.json();render();}catch{results.append(text('p','Campus places could not load. Refresh to try again.','cu-empty'));}
+ // Replace the older dense marker layer with named, zoom-aware real campus buildings.
+ map.eachLayer(layer=>{if(layer instanceof L.Marker&&layer.options?.title?.match(/\([A-Z0-9]+\)$/))map.removeLayer(layer);});
+ const buildingLayer=L.layerGroup().addTo(map);let lastZoom=-1;
+ function paintBuildings(){const z=map.getZoom();if(Math.abs(z-lastZoom)<.5)return;lastZoom=z;buildingLayer.clearLayers();const visible=buildings.filter(b=>['GL','GC','PG5'].includes(b.abbreviation)||z>=18.5);for(const b of visible){const label=document.createElement('span');label.className='cu-building-label';label.textContent=names[b.abbreviation]||b.abbreviation;const node=document.createElement('span');node.className='cu-building-marker';node.innerHTML=ui.icon(b.abbreviation==='GL'?'book':b.abbreviation==='GC'?'users':'map-pin');node.append(label);const m=L.marker([b.latitude,b.longitude],{title:names[b.abbreviation]||b.full_name,icon:L.divIcon({className:'cu-building-marker',html:node,iconSize:[95,42],iconAnchor:[47,21]})}).addTo(buildingLayer);m.on('click',()=>showBuilding(b));}}
+ paintBuildings();map.on('zoomend',paintBuildings);api.showBuilding=showBuilding;
+}

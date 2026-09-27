@@ -17,6 +17,8 @@ const scriptBlock = '    <!-- Campus Pulse integration -->\n    <script type="mo
 let nextIndex = originalIndex;
 if (!nextIndex.includes('<!-- Campus Pulse styles -->')) nextIndex = nextIndex.replace('</head>', cssBlock + '</head>');
 if (!nextIndex.includes('<!-- Campus Pulse integration -->')) nextIndex = nextIndex.replace('</body>', scriptBlock + '</body>');
+nextIndex = nextIndex.replace(/Pulse\/client\/pulse\.css\?v=pulse-[^"']+/g, 'Pulse/client/pulse.css?v=pulse-ui-2')
+  .replace(/Pulse\/client\/mount\.js\?v=pulse-[^"']+/g, 'Pulse/client/mount.js?v=pulse-ui-2');
 const serverBytes = await optionalRead(serverFile);
 let nextServer = serverBytes?.toString();
 if (nextServer && !nextServer.includes('# Pulse browser assets only')) {
@@ -31,6 +33,17 @@ if (nextServer && !nextServer.includes('# Pulse browser assets only')) {
     '            and not any(part.startswith(".") for part in parts)\n' +
     '        )\n' + anchor);
 }
+if (nextServer && !nextServer.includes('# Pulse bundled icons')) {
+  const anchor = '        if not allowed or not candidate.is_file():';
+  if (!nextServer.includes(anchor)) throw Error('Unexpected local server. Review icon allowlist manually.');
+  nextServer = nextServer.replace(anchor,
+    '        # Pulse bundled icons; no backend or configuration files.\n' +
+    '        allowed = allowed or (\n' +
+    '            len(parts) == 4 and parts[:3] == ("Pulse", "client", "icons")\n' +
+    '            and candidate.suffix.lower() == ".svg"\n' +
+    '            and not any(part.startswith(".") for part in parts)\n' +
+    '        )\n' + anchor);
+}
 const dest = path.join(target, 'Pulse'), manifestFile = path.join(dest, '.install-manifest.json');
 const previous = JSON.parse((await optionalRead(manifestFile))?.toString() || '{}');
 const files = [], roots = ['README.md', '.gitignore', 'firebase.json', 'package.json', 'package-lock.json', 'client', 'shared', 'backend', 'docs', 'scripts', 'tests', 'preview'];
@@ -41,10 +54,10 @@ async function collect(relative) {
     for (const entry of entries) if (!entry.name.startsWith('.') && !entry.isSymbolicLink()) await collect(path.join(relative, entry.name));
   } catch (error) {
     if (error.code !== 'ENOTDIR') throw error;
-    if (!/\.(md|js|mjs|json|rules|css|html|png)$/.test(relative) && relative !== '.gitignore') return;
+    if (!/\.(md|js|mjs|json|rules|css|html|png|svg|txt)$/.test(relative) && relative !== '.gitignore') return;
     const content = await readFile(file), output = path.join(dest, relative), existing = await optionalRead(output), key = relative.replaceAll(path.sep, '/');
     if (existing && hash(existing) !== hash(content) && previous[key] !== hash(existing)) throw Error(`Preserving independently edited file: ${output}`);
-    files.push({ relative, output, content, digest: hash(content), key });
+    files.push({ relative, output, content, existing, digest: hash(content), key });
   }
 }
 for (const entry of roots) await collect(entry);
@@ -76,7 +89,17 @@ if (apply) {
     await writeFile(archive, file.content);
     await unlink(file.output);
   }
-  for (const file of files) { await mkdir(path.dirname(file.output), { recursive: true }); await writeFile(file.output, file.content); }
+  for (const file of files) {
+    const current = await optionalRead(file.output);
+    if ((current && hash(current)) !== (file.existing && hash(file.existing))) throw Error('Feature file changed while preparing: ' + file.output);
+  }
+  for (const file of files) {
+    if (file.existing && hash(file.existing) !== file.digest) {
+      const archive = path.join(backup, 'updated', file.relative);
+      await mkdir(path.dirname(archive), { recursive: true }); await writeFile(archive, file.existing);
+    }
+    await mkdir(path.dirname(file.output), { recursive: true }); await writeFile(file.output, file.content);
+  }
   await writeFile(indexFile, nextIndex);
   if (serverBytes) await writeFile(serverFile, nextServer);
   await writeFile(manifestFile, JSON.stringify(Object.fromEntries(files.map(f => [f.key, f.digest])), null, 2) + '\n');

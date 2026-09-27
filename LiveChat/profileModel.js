@@ -1,4 +1,4 @@
-export const AVATARS = { initials: 'Initials', leaf: '🌿', sun: '☀️', planet: '🪐', headphones: '🎧', cat: '🐱' };
+export const AVATARS = { initials: 'Initials', leaf: 'Leaf', sun: 'Sun', planet: 'Planet', headphones: 'Headphones', cat: 'Cat' };
 export const ACTIVITIES = { coffee: 'Coffee', food: 'Food', chat: 'Hang out' };
 export function initials(name) {
     const words = String(name || '').trim().split(/\s+/).filter(Boolean);

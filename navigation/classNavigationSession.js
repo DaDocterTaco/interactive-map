@@ -44,7 +44,7 @@ export function createClassNavigationSession({ navigation, locationServices, ren
     return token === revision ? latest : null;
   }
   return {
-    start({ to }) { destination = to; return begin(); },
+    start({ to, preferLive = false }) { destination = to; if (preferLive) source = 'live'; return begin(); },
     useManual(value) { source = 'manual'; origin = String(value).trim(); return begin(); },
     useLive() { source = 'live'; return begin(); },
     setMode(value) {

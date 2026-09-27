@@ -73,3 +73,10 @@ test('GPS updates from a released feed cannot overwrite a manual route or a clos
   f.emit('tracking', to); assert.deepEqual(f.session.getState(), manual);
   f.session.stop(); f.emit(); await flush(); assert.equal(f.session.getState().status, 'stopped'); f.session.dispose();
 });
+
+test('a fresh route setup can prefer live GPS after a previous manual route', async () => {
+  const f=fixture();await f.session.start({to});await f.session.useManual('START');
+  await f.session.start({to,preferLive:true});f.emit();await flush();
+  assert.equal(f.session.getState().source,'live');assert.equal(f.session.getState().status,'navigating');
+  assert.equal(f.listeners.size,1);f.session.dispose();assert.equal(f.listeners.size,0);
+});

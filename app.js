@@ -5,14 +5,15 @@ const messageHistory = document.getElementById('chat-history');
 function setAssistantOpen(open) {
     assistantPanel.hidden = !open;
     assistantButton.setAttribute('aria-expanded', String(open));
-    if (open) assistantInput.focus();
+    if (open) assistantInput.focus({preventScroll:true});
+    else if(window.CampusUI)window.CampusUI.activate('explore');
     else assistantButton.focus();
 }
 
 assistantButton.addEventListener('click', () => setAssistantOpen(assistantPanel.hidden));
 document.getElementById('close-assistant').addEventListener('click', () => setAssistantOpen(false));
 document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && !assistantPanel.hidden) setAssistantOpen(false);
+    if (event.key === 'Escape' && !window.CampusUI && !assistantPanel.hidden) setAssistantOpen(false);
 });
 
 function addMessage(text, className) {
@@ -35,18 +36,27 @@ document.getElementById('assistant-form').addEventListener('submit', async event
     const pending = addMessage('Thinking…', 'from-assistant');
     try {
         // The existing Python service runs locally; this UI also works without it.
-        const response = await fetch('http://127.0.0.1:5000/chat', {
+        const endpoint = window.CAMPUS_ASSISTANT_URL || (['localhost','127.0.0.1'].includes(location.hostname) ? 'http://127.0.0.1:5000/chat' : '/api/chat');
+        const response = await fetch(endpoint, {
+            signal: AbortSignal.timeout(20000),
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message })
         });
         if (!response.ok) throw new Error('Chat service unavailable');
         const data = await response.json();
-        pending.textContent = typeof data.reply === 'string' ? data.reply : 'I could not find an answer.';
+        const reply=typeof data.reply === 'string' ? data.reply : 'I could not find an answer.';
+        pending.replaceChildren();
+        for(const part of reply.split(/(\*\*[^*]+\*\*)/g)){
+            if(part.startsWith('**')&&part.endsWith('**')){const strong=document.createElement('strong');strong.textContent=part.slice(2,-2);pending.append(strong);}
+            else pending.append(document.createTextNode(part));
+        }
     } catch {
-        pending.textContent = 'The assistant is unavailable. Start the Python chat server and try again.';
+        pending.textContent = 'The assistant is unavailable right now. Your message is saved above. Please try again shortly.';
+        const retry=document.createElement('button');retry.type='button';retry.textContent='Try again';retry.className='cu-assistant-retry';
+        retry.addEventListener('click',()=>{assistantInput.value=message;document.getElementById('assistant-form').requestSubmit();retry.remove();});pending.append(retry);
     } finally {
         formButton.disabled = false;
         messageHistory.scrollTop = messageHistory.scrollHeight;
-        assistantInput.focus();
+        if(!window.CampusUI||window.CampusUI.getState().tab==='assistant')assistantInput.focus({preventScroll:true});
     }
 });

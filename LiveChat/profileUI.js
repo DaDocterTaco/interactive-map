@@ -1,8 +1,8 @@
-import * as people from './people.js';
+import * as people from './people.js?v=profiles-1';
 import { restoreUser, joinChat, watchUser } from './chatAuth.js';
-import { createProfileUI } from './profileView.js';
+import { createProfileUI } from './profileView.js?v=profile-polish-2';
 
-const style = document.createElement('link'); style.rel = 'stylesheet'; style.href = new URL('./profile.css', import.meta.url).href; document.head.append(style);
+const style = document.createElement('link'); style.rel = 'stylesheet'; style.href = new URL('./profile.css?v=profile-polish-2', import.meta.url).href; document.head.append(style);
 const ui = createProfileUI({ auth: { restore: restoreUser, join: joinChat, watch: watchUser }, people,
     onMessage: person => new Promise((resolve, reject) => {
         const event = new CustomEvent('campus-message-user', { cancelable: true, detail: { person, resolve, reject } });

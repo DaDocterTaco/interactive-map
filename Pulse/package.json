@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test tests/policy.test.mjs tests/arrival.test.mjs tests/readiness.test.mjs",
+    "test": "node --test tests/policy.test.mjs tests/arrival.test.mjs tests/readiness.test.mjs tests/background.test.mjs",
     "preview": "node scripts/preview-server.mjs",
     "test:integration": "node --test --test-concurrency=1 tests/spark.test.mjs",
     "seed:emulator": "node scripts/seed-emulator.mjs"

@@ -7,6 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBLIC_FILES = {
+    "Splash/campus-loop.css", "Splash/campus-loop.js", "Splash/preview.html",
+    "Splash/assets/campus-map.png", "Splash/assets/campus-route.png", "Splash/assets/navigation.svg",
     "index.html", "app.css", "app.js", "Locations.JS", "firebase.js",
     "Buildings.json", "events.json", "forum_alerts.json",
     "navigation/classNavigation.js", "navigation/classNavigation.css",
@@ -18,8 +20,10 @@ PUBLIC_FILES = {
     "navigation/data/campus-places.json", "navigation/data/campus-graph.json",
     "Events/events.js", "Events/events.css", "Events/event-data.mjs",
     "Events/data/events.current.json",
-    "Campus3D/experience.mjs", "Campus3D/experience.css",
+    "Campus3D/experience.mjs", "Campus3D/experience.css", "Campus3D/mapGestures.mjs",
     "Campus3D/campus3d-projection.mjs", "Campus3D/fiu-mmc-simple.glb",
+    "CampusUI/shell.js", "CampusUI/campus.css", "CampusUI/camera.mjs",
+    "CampusUI/explore.mjs", "CampusUI/fiu-logo.png", "CampusUI/fonts/InterVariable.woff2",
 }
 APP_FOLDERS = {"ActionBar", "ClassSearch", "LiveChat", "locationservices"}
 ASSET_TYPES = {
@@ -60,9 +64,15 @@ class AppHandler(SimpleHTTPRequestHandler):
             and not any(part.startswith(".") for part in parts)
         )
         allowed = allowed or (
-            len(parts) == 3 and parts[:2] == ("Events", "icons")
+            len(parts) == 3 and parts[:2] in {("Events", "icons"), ("CampusUI", "icons")}
             and candidate.suffix.lower() == ".svg"
             and not parts[2].startswith(".")
+        )
+        # Pulse bundled icons; no backend or configuration files.
+        allowed = allowed or (
+            len(parts) == 4 and parts[:3] == ("Pulse", "client", "icons")
+            and candidate.suffix.lower() == ".svg"
+            and not any(part.startswith(".") for part in parts)
         )
         if not allowed or not candidate.is_file():
             self.send_error(404)

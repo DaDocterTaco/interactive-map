@@ -31,6 +31,7 @@ let stopRequests;
 const drafts = new Map();
 let currentUser = null;
 let stopMessages;
+let messageLoading;
 let viewVersion = 0;
 let joining = false;
 let sending = false;
@@ -405,6 +406,7 @@ function updateControls() {
 }
 
 function disconnectMessages() {
+    clearMessageLoading();
     viewVersion++;
     if (stopMessages) stopMessages();
     stopMessages = null;
@@ -453,9 +455,18 @@ function sameMessageRun(previous, current, previousDate, currentDate) {
     const elapsed = currentDate.getTime() - previousDate.getTime();
     return previousDate.toDateString() === currentDate.toDateString() && elapsed >= 0 && elapsed <= GROUP_GAP_MS;
 }
+function clearMessageLoading() {
+    messageLoading?.remove();
+    messageLoading = null;
+}
 function renderMessagePlaceholder(title, detail, loading = false) {
+    clearMessageLoading();
     const item = document.createElement("li");
     item.className = "message-empty" + (loading ? " message-placeholder" : "");
+    if (loading) {
+        messageLoading = window.CampusLoopLoading?.mount(item, { label: title, detail, compact: true });
+        if (messageLoading) { messageList.replaceChildren(item); return; }
+    }
     const icon = document.createElement("span");
     icon.className = "empty-chat-icon icon icon-chat";
     icon.setAttribute("aria-hidden", "true");
@@ -514,6 +525,7 @@ function createMessageRow(message, animate) {
     return item;
 }
 function renderMessages(messages, historical = false) {
+    clearMessageLoading();
     latestMessages = messages;
     removalButtons = [];
     const nearBottom = messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < 80;
@@ -787,6 +799,7 @@ async function showChat(user) {
         forumController.setActive(activeSection === "forums");
         selectConversation(null, { reveal: false });
         if (new URL(location.href).searchParams.has("forum")) selectSection("forums");
+        window.dispatchEvent(new Event("campus-chat-ready"));
     } catch (error) {
         if (version === viewVersion) {
             connectionMessage(errorMessage(error), "error");
@@ -858,6 +871,7 @@ namePanel.addEventListener("cancel", (event) => {
     if (joining) event.preventDefault();
 });
 function closeChat() {
+    if(window.CampusUI){window.CampusUI.communityHome();return;}
     if (!chatPanel.open || closing) return;
     setMenu(false);
     if (reducedMotion.matches) { chatPanel.close(); return; }

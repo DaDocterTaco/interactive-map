@@ -73,7 +73,7 @@ export function mountLocationServices({
         ? 'Retry location' : 'Locate me';
     stopButton.hidden = true;
 
-    if (!markerVisible || !fix) {
+    if ((!markerVisible && status !== 'outside') || !fix) {
       clearLayers();
       return;
     }

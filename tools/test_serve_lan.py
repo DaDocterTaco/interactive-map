@@ -72,15 +72,22 @@ class PreviewTests(unittest.TestCase):
                 target = urljoin(url, reference)
                 if urlsplit(target).netloc == urlsplit(self.base).netloc:
                     pending.append(target)
+        # Requests above verify complete versioned URLs; coverage uses canonical paths.
+        visited = {url.split("?", 1)[0] for url in visited}
         self.assertIn(urljoin(self.base, "navigation/classNavigation.js"), visited)
         self.assertIn(urljoin(self.base, "locationservices/locationTracker.js"), visited)
+        self.assertIn(urljoin(self.base, "CampusUI/camera.mjs"), visited)
+        self.assertIn(urljoin(self.base, "Campus3D/mapGestures.mjs"), visited)
+        for path in ("CampusUI/fonts/InterVariable.woff2", "CampusUI/icons/compass.svg", "CampusUI/fiu-logo.png"):
+            with urlopen(urljoin(self.base,path)) as response:
+                self.assertEqual(response.status,200)
 
     def test_private_paths_stay_unavailable(self):
         for path in (".env", ".git/config", "service-account.json", "package.json",
                      "Pulse/backend/service.js", "Pulse/package.json",
                      "navigation/server.mjs", "navigation/tools/build-campus.mjs",
                      "Events/installation.json", "tools/serve_lan.py",
-                     "ActionBar/tests/location-menu.html", "LiveChat/"):
+                     "ActionBar/tests/location-menu.html", "CampusUI/camera.test.mjs", "Campus3D/mapGestures.test.mjs", "qa/location.html", "LiveChat/"):
             with self.subTest(path=path), self.assertRaises(HTTPError) as error:
                 urlopen(urljoin(self.base, path))
             self.assertEqual(error.exception.code, 404)

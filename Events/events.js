@@ -45,6 +45,7 @@ export function mountEvents({map,L,dataUrl='../data/events.current.json',buildin
       <span class="ev-sr ev-announcement" role="status" aria-live="polite"></span>
     </div>`;
     document.body.append(dialog);
+    window.CampusUI?.registerDialog(dialog,'events',{opener:'open-events'});
     const $=s=>dialog.querySelector(s), list=$('.ev-list'), query=$('#ev-query');
     // A short landscape viewport scrolls the whole panel so controls cannot consume all result space.
     const shortViewport=matchMedia('(max-height:520px)');
@@ -59,9 +60,9 @@ export function mountEvents({map,L,dataUrl='../data/events.current.json',buildin
     const mapReturn=el('aside',null,'ev-map-return');mapReturn.hidden=true;mapReturn.setAttribute('aria-label','Selected event location');
     const back=button('', '');back.append(icon('arrow-left'),el('span','Back to events'));
     const mapCopy=el('div');mapReturn.append(back,mapCopy);document.body.append(mapReturn);
-    function clearMap(){mapReturn.hidden=true;if(marker){marker.remove();marker=null;}mapMode=false;}
+    function clearMap(){window.CampusUI?.clearMapView('events');mapReturn.hidden=true;if(marker){marker.remove();marker=null;}mapMode=false;}
     function open(){clearTimeout(closeTimer);dialog.classList.remove('is-closing');if(!dialog.open)dialog.showModal();opener.setAttribute('aria-expanded','true');if((!feed||Date.now()-lastRead>60000)&&!loading)load();dialog.focus({preventScroll:true});}
-    function close(){if(!dialog.open)return;dialog.classList.add('is-closing');closeTimer=setTimeout(()=>{dialog.close();dialog.classList.remove('is-closing');},reduced.matches?0:160);}
+    function close(){if(window.CampusUI){window.CampusUI.closeToMap();return;}if(!dialog.open)return;dialog.classList.add('is-closing');closeTimer=setTimeout(()=>{dialog.close();dialog.classList.remove('is-closing');},reduced.matches?0:160);}
     opener.addEventListener('click',()=>{clearMap();open();});$('.ev-close').addEventListener('click',close);
     dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
     dialog.addEventListener('close',()=>{opener.setAttribute('aria-expanded','false');if(!mapMode){const target=getComputedStyle(opener).visibility==='hidden'?document.getElementById('action-bar-handle'):opener;(target||opener).focus({preventScroll:true});}});
@@ -71,17 +72,25 @@ export function mountEvents({map,L,dataUrl='../data/events.current.json',buildin
     function showMap(e){
         const b=e.venue.building;if(!b||!map||!L)return;
         mapScroll=scroll.scrollTop;mapMode=true;dialog.close();
+        if(window.CampusUI){mapReturn.classList.add('cu-event-return');window.CampusUI.showSubview('events',mapReturn);}
         if(marker)marker.remove();
         marker=L.circleMarker([b.latitude,b.longitude],{radius:12,color:'#fff',weight:4,fillColor:'#0450ef',fillOpacity:1}).addTo(map);
         const popup=el('div');popup.append(el('strong',e.title),el('p',`${b.full_name}${e.room?' · '+e.room:''}`),el('small','Building location · Check room details in the listing'));
         marker.bindPopup(popup,{maxWidth:290});
-        map.flyTo([b.latitude,b.longitude],18,{animate:!reduced.matches,duration:.65});marker.openPopup();
+        if(window.CampusApp)window.CampusApp.camera.moveTo(b,{zoom:18});
+        else map.flyTo([b.latitude,b.longitude],18,{animate:!reduced.matches,duration:.65});
+        if(!window.CampusUI)marker.openPopup();
         mapCopy.replaceChildren(el('strong',b.full_name),el('small',e.room?`Room ${e.room} · Building pin`:'Approximate building location'));
         mapReturn.hidden=false;back.focus({preventScroll:true});
     }
     async function load(){
         loading=true;loadError=false;list.setAttribute('aria-busy','true');
-        if(!feed){const n=el('div',null,'ev-loading');n.append(icon('refresh'),el('p','Finding campus events…'));list.replaceChildren(n);}
+        let loadingIndicator;
+        if(!feed){
+            const n=el('div',null,'ev-loading');list.replaceChildren(n);
+            loadingIndicator=window.CampusLoopLoading?.mount(n,{label:'Finding campus events…',detail:'Collecting what’s happening around campus.',compact:true});
+            if(!loadingIndicator)n.append(icon('refresh'),el('p','Finding campus events…'));
+        }
         try {
             const [r,b]=await Promise.all([fetch(dataUrl,{cache:'no-store'}),fetch(buildingsUrl)]);
             if(!r.ok)throw Error('Events are unavailable');
@@ -96,7 +105,7 @@ export function mountEvents({map,L,dataUrl='../data/events.current.json',buildin
             loadError=true;
             if(!feed){$('#ev-count').textContent='Events unavailable';const n=emptyState('Events couldn’t load','Your connection may be unavailable. Try loading the saved listings again.','Try again',load);list.replaceChildren(n);}
             else render();
-        }finally{loading=false;list.removeAttribute('aria-busy');updateStatus();}
+        }finally{loadingIndicator?.remove();loading=false;list.removeAttribute('aria-busy');updateStatus();}
     }
     function emptyState(title,body,cta,action){const n=el('div',null,'ev-empty');n.append(icon('search'),el('h3',title),el('p',body));const b=button(cta,'ev-action');b.addEventListener('click',action);n.append(b);return n;}
     function updateStatus(){
