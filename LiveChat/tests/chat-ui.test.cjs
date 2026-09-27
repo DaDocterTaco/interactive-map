@@ -172,7 +172,8 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
         'forums/forumUI.js': { mountForums: () => ({ setActive(value) { state.forumsActive = value; }, dispose() { state.forumDisposals++; } }) }
     };
     vm.runInNewContext(code, { document, Date, console, URL,
-        window: { matchMedia: query => { assert.ok(media[query], query); return media[query]; }, addEventListener() {}, removeEventListener() {} },
+        window: { matchMedia: query => { assert.ok(media[query], query); return media[query]; }, addEventListener() {}, removeEventListener() {},
+            CampusInput: { showModal: dialog => dialog.showModal(), focus: (node, options) => node.focus(options) } },
         localStorage: { getItem: key => preferences.get(key) ?? null, setItem: (key, value) => preferences.set(key, value), removeItem: key => preferences.delete(key) },
         location: { protocol: 'http:', href: 'http://localhost/LiveChat/mainChat.html' }, loadModule: async file => { assert.ok(modules[file], file); return modules[file]; },
         setTimeout(fn, delay) { const id = ++timerId; timers.set(id, { fn, delay }); return id; }, clearTimeout: id => timers.delete(id),

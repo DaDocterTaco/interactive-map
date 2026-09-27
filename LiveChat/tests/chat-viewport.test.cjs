@@ -134,7 +134,7 @@ test('dispose removes every listener and restores prior inline state without lat
     s.panel.setAttribute('data-compact-height', 'existing');
     const ui = mountChatViewport(s.panel);
     assert.equal(s.viewport.listenerCount, 2);
-    assert.equal(s.view.listenerCount, 1);
+    assert.equal(s.view.listenerCount, 2);
     ui.dispose();
     ui.dispose();
     assert.equal(s.viewport.listenerCount, 0);
