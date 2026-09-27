@@ -1,3 +1,4 @@
+import '../CampusUI/mobileInput.js';
 import { ACTIVITIES, sharedInterests } from './profileModel.js';
 import { mountProfileEditor, paintProfileAvatar, profileIcon } from './profileEditor.js?v=profile-polish-2';
 
@@ -24,7 +25,7 @@ export function createProfileUI({ auth, people, onMessage }) {
     function close() { if (busy) return; if (editor) editor.requestClose(() => dialog.close()); else dialog.close(); }
     dialog.querySelector('.cp-close').addEventListener('click', close);
     dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
-    dialog.addEventListener('close', () => { request++; editor?.destroy(); editor = null; opener?.focus(); });
+    dialog.addEventListener('close', () => { request++; editor?.destroy(); editor = null; window.CampusInput.focus(opener); });
     function account(next) {
         if (next?.uid === user?.uid) { user = next; return; }
         user = next; own = null; generation++; request++; stopProfile?.();
@@ -127,7 +128,7 @@ export function createProfileUI({ auth, people, onMessage }) {
     async function open(uid = null, { keepOpener = false } = {}) {
         if (busy) return;
         if (!keepOpener && !dialog.open) opener = document.activeElement;
-        if (!dialog.open) dialog.showModal();
+        if (!dialog.open) window.CampusInput.showModal(dialog);
         begin('Your profile'); message('Loading profile…');
         try {
             const active = await auth.restore(); account(active); const current = ++request;

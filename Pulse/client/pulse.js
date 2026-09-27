@@ -1,9 +1,10 @@
+import '../../CampusUI/mobileInput.js';
 import { pulseMarkup, iconMarkup } from './view.js';
 import { createPresentation } from './presentation.js';
 import { createBackgroundPulse } from './background.js';
 import { createPulseClient } from './service.js';
 import { currentPosition, startArrival } from './arrival.js';
-import { millis, usableSpot } from '../shared/policy.js';
+import { millis } from '../shared/policy.js';
 import { campusReadiness, canStartPulse, activePulseState, needsPulseSync, connectionMessage, isConnectionFailure } from './readiness.js';
 
 const activities = { coffee: 'Coffee', food: 'Food', chat: 'Hang out' };
@@ -26,32 +27,16 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
   window.CampusUI?.registerDialog(dialog,'community',{opener:'open-pulse'});
   const $ = name => dialog.querySelector(`[data-${name}]`);
   const optinForm = $('optin'), signinForm = $('signin'), compose = $('compose');
-  let preferencesEdited = false, preferenceRequest = 0;
-  optinForm.addEventListener('change', event => { if (event.target.name === 'activity') { preferencesEdited = true; preferenceRequest++; } });
-  async function prefillPreferences() {
-    if (!getProfile || preferencesEdited || activePulseState(state)) return;
-    const version = ++preferenceRequest;
-    try {
-      const account = await auth.restore();
-      if (!account) return;
-      const profile = await getProfile(account.uid);
-      if (disposed || version !== preferenceRequest || preferencesEdited || activePulseState(state) || user?.uid !== account.uid) return;
-      if (profile.meetupActivities?.length) for (const input of optinForm.querySelectorAll('[name=activity]')) input.checked = profile.meetupActivities.includes(input.value);
-    } catch { /* Saved preferences are optional; the availability form still works. */ }
-  }
-  const onProfileUpdate = event => { if (event.detail.uid === user?.uid) { preferencesEdited = false; void prefillPreferences(); } };
-  window.addEventListener('campus-profile-updated', onProfileUpdate);
   let user = null, state = null, campus = null, availability = null, proposal = null, meetup = null, spots = [], checkIns = [], messages = [];
   let signedReady = false, stateReady = false, spotsReady = false, busy = false, disposed = false, epoch = 0, currentStage = '';
   let primaryUnsubs = [], memberUnsubs = [], groupUnsubs = [], proposalId = null, meetupId = null, marker = null, markerKey = '', recent = true;
-  let autoStop = null, autoKey = '', locationMode = 'spot', suppressRecentId = null, requestId = null, lastPoll = 0, polling = false, serverStale = false;
+  let autoStop = null, autoKey = '', suppressRecentId = null, requestId = null, lastPoll = 0, polling = false, serverStale = false;
   let stageKey = '', lastOpener = launch, busyAction = '', closeTimer, stageTimer;
   const ui = createPresentation({ dialog, L, getProfile, openProfile, paintAvatar,
-    getState: () => ({ target: currentStage, user, proposal, meetup, spots, availability, checkIns, messages, locationMode }),
+    getState: () => ({ target: currentStage, user, proposal, meetup, spots, availability, checkIns, messages }),
     showOnMap: plan => { showMarker(plan, true); close(); } });
   const background = createBackgroundPulse({ dialog, launch, open,
     getState: () => ({ user, state, availability, proposal, meetup, online: navigator.onLine, stale: serverStale }) });
-  optinForm.elements.startingSpot.addEventListener('change', () => ui.updateExtras(busyAction));
   $('dismiss-error').addEventListener('click', () => clearError());
 
   if (demoLabel) { $('demo').textContent = demoLabel; $('demo').hidden = false; }
@@ -64,7 +49,10 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
       'functions/internal': 'The Pulse service could not be reached or could not complete this request. Please try again later.',
       'permission-denied': 'This meetup is no longer available to your account. Refresh to see your latest plan.',
     };
-    $('error-text').textContent = known[code] || error?.message || 'Something went wrong. Please try again.';
+    const locationError = /No spots for your selected activity fit that walk/.test(error?.message || '')
+      ? 'No meeting spots for this activity are close enough to your location. Try another activity or move closer to campus.'
+      : /Choose a starting point on this campus/.test(error?.message || '') ? 'Pulse works on campus. Try again when you’re there.' : '';
+    $('error-text').textContent = locationError || known[code] || error?.message || 'Something went wrong. Please try again.';
     $('error').hidden = false;
   };
   const clearError = () => { $('error').hidden = true; };
@@ -109,11 +97,11 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
   }, key);
   function open(event) {
     lastOpener = event?.currentTarget || launch; clearTimeout(closeTimer); dialog.classList.remove('is-closing');
-    if (!dialog.open || dialog.dataset.embedded) dialog.showModal(); launch.setAttribute('aria-expanded', 'true'); action.setAttribute('aria-expanded', 'true');
+    if (!dialog.open || dialog.dataset.embedded) window.CampusInput.showModal(dialog); launch.setAttribute('aria-expanded', 'true'); action.setAttribute('aria-expanded', 'true');
     render();
     const heading = dialog.querySelector(`[data-stage=${currentStage}] h2`);
     if (heading?.getClientRects().length) { heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); }
-    void poll(true); void prefillPreferences();
+    void poll(true);
   }
   const restoreFocus = () => {
     const target = lastOpener?.getClientRects().length && !lastOpener.closest('[hidden],[inert]') ? lastOpener : document.getElementById('tab-community') || launch;
@@ -145,7 +133,6 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
   }
   function updateTimers() {
     const now = Date.now(), offline = !navigator.onLine;
-    if (availability) $('wait-timer').textContent = `${Math.max(0, Math.ceil((millis(availability.expiresAt) - now) / 60_000))} min left`;
     if (proposal) {
       const seconds = Math.max(0, Math.ceil((millis(proposal.responseDeadline) - now) / 1000));
       $('proposal-timer').textContent = seconds ? `0:${String(seconds).padStart(2, '0')}` : '0:00';
@@ -187,17 +174,21 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
       const entering = dialog.querySelector(`[data-stage=${target}]`); entering.classList.add('is-entering');
       stageTimer = setTimeout(() => entering.classList.remove('is-entering'), 300);
       dialog.querySelectorAll('[data-stage]').forEach(section => { section.hidden = section.dataset.stage !== target; });
-      $('announcement').textContent = ({ waiting: 'You are now looking for a group.', proposal: 'A new meetup is ready for your response.', meetup: 'Your meetup has updated.', idle: 'Choose your availability to find a group.' })[target] || '';
+      $('announcement').textContent = ({ waiting: 'You are now looking for a group.', proposal: 'A new meetup is ready for your response.', meetup: 'Your meetup has updated.', idle: 'Tap an activity and Pulse will make the plan.' })[target] || '';
       if (background.isVisible() && target !== 'loading') { const heading = dialog.querySelector(`[data-stage="${target}"] h2`); heading?.setAttribute('tabindex', '-1'); heading?.focus({ preventScroll: true }); }
     }
     launch.querySelector('[data-launch-status]').textContent = ({ waiting: 'Looking for your group', proposal: 'A plan is ready · respond', meetup: 'Your meetup', unavailable: 'Meetups are coming soon', loading: 'Find people for coffee, food or a chat.' })[target] || 'Find people for coffee, food or a chat.';
     signinForm.querySelector('button').disabled = busy || !navigator.onLine;
     $('find').disabled = busy || !navigator.onLine || !canStartPulse(campus, spotsReady, spots);
-    $('location').disabled = busy || !navigator.onLine || !canStartPulse(campus, spotsReady, spots);
+    dialog.querySelectorAll('[data-quick-activity]').forEach(button => {
+      button.disabled = $('find').disabled || target !== 'idle' || activePulseState(state);
+      button.setAttribute('aria-busy', String(busyAction === 'find' && button.dataset.quickActivity === optinForm.dataset.choice));
+    });
+    $('quick-progress').hidden = busyAction !== 'find';
     $('cancel').disabled = $('withdraw').disabled = $('leave').disabled = busy || !navigator.onLine;
     $('wait-activities').textContent = availability?.activities?.map(a => activities[a]).join(' · ') || 'Finding shared interests';
-    const notes = { 'availability-expired': 'Your free time has ended. Start again when you have another break.', canceled: 'You’ve stopped looking. Start again whenever you’re ready.', 'left-meetup': 'You’ve left the meetup.', 'meetup-canceled': 'Your group no longer has enough people to meet.' };
-    $('idle-note').textContent = notes[state?.reason] || (state?.reason ? 'That plan has ended. Choose your availability to start a fresh search.' : ''); $('idle-note').hidden = !$('idle-note').textContent;
+    const notes = { 'availability-expired': 'Your search has ended. Tap an activity to look again.', canceled: 'You’ve stopped looking. Start again whenever you’re ready.', 'left-meetup': 'You’ve left the meetup.', 'meetup-canceled': 'Your group no longer has enough people to meet.' };
+    $('idle-note').textContent = notes[state?.reason] || (state?.reason ? 'That plan has ended. Tap an activity to find another group.' : ''); $('idle-note').hidden = !$('idle-note').textContent;
     const plan = target === 'proposal' ? proposal : target === 'meetup' ? meetup : null;
     const key = plan ? `${target}:${plan.id}:${millis(plan.startsAt)}:${millis(plan.endsAt)}` : '';
     if (key !== stageKey) { stageKey = key; if (plan) ui.renderSpot(target === 'proposal' ? $('proposal-spot') : $('meetup-spot'), plan); }
@@ -248,7 +239,6 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
   }
   function subscribeUser(next) {
     signedReady = true;
-    if (user?.uid !== next?.uid) { preferencesEdited = false; preferenceRequest++; for (const input of optinForm.querySelectorAll('[name=activity]')) input.checked = input.value === 'coffee'; }
     if (user?.uid === next?.uid && stateReady) { user = next; render(); return; }
     epoch++; busy = false; primaryUnsubs.forEach(fn => fn()); primaryUnsubs = []; memberUnsubs.forEach(fn => fn()); memberUnsubs = []; clearGroup();
     user = next; state = null; campus = null; availability = null; stateReady = false; spotsReady = false; spots = []; serverStale = false; requestId = null; clearError();
@@ -274,12 +264,6 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
     memberUnsubs.push(client.watchAvailability(next.uid, value => { if (epoch === ownEpoch) { availability = value; render(); } }, showError));
     memberUnsubs.push(client.watchSpots(value => {
       if (epoch !== ownEpoch) return; spots = value; spotsReady = true;
-      const select = optinForm.elements.startingSpot, previous = select.value;
-      const valid = spots.filter(usableSpot).sort((a, b) => a.name.localeCompare(b.name));
-      select.replaceChildren(...valid.map(spot => { const option = el('option', '', spot.name); option.value = spot.id; return option; }));
-      if (!valid.length) { const option = el('option', '', 'Meeting spots are being prepared'); option.value = ''; select.append(option); }
-      if (valid.some(s => s.id === previous)) select.value = previous;
-      $('catalog').hidden = !!valid.length; $('catalog').textContent = 'Pulse meeting spots are being checked. Come back soon to find a group.';
       render();
     }, error => { if (epoch === ownEpoch) { showError(error); } }));
   }
@@ -294,26 +278,30 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
   }
 
   signinForm.addEventListener('submit', event => { event.preventDefault(); void perform(async () => { const account = await auth.join(signinForm.elements.displayName.value.trim()); await account.getIdToken(true); subscribeUser(account); }, 'join'); });
-  $('location').addEventListener('click', () => void perform(async () => {
-    await currentPosition(); locationMode = 'gps'; optinForm.elements.startingSpot.disabled = true;
-    $('location-note').textContent = 'Using your current location. A fresh reading is taken when you start.';
-    ui.button('location', 'Refresh my current location');
-    const manual = dialog.querySelector('[data-manual-location]') || el('button', 'pulse-text-button', 'Choose a starting spot instead');
-    manual.type = 'button'; manual.dataset.manualLocation = ''; if (!manual.isConnected) {
-      $('location-note').closest('.pulse-privacy').after(manual); manual.addEventListener('click', () => { locationMode = 'spot'; optinForm.elements.startingSpot.disabled = false; $('location-note').textContent = 'Your starting point stays private.'; manual.remove(); ui.updateExtras(busyAction); });
-    }
-  }, 'location'));
-  optinForm.addEventListener('submit', event => { event.preventDefault(); void perform(async () => {
+  optinForm.addEventListener('submit', event => {
+    event.preventDefault();
+    if (busy || currentStage !== 'idle' || activePulseState(state)) return;
+    const choice = event.submitter?.dataset.quickActivity;
+    if (!['coffee','food','chat','any'].includes(choice)) return;
+    optinForm.dataset.choice = choice;
+    $('quick-progress').querySelector('span:last-child').textContent = 'Finding your location…';
+    void perform(async () => {
+    const searchEpoch = epoch;
     if (!canStartPulse(campus, spotsReady, spots)) throw Error('Pulse is not accepting new meetups here yet.');
-    const selected = [...optinForm.querySelectorAll('[name="activity"]:checked')].map(input => input.value);
-    if (!selected.length) { optinForm.querySelector('[name=activity]').focus(); throw Error('Choose at least one activity.'); }
+    const selected = choice === 'any' ? ['coffee', 'food', 'chat'] : [choice];
+    const position = await currentPosition();
+    if (epoch !== searchEpoch) return;
+    $('quick-progress').querySelector('span:last-child').textContent = 'Starting your search…';
     await user.getIdToken(true);
-    const location = locationMode === 'gps' ? { position: await currentPosition() } : { startingSpotId: optinForm.elements.startingSpot.value };
+    if (epoch !== searchEpoch) return;
     requestId ||= crypto.randomUUID();
-    await client.action('optIn', { requestId, minutes: Number(optinForm.elements.minutes.value), maxWalkMinutes: Number(optinForm.elements.walk.value), activities: selected, ...location });
-    ui.rememberSearch(requestId, Number(optinForm.elements.walk.value));
-    requestId = null; recent = true; lastPoll = Date.now();
-  }, 'find'); });
+    // Keep the existing search expiry and nearby matching limits automatic.
+    const result = await client.action('optIn', { requestId, minutes: 45, maxWalkMinutes: 5, activities: selected, position });
+    if (epoch !== searchEpoch) return;
+    // Show searching immediately even if the snapshot listener trails the write.
+    if (!activePulseState(state)) { state = { ...state, ...result }; subscribeGroup(); }
+    requestId = null; recent = true; lastPoll = 0;
+  }, 'find').then(() => poll(true)); });
   $('cancel').addEventListener('click', () => void invoke('cancel'));
   $('withdraw').addEventListener('click', () => void invoke('cancel', {}, 'withdraw'));
   $('accept').addEventListener('click', () => void invoke('respond', { proposalId, decision: 'accept' }, 'accept'));
@@ -339,5 +327,5 @@ export function mountPulse({ app, auth, map, L, campusId = 'mmc', demoLabel = ''
   const unwatchAuth = auth.watch(subscribeUser);
   Promise.resolve(auth.restore()).then(account => { if (!disposed) subscribeUser(account); }).catch(error => { signedReady = true; showError(error); render(); });
   render();
-  return { open, dispose() { disposed = true; epoch++; clearInterval(interval); clearTimeout(closeTimer); clearTimeout(stageTimer); background.dispose(); ui.dispose(); unwatchAuth?.(); primaryUnsubs.forEach(fn => fn()); memberUnsubs.forEach(fn => fn()); clearGroup(); marker?.remove(); document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('online', onNetwork); window.removeEventListener('offline', onNetwork); window.removeEventListener('campus-profile-updated', onProfileUpdate); dialog.remove(); launch.remove(); action.remove(); } };
+  return { open, dispose() { disposed = true; epoch++; clearInterval(interval); clearTimeout(closeTimer); clearTimeout(stageTimer); background.dispose(); ui.dispose(); unwatchAuth?.(); primaryUnsubs.forEach(fn => fn()); memberUnsubs.forEach(fn => fn()); clearGroup(); marker?.remove(); document.removeEventListener('visibilitychange', onVisibility); window.removeEventListener('online', onNetwork); window.removeEventListener('offline', onNetwork); dialog.remove(); launch.remove(); action.remove(); } };
 }

@@ -10,6 +10,11 @@
 #campus-sheet .cu-map-card{height:auto;margin:0;padding:4px 24px 18px;background:#fff;color:var(--cu-navy)}
 #campus-sheet .cu-map-card>.cu-back{padding:6px 0 10px;min-height:44px}#campus-sheet .cu-map-card h2{font-size:20px;line-height:1.25;margin:4px 0 6px;letter-spacing:-.45px;overflow-wrap:anywhere}#campus-sheet .cu-map-card p{font-size:13px;line-height:1.45;color:var(--cu-muted);margin:0}
 @media(max-width:640px){#campus-sheet .cu-event-return{align-items:flex-start;flex-direction:column;flex-wrap:nowrap;gap:8px;padding:4px 20px 16px!important}#campus-sheet .cu-event-return>button{background:none;padding:0;min-height:44px}#campus-sheet .cu-event-return>div{flex:0 1 auto;width:100%}#campus-sheet .cu-map-card{padding-inline:20px}}
+#campus-sheet .cu-terms{padding-bottom:32px}
+#campus-sheet .cu-terms h1{font-size:28px;line-height:1.2;letter-spacing:-.7px;margin:10px 0 4px}
+#campus-sheet .cu-terms h2{font-size:17px;line-height:1.3;letter-spacing:0;margin:22px 0 7px}
+#campus-sheet .cu-terms p{font-size:14px;line-height:1.6;color:var(--cu-navy);margin:0 0 10px}
+#campus-sheet .cu-terms .cu-terms-date{font-size:12px;color:var(--cu-muted);margin-bottom:18px}
 .cu-map-zoom{position:fixed;z-index:740;left:max(20px,env(safe-area-inset-left));bottom:86px;display:flex;flex-direction:column;background:white;border:1px solid #e6eaf1;border-radius:18px;box-shadow:0 4px 18px #10235116;color:var(--cu-navy)}
 .cu-map-zoom button{display:grid;place-items:center;width:48px;height:48px;min-height:48px;border:0;background:transparent;color:inherit;font-size:27px;line-height:1;touch-action:manipulation;border-radius:15px}
 .cu-map-zoom button+button{border-top:1px solid #e6eaf1;border-top-left-radius:0;border-top-right-radius:0}

@@ -1,3 +1,4 @@
+import '../CampusUI/mobileInput.js';
 import * as groups from "./groups.js";
 import { renderAppearance } from "./groupAppearance.js";
 import { mountAppearanceEditor } from "./appearanceUI.js";
@@ -214,7 +215,7 @@ export function mountGroups({ user, onSelect, onGroupUpdated, onExplore = () => 
         el("explore-groups").setAttribute("aria-expanded", "true");
         el("explore-status").textContent = "";
         el("chat-panel").setAttribute("data-mobile-view", "conversation");
-        renderExplore(); onExplore(true); el("explore-search").focus();
+        renderExplore(); onExplore(true); window.CampusInput.focus(el("explore-search"));
     });
     listen("close-explore", "click", () => closeExplore({ focus: true }));
     listen("explore-search", "input", renderExplore);
@@ -267,8 +268,8 @@ export function mountGroups({ user, onSelect, onGroupUpdated, onExplore = () => 
         el("join-group-title").textContent = `Join ${group.name}`;
         el("join-group-status").textContent = "";
         el("request-group-access").disabled = false;
-        el("join-group-panel").showModal();
-        el("join-group-password").focus();
+        window.CampusInput.showModal(el("join-group-panel"));
+        window.CampusInput.focus(el("join-group-password"));
         joinStops.push(groups.watchMyRequest(group.id, user.uid, request => {
             if (disposed || version !== joinVersion || joining?.id !== group.id) return;
             el("request-group-access").disabled = request?.status === "pending" || request?.status === "accepted";
@@ -325,7 +326,7 @@ export function mountGroups({ user, onSelect, onGroupUpdated, onExplore = () => 
         el("create-group-form").reset(); passwordField();
         createAppearance.reset();
         el("create-group-error").textContent = "";
-        el("create-group-panel").showModal(); el("group-name").focus();
+        window.CampusInput.showModal(el("create-group-panel")); window.CampusInput.focus(el("group-name"));
     });
     listen("group-visibility", "change", passwordField);
     listen("group-name", "input", () => createAppearance.updateName());
@@ -362,7 +363,7 @@ export function mountGroups({ user, onSelect, onGroupUpdated, onExplore = () => 
         editAppearance.reset(group.appearance);
         el("appearance-group-name").textContent = group.name;
         el("appearance-error").textContent = "";
-        el("appearance-panel").showModal();
+        window.CampusInput.showModal(el("appearance-panel"));
         el("edit-logo-kind").focus();
     });
     listen("appearance-cancel", "click", () => { if (!savingAppearance) el("appearance-panel").close(); });
@@ -402,7 +403,7 @@ export function mountGroups({ user, onSelect, onGroupUpdated, onExplore = () => 
         deleteTarget = group;
         el("group-delete-name").textContent = group.name;
         el("group-settings-error").textContent = "";
-        el("group-settings-panel").showModal();
+        window.CampusInput.showModal(el("group-settings-panel"));
         el("cancel-group-settings").focus();
     });
     listen("cancel-group-settings", "click", () => { if (!deleting) el("group-settings-panel").close(); });

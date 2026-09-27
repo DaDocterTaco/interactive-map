@@ -255,7 +255,7 @@ function canFocusComposer() {
         && !["chat-info-panel", "members-panel", "appearance-panel", "create-group-panel", "join-group-panel", "profile-panel", "group-settings-panel", "moderation-panel"].some(id => el(id)?.open);
 }
 function focusComposer() {
-    if (canFocusComposer() && !window.matchMedia("(max-width: 700px)").matches) messageInput.focus({ preventScroll: true });
+    if (canFocusComposer() && !window.matchMedia("(max-width: 700px)").matches) window.CampusInput.focus(messageInput, { preventScroll: true });
 }
 function scrollToLatest() {
     messageList.scrollTo({ top: messageList.scrollHeight, behavior: reducedMotion.matches ? "instant" : "smooth" });
@@ -277,8 +277,8 @@ function askModeration({ title, description, action }) {
     el("moderation-confirm").textContent = action;
     el("moderation-reason").value = "";
     el("moderation-error").textContent = "";
-    panel.showModal();
-    el("moderation-reason").focus();
+    window.CampusInput.showModal(panel);
+    window.CampusInput.focus(el("moderation-reason"));
     return new Promise(resolve => { pendingModeration = resolve; });
 }
 function finishModeration(reason = null) {
@@ -292,7 +292,7 @@ el("moderation-form")?.addEventListener("submit", event => {
     const reason = el("moderation-reason").value.trim();
     if (!reason || reason.length > 300) {
         el("moderation-error").textContent = "Enter a reason between 1 and 300 characters.";
-        el("moderation-reason").focus(); return;
+        window.CampusInput.focus(el("moderation-reason")); return;
     }
     finishModeration(reason);
 });
@@ -779,7 +779,7 @@ async function showChat(user) {
     renderMessagePlaceholder("Opening your chats", "Getting your conversations ready…", true);
     connectionMessage("Connecting…", "loading");
     discardOldLocalHistory();
-    if (!chatPanel.open) chatPanel.showModal();
+    if (!chatPanel.open) window.CampusInput.showModal(chatPanel);
     try {
         const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js?v=nav-5"), import("./forums/forumUI.js?v=forum-popup-4"), import("./people.js"), import("./peopleUI.js?v=nav-5"), import("./chatInfoUI.js?v=nav-5"), import("./chatViewport.js?v=responsive-1")]);
         await modules[4].saveProfile(user);
@@ -828,8 +828,8 @@ openButton.addEventListener("click", async () => {
             await showChat(user);
         } else {
             nameError.textContent = "";
-            namePanel.showModal();
-            nameInput.focus();
+            window.CampusInput.showModal(namePanel);
+            window.CampusInput.focus(nameInput);
         }
     } catch (error) {
         chatStatus.textContent = errorMessage(error);
@@ -944,7 +944,7 @@ messageForm.addEventListener("submit", async (event) => {
     } finally {
         sending = false;
         updateControls();
-        if (version === viewVersion && canFocusComposer()) messageInput.focus({ preventScroll: true });
+        if (version === viewVersion && canFocusComposer()) window.CampusInput.focus(messageInput, { preventScroll: true });
     }
 });
 

@@ -1,3 +1,4 @@
+import '../CampusUI/mobileInput.js';
 import * as people from "./people.js";
 import { renderAppearance, logoInitials } from "./groupAppearance.js";
 
@@ -106,7 +107,7 @@ export function mountChatInfo({ user }) {
         el("chat-info-status").textContent = "";
         if (el("chat-options")) el("chat-options").hidden = true;
         el("chat-more")?.setAttribute("aria-expanded", "false");
-        if (!panel.open) panel.showModal();
+        if (!panel.open) window.CampusInput.showModal(panel);
         el("close-chat-info").focus();
         watchDetails();
     }

@@ -1,3 +1,4 @@
+import '../CampusUI/mobileInput.js';
 import { locateOnMap } from './classMotion.mjs';
 import { loadCampusCatalog, formatDays, formatTime, formatDate, dateRange } from './classData.mjs?v=numeric-course-search-1';
 
@@ -227,18 +228,18 @@ export function mountClassSearch({ map, L, navigation }) {
     }
     $('#class-search-form').addEventListener('submit',event=>{event.preventDefault();search();});
     for(const input of [query,$('#class-professor'),$('#class-time')])input.addEventListener('input',onInput);
-    $('#class-clear-query').addEventListener('click',()=>{query.value='';onInput();query.focus();});
+    $('#class-clear-query').addEventListener('click',()=>{query.value='';onInput();window.CampusInput.focus(query);});
     $('#class-filter-toggle').addEventListener('click',()=>{const expanded=$('#class-filters').hidden;$('#class-filters').hidden=!expanded;$('#class-filter-toggle').setAttribute('aria-expanded',String(expanded));});
     $('#class-reset-filters').addEventListener('click',()=>{$('#class-professor').value='';$('#class-time').value='';onInput();});
     $('#class-retry').addEventListener('click',search);more.addEventListener('click',renderMore);
     $('#class-location-choice').addEventListener('change',event=>{if(selected)choose(selected.section,selected.section.locations[Number(event.target.value)]);});
     $('#class-clear-selection').addEventListener('click',()=>{const row=results.querySelector('.is-selected button');clearSelection();row?.focus();announce('Selection cleared. Choose a section.');});
-    $('.class-search-help').addEventListener('click',()=>{query.focus();query.select();});
+    $('.class-search-help').addEventListener('click',()=>{if(window.CampusInput.focus(query))query.select();});
     function open() {
         clearTimeout(exitTimer);dialog.classList.remove('is-closing');hideJourney();
-        if(!dialog.open)dialog.showModal();
+        if(!dialog.open)window.CampusInput.showModal(dialog);
         placeDetails();
-        if(selected)results.querySelector('.is-selected button')?.focus({preventScroll:true});else query.focus({preventScroll:true});
+        if(selected)results.querySelector('.is-selected button')?.focus({preventScroll:true});else window.CampusInput.focus(query, {preventScroll:true});
         if(!selected&&query.value&&!matches.length)search();
     }
     function close() {

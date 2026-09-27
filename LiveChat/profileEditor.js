@@ -1,3 +1,4 @@
+import '../CampusUI/mobileInput.js';
 import { AVATARS, ACTIVITIES, initials, normalizeProfile } from './profileModel.js';
 
 const node = (tag, css = '', text) => { const el = document.createElement(tag); el.className = css; if (text != null) el.textContent = text; return el; };
@@ -130,7 +131,7 @@ export function mountProfileEditor({ content, footer, profile, onSave, onCancel 
     function renderInterests() {
         selected.replaceChildren();
         for (const text of interests) {
-            const chip = node('span', 'cp-edit-tag', text), remove = button('', 'cp-remove-interest', () => { interests = interests.filter(item => item !== text); renderInterests(); update(); interestInput.focus(); });
+            const chip = node('span', 'cp-edit-tag', text), remove = button('', 'cp-remove-interest', () => { interests = interests.filter(item => item !== text); renderInterests(); update(); window.CampusInput.focus(interestInput); });
             remove.setAttribute('aria-label', `Remove ${text}`); remove.append(profileIcon('x-lg')); chip.append(remove); selected.append(chip);
         }
         selected.hidden = !interests.length; interestCount.textContent = `${interests.length} / 8 interests`;
@@ -161,7 +162,7 @@ export function mountProfileEditor({ content, footer, profile, onSave, onCancel 
     }
     form.addEventListener('input', update); form.addEventListener('change', update);
     form.addEventListener('submit', async event => {
-        event.preventDefault(); if (saving) return; if (!commitInterests()) { selectPanel(1); interestInput.focus(); return; }
+        event.preventDefault(); if (saving) return; if (!commitInterests()) { selectPanel(1); window.CampusInput.focus(interestInput); return; }
         let normalized;
         try { normalized = normalizeProfile(values()); } catch (error) { feedback.textContent = error.message; if (!name.input.value.trim()) { name.input.setCustomValidity('Enter a display name.'); name.input.reportValidity(); } return; }
         saving = true; save.disabled = true; save.textContent = 'Saving…'; cancel.disabled = true; form.setAttribute('aria-busy', 'true'); saveState.textContent = 'Saving your profile'; feedback.textContent = '';

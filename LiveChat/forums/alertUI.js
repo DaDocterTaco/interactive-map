@@ -1,3 +1,4 @@
+import '../../CampusUI/mobileInput.js';
 import * as service from "./forumService.js?v=alerts-20260927-1";
 import { expiresAt, reportState, alertStatus, alertLabels, visibleOnMap, watchReportExpiry } from "./reportLifecycle.js?v=alerts-20260927-1";
 
@@ -196,7 +197,7 @@ export function mountAlerts({ user }) {
     on("alert-approve", "click", () => { if (verifier) return perform("alert-approval-status", () => service.approveReport(user, post.id), "Verified. This alert is now on the campus map."); });
     for (const [id, action] of [["alert-reject", "reject"], ["alert-request-details", "request_details"]]) on(id, "click", () => {
         if (!verifier || !post) return;
-        const reason = $("alert-review-note").value.trim(); if (!reason) { feedback("alert-approval-status", "Add an explanation for the reporter first."); $("alert-review-note").focus(); return; }
+        const reason = $("alert-review-note").value.trim(); if (!reason) { feedback("alert-approval-status", "Add an explanation for the reporter first."); window.CampusInput.focus($("alert-review-note")); return; }
         return perform("alert-approval-status", () => service.reviewReport(user, post.id, action, reason, !!post.verification), action === "reject" ? "Decision saved. The report is off the map." : "Details requested. The reporter can respond here.");
     });
     on("alert-clarify", "click", () => perform("alert-clarify-status", () => service.clarifyReport(user, post.id, $("alert-clarification").value), "Details sent. Waiting for review."));

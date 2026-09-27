@@ -1,6 +1,6 @@
 import { iconNode } from './view.js';
 import { createMapPreviews } from './maps.js';
-import { millis, usableSpot } from '../shared/policy.js';
+import { millis } from '../shared/policy.js';
 
 const node = (tag, cls, text) => { const n = document.createElement(tag); n.className = cls || ''; if (text != null) n.textContent = text; return n; };
 const time = value => new Date(millis(value)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -16,15 +16,9 @@ export function createPresentation({ dialog, L, getState, showOnMap, getProfile,
   const compact = () => !!dialog.dataset.embedded || small.matches;
   const maps = createMapPreviews({ dialog, L });
   const profiles = new Map(), requests = new Set(), signatures = new WeakMap();
-  let disposed = false, tab = 'details', unread = 0, group = '', toastTimer, frame, lastMessages = new Set(), messageGroup = '', catalogKey = '';
+  let disposed = false, tab = 'details', unread = 0, group = '', toastTimer, frame, lastMessages = new Set(), messageGroup = '';
   const button = (key, label) => { const labelNode = $(key)?.querySelector('[data-button-label]'); if (labelNode) labelNode.textContent = label; };
   function toast(text) { clearTimeout(toastTimer); $('toast').textContent = text; $('toast').hidden = false; toastTimer = setTimeout(() => { $('toast').hidden = true; }, 4200); }
-  function rememberSearch(requestId, maxWalkMinutes) {
-    const { user, locationMode } = getState();
-    const label = locationMode === 'gps' ? 'Your private starting location' : $('optin').elements.startingSpot.selectedOptions[0]?.textContent;
-    // Store only the user's chosen label, never coordinates, and tie it to this availability.
-    try { sessionStorage.setItem(`pulse-search:${user.uid}`, JSON.stringify({ requestId, maxWalkMinutes, label })); } catch {}
-  }
   function paint(target, uid, name) {
     target.dataset.uid = uid;
     target.dataset.tone = String([...uid].reduce((sum, c) => sum + c.charCodeAt(0), 0) % 4);
@@ -132,21 +126,6 @@ export function createPresentation({ dialog, L, getState, showOnMap, getProfile,
     else $('new-messages').hidden = false;
     syncTabs();
   }
-  function renderCatalog(spots) {
-    const select = $('optin').elements.startingSpot, valid = spots.filter(usableSpot).sort((a, b) => a.name.localeCompare(b.name));
-    const key = JSON.stringify(valid.map(s => [s.id, s.name, s.activities]));
-    if (key !== catalogKey) {
-      catalogKey = key;
-      $('venues').replaceChildren(...valid.map(spot => {
-        const { name, area } = place(spot), row = node('button', 'pulse-venue'), copy = node('div');
-        row.type = 'button'; row.dataset.spot = spot.id; row.setAttribute('aria-label', `Start near ${spot.name}`);
-        copy.append(node('strong', '', name), node('small', '', area)); row.append(iconNode(spot.id === 'pond-benches' ? 'tree' : activityIcon(spot.activities[0])), copy, iconNode('chevron-right'));
-        row.addEventListener('click', () => { dialog.querySelector('[data-manual-location]')?.click(); select.value = spot.id; select.dispatchEvent(new Event('change', { bubbles: true })); toast(`Starting near ${name}`); }); return row;
-      }));
-    }
-    $('venues').querySelectorAll('button').forEach(row => row.setAttribute('aria-pressed', String(!select.disabled && row.dataset.spot === select.value)));
-    if (dialog.open) maps.render('catalog', valid, select.disabled ? '' : select.value);
-  }
   function busyButton(key, busyKey, label, loading) {
     const control = $(key); if (!control) return;
     const active = busyKey === key; control.setAttribute('aria-busy', String(active)); button(key, active ? loading : label);
@@ -155,14 +134,9 @@ export function createPresentation({ dialog, L, getState, showOnMap, getProfile,
     if (!active) spinner?.remove();
   }
   function updateExtras(busyKey = '') {
-    const { target, proposal, meetup, user, availability, spots, checkIns, locationMode } = getState();
+    const { target, proposal, meetup, user, availability, checkIns } = getState();
     dialog.dataset.view = target;
-    if (target === 'idle') renderCatalog(spots);
     if (target === 'waiting') {
-      let saved; try { saved = JSON.parse(sessionStorage.getItem(`pulse-search:${user?.uid}`)); } catch {}
-      if (saved?.requestId !== availability?.requestId) saved = null;
-      $('wait-walk').textContent = saved ? `${saved.maxWalkMinutes} min walk max` : 'Your walking limit';
-      $('wait-location').textContent = saved?.label || 'Your chosen starting point';
       const waitIcon = $('wait-activities').parentElement.querySelector('.pulse-icon');
       waitIcon.className = `pulse-icon pulse-i-${availability?.activities?.length === 1 ? activityIcon(availability.activities[0]) : 'users'}`;
     }
@@ -191,7 +165,7 @@ export function createPresentation({ dialog, L, getState, showOnMap, getProfile,
       if (!active) $('leave-confirm').hidden = true;
       syncTabs();
     }
-    const labels = { join: ['Continue', 'Joining…'], find: ['Find my group', 'Finding your group…'], cancel: ['Stop looking', 'Stopping…'], withdraw: ['Withdraw my response', 'Withdrawing…'], accept: ['I’m in', 'Accepting…'], decline: ['Pass', 'Passing…'], 'confirm-leave': ['Leave meetup', 'Leaving…'], send: ['Send', 'Sending…'], 'mobile-checkin': ['I’m here', 'Checking in…'], location: [locationMode === 'gps' ? 'Refresh my current location' : 'Use my current location', 'Finding your location…'] };
+    const labels = { join: ['Continue', 'Joining…'], find: ['Find my group', 'Finding your group…'], cancel: ['Stop looking', 'Stopping…'], withdraw: ['Withdraw my response', 'Withdrawing…'], accept: ['I’m in', 'Accepting…'], decline: ['Pass', 'Passing…'], 'confirm-leave': ['Leave meetup', 'Leaving…'], send: ['Send', 'Sending…'], 'mobile-checkin': ['I’m here', 'Checking in…'] };
     for (const [key, [label, loading]] of Object.entries(labels)) busyButton(key, busyKey, label, loading);
     $('header-state').hidden = target !== 'meetup';
     const headerText = meetup?.status === 'confirmed' ? 'Meetup confirmed' : 'Meetup ended';
@@ -219,7 +193,7 @@ export function createPresentation({ dialog, L, getState, showOnMap, getProfile,
   function sizeComposer() { textarea.style.height = 'auto'; textarea.style.height = `${Math.min(120, textarea.scrollHeight)}px`; }
   textarea.addEventListener('input', sizeComposer);
   textarea.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); if (!$('send').disabled) $('compose').requestSubmit(); } });
-  return { renderSpot, renderPeople, renderMessages, updateExtras, button, toast, sizeComposer, reduced, rememberSearch,
+  return { renderSpot, renderPeople, renderMessages, updateExtras, button, toast, sizeComposer, reduced,
     dispose() { disposed = true; maps.dispose(); clearTimeout(toastTimer); cancelAnimationFrame(frame); themeObserver.disconnect(); small.removeEventListener('change', syncTabs); window.visualViewport?.removeEventListener('resize', viewport); window.visualViewport?.removeEventListener('scroll', viewport); }
   };
 }

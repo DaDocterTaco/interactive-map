@@ -1,3 +1,4 @@
+import '../../CampusUI/mobileInput.js';
 import * as service from "./forumService.js?v=alerts-20260927-1";
 import { mountAlerts } from "./alertUI.js?v=polish-20260927-1";
 import { reportState, alertStatus, alertLabels, watchReportExpiry } from "./reportLifecycle.js?v=alerts-20260927-1";
@@ -205,7 +206,7 @@ export function mountForums({ user }) {
         $("forum-list-placeholder").hidden = !loading || posts.length > 0; $("forum-load-more").hidden = filtered.length <= shown;
         $("forum-load-more").textContent = `Show more ${view === "alerts" ? "reports" : "posts"} (${Math.min(shown, filtered.length)} of ${filtered.length})`;
         if (!listFailed && (loading || cachedList)) feedback("forum-list-status", loading ? (view === "alerts" ? "Loading reports…" : "Loading discussions…") : `Offline or connecting · Showing available ${view === "alerts" ? "reports" : "discussions"}.`, "loading");
-        if (focused?.isConnected && document.activeElement !== focused) focused.focus({ preventScroll: true });
+        if (focused?.isConnected && document.activeElement !== focused) window.CampusInput.focus(focused, { preventScroll: true });
         if (screen === "forum-welcome") restoreAnchor(position);
     }
     function listenPosts() {
@@ -260,7 +261,7 @@ export function mountForums({ user }) {
             const content = node("div", "", "forum-reply-content"), meta = node("div", "", "forum-reply-meta"); meta.append(node("strong", reply.name), node("span", date(reply.createdAt), "forum-meta")); content.append(meta);
             if (currentPost?.acceptedReplyId === reply.id) { li.classList.add("is-answer"); content.append(node("span", "Helpful reply", "forum-answer-badge")); }
             content.append(node("p", reply.body, "forum-body")); const actions = node("div", "", "forum-reply-actions");
-            const respond = button("Reply", () => { setReplyTarget({ id: reply.id, name: reply.name }); rememberReply(); $("forum-reply-input").focus(); }, "forum-text-button", "reply");
+            const respond = button("Reply", () => { setReplyTarget({ id: reply.id, name: reply.name }); rememberReply(); window.CampusInput.focus($("forum-reply-input")); }, "forum-text-button", "reply");
             respond.dataset.replyControl = `respond-${reply.id}`; respond.setAttribute("aria-label", `Reply to ${reply.name}`); respond.disabled = replying() || reply.pending || !currentPost; actions.append(respond);
             if (item.children.length) { const toggle = button(collapsed.has(reply.id) ? `Show replies (${item.children.length})` : "Hide replies", () => { collapsed.has(reply.id) ? collapsed.delete(reply.id) : collapsed.add(reply.id); renderReplies(); }); toggle.dataset.replyControl = `collapse-${reply.id}`; toggle.setAttribute("aria-expanded", String(!collapsed.has(reply.id))); actions.append(toggle); }
             if (currentPost?.category === "Question" && currentPost.authorId === user.uid) {
@@ -301,7 +302,7 @@ export function mountForums({ user }) {
         $("forum-replies").hidden = isAlert && !alertDiscussion;
         $("forum-reply-dock").hidden = screen !== "forum-thread" || isAlert && !alertDiscussion;
     }
-    on("alert-discussion-toggle", "click", () => { alertDiscussion = !alertDiscussion; syncAlertDiscussion(); if (alertDiscussion) $("forum-reply-input").focus(); });
+    on("alert-discussion-toggle", "click", () => { alertDiscussion = !alertDiscussion; syncAlertDiscussion(); if (alertDiscussion) window.CampusInput.focus($("forum-reply-input")); });
     function openPost(id, push = true) {
         if (screen === "forum-welcome") listScroll = $("forum-content").scrollTop;
         rememberReply(); stopThread(); selected = id; lastOpened = id; currentPost = null; threadUnavailable = false; replies = []; replyShown = 20; collapsed.clear();
@@ -334,7 +335,7 @@ export function mountForums({ user }) {
         if (posting) { rememberReply(); stopThread(); selected = null; setURL(null); show("forum-compose"); feedback("forum-compose-status", "Publishing…", "loading"); return; }
         rememberReply(); stopThread(); selected = null;
         if (isAlert) $("forum-category-input").value = "Alert"; else if ($("forum-category-input").value === "Alert") $("forum-category-input").value = "Question";
-        setURL(null); show("forum-compose"); $("forum-title-input").focus();
+        setURL(null); show("forum-compose"); window.CampusInput.focus($("forum-title-input"));
     }
     for (const control of document.querySelectorAll("[data-alert-filter]")) control.addEventListener("click", () => {
         alertFilter = control.dataset.alertFilter;
@@ -362,7 +363,7 @@ export function mountForums({ user }) {
     on("forum-empty-clear", "click", clearFilters); on("forum-category-input", "change", syncComposer); on("forum-reply-sort", "change", renderReplies);
     on("forum-post-form", "input", rememberCompose); on("forum-post-form", "change", rememberCompose);
     on("forum-reply-input", "input", () => { rememberReply(); replyControls(); if ($("forum-reply-status").dataset.state === "error") feedback("forum-reply-status", ""); });
-    on("forum-cancel-reply", "click", () => { setReplyTarget(null); rememberReply(); $("forum-reply-input").focus(); });
+    on("forum-cancel-reply", "click", () => { setReplyTarget(null); rememberReply(); window.CampusInput.focus($("forum-reply-input")); });
     on("forum-load-more", "click", () => { shown += 20; renderPosts(); }); on("forum-older-replies", "click", () => { replyShown += 20; renderReplies(); });
     for (const id of ["forum-retry", "forum-error-retry"]) on(id, "click", listenPosts); on("forum-replies-retry", "click", listenReplies);
     for (const id of ["forum-new-post", "forum-mobile-new", "forum-welcome-compose"]) on(id, "click", () => compose());
@@ -371,7 +372,7 @@ export function mountForums({ user }) {
     on("forum-copy-link", "click", async () => {
         const version = threadVersion, url = postURL(location.href, selected), report = currentPost?.category === "Alert";
         try { await navigator.clipboard.writeText(url); if (!disposed && version === threadVersion) toast(report ? "Report link copied." : "Discussion link copied."); }
-        catch { if (!disposed && version === threadVersion) { $("forum-share-link").value = url; $("forum-share-link").hidden = false; $("forum-share-link").focus(); $("forum-share-link").select(); feedback("forum-action-status", `Copy this link to share the ${report ? "report" : "discussion"}.`); } }
+        catch { if (!disposed && version === threadVersion) { $("forum-share-link").value = url; $("forum-share-link").hidden = false; if (window.CampusInput.focus($("forum-share-link"))) $("forum-share-link").select(); feedback("forum-action-status", `Copy this link to share the ${report ? "report" : "discussion"}.`); } }
     });
     window.addEventListener(writeEvent, event => {
         const result = event.detail;
@@ -422,8 +423,8 @@ export function mountForums({ user }) {
         finally { replyOperations.delete(replyOperationKey(id)); window.dispatchEvent(new CustomEvent(writeEvent, { detail: result })); }
     });
     // Keep the mobile reply dock within the visible area above the software keyboard.
-    function viewport() { $("chat-panel").style.setProperty("--forum-viewport-height", `${window.visualViewport?.height || window.innerHeight}px`); $("chat-panel").style.setProperty("--forum-viewport-offset", `${window.visualViewport?.offsetTop || 0}px`); }
-    window.visualViewport?.addEventListener("resize", viewport, { signal: events.signal }); window.visualViewport?.addEventListener("scroll", viewport, { signal: events.signal }); viewport();
+    function viewport() { const v = window.CampusInput.getViewport(); $("chat-panel").style.setProperty("--forum-viewport-height", `${v.height}px`); $("chat-panel").style.setProperty("--forum-viewport-offset", `${v.offset}px`); }
+    window.addEventListener("campus-input-viewport", viewport, { signal: events.signal }); viewport();
     window.addEventListener("popstate", () => { if (!active || disposed) return; const id = postIdFromURL(location.href); id ? openPost(id, false) : back(false); }, { signal: events.signal });
     window.addEventListener("pagehide", () => { rememberReply(); rememberCompose(); }, { signal: events.signal });
     show("forum-welcome"); syncPostControls(); renderPosts();

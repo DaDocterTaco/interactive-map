@@ -1,3 +1,4 @@
+import '../CampusUI/mobileInput.js';
 import * as people from "./people.js";
 import { openProfile } from "./profileUI.js";
 import { paintAvatar } from "./profileView.js";
@@ -138,7 +139,7 @@ export function mountPeople({ user, onSelect }) {
         const id = current.id;
         el("members-title").textContent = `Members of ${current.name}`;
         el("members-list").replaceChildren(); el("members-status").textContent = "Loading members...";
-        el("members-panel").showModal();
+        window.CampusInput.showModal(el("members-panel"));
         stopMembers?.();
         // A listener belongs to one opening of this dialog. Reopening the same
         // group must not let its previous listener invalidate a newer snapshot.

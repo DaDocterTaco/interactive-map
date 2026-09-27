@@ -6,7 +6,7 @@ export function backgroundState({ user, state, availability, proposal, meetup, o
   let result;
   if (state.status === 'waiting') {
     if (availability && millis(availability.expiresAt) <= now) return null;
-    result = { kind: 'waiting', title: 'Pulse is still looking', detail: 'Keep exploring. We’ll let you know here.', action: 'Open Pulse', label: 'Looking for your group' };
+    result = { kind: 'waiting', title: 'Finding your group', detail: 'We’ll let you know here.', action: 'Open Pulse', label: 'Looking for your group' };
   } else if (state.status === 'proposed') {
     if (!proposal || proposal.id !== state.proposalId || proposal.status !== 'pending' || !proposal.candidateIds?.includes(user.uid)) return null;
     const decision = proposal.responses?.[user.uid]?.decision;

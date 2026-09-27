@@ -7,8 +7,10 @@ export function locationFix(position) {
 
 export function currentPosition(geolocation = navigator.geolocation) {
   return new Promise((resolve, reject) => {
-    if (!geolocation) return reject(Error('Location is unavailable. Choose a starting spot instead.'));
-    geolocation.getCurrentPosition(p => resolve(locationFix(p)), () => reject(Error('Could not get your location. Choose a starting spot or try again outdoors.')),
+    if (!geolocation) return reject(Error('Live location is unavailable in this browser. Open Pulse in a browser with location access.'));
+    geolocation.getCurrentPosition(p => resolve(locationFix(p)), error => reject(Error(error.code === 1
+      ? 'Allow location access in your browser settings, then tap an activity again.'
+      : 'Could not get your live location. Check that location services are on and try again outdoors.')),
       { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 });
   });
 }

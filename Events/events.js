@@ -1,3 +1,4 @@
+import '../CampusUI/mobileInput.js';
 import {sourceName,safeUrl,prepareEvents,selectEvents,eventDate,eventTime,locationText,isOngoing,isLongRunning,dayKey} from './event-data.mjs';
 
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!=null)n.textContent=text;if(cls)n.className=cls;return n;};
@@ -61,7 +62,7 @@ export function mountEvents({map,L,dataUrl='../data/events.current.json',buildin
     const back=button('', '');back.append(icon('arrow-left'),el('span','Back to events'));
     const mapCopy=el('div');mapReturn.append(back,mapCopy);document.body.append(mapReturn);
     function clearMap(){window.CampusUI?.clearMapView('events');mapReturn.hidden=true;if(marker){marker.remove();marker=null;}mapMode=false;}
-    function open(){clearTimeout(closeTimer);dialog.classList.remove('is-closing');if(!dialog.open)dialog.showModal();opener.setAttribute('aria-expanded','true');if((!feed||Date.now()-lastRead>60000)&&!loading)load();dialog.focus({preventScroll:true});}
+    function open(){clearTimeout(closeTimer);dialog.classList.remove('is-closing');if(!dialog.open)window.CampusInput.showModal(dialog);opener.setAttribute('aria-expanded','true');if((!feed||Date.now()-lastRead>60000)&&!loading)load();dialog.focus({preventScroll:true});}
     function close(){if(window.CampusUI){window.CampusUI.closeToMap();return;}if(!dialog.open)return;dialog.classList.add('is-closing');closeTimer=setTimeout(()=>{dialog.close();dialog.classList.remove('is-closing');},reduced.matches?0:160);}
     opener.addEventListener('click',()=>{clearMap();open();});$('.ev-close').addEventListener('click',close);
     dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
@@ -121,12 +122,12 @@ export function mountEvents({map,L,dataUrl='../data/events.current.json',buildin
     $('.ev-about').addEventListener('click',()=>{showAbout=!showAbout;updateStatus();if(showAbout)scroll.scrollTop=0;});
     const filterKeys=['food','category','campus','source','free','cancelled'];
     function syncControls(){query.value=state.query;$('#ev-period').value=state.period;$('#ev-sort').value=state.sort;for(const k of filterKeys){if(['free','cancelled'].includes(k))$('#ev-'+k).checked=state[k];else $('#ev-'+k).value=state[k];}$('#ev-clear-query').hidden=!state.query;}
-    function reset(){state=defaults();limit=24;openId=null;syncControls();render();scroll.scrollTop=0;query.focus({preventScroll:true});}
+    function reset(){state=defaults();limit=24;openId=null;syncControls();render();scroll.scrollTop=0;window.CampusInput.focus(query, {preventScroll:true});}
     $('.ev-clear-all').addEventListener('click',reset);
     function change(resetScroll=true){limit=24;render();if(resetScroll)scroll.scrollTop=0;}
     query.addEventListener('input',()=>{state.query=query.value;$('#ev-clear-query').hidden=!state.query;clearTimeout(timer);timer=setTimeout(()=>change(),130);});
     $('.ev-toolbar').addEventListener('submit',e=>{e.preventDefault();clearTimeout(timer);change();query.blur();});
-    $('#ev-clear-query').addEventListener('click',()=>{state.query='';syncControls();change();query.focus();});
+    $('#ev-clear-query').addEventListener('click',()=>{state.query='';syncControls();change();window.CampusInput.focus(query);});
     for(const key of ['period','sort',...filterKeys])$('#ev-'+key).addEventListener('change',e=>{state[key]=e.target.type==='checkbox'?e.target.checked:e.target.value;change();});
     $('.ev-filter-button').addEventListener('click',()=>{const f=$('.ev-filters');f.hidden=!f.hidden;$('.ev-filter-button').setAttribute('aria-expanded',String(!f.hidden));if(!f.hidden)scroll.scrollTop=0;});
     function chips(){

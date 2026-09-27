@@ -53,6 +53,65 @@ export function isOnCampus(latitude, longitude, boundary) {
   return pointInPolygons(latitude, longitude, polygonsFromGeoJSON(boundary));
 }
 
+function distanceMeters(a, b) {
+  const radians = Math.PI / 180;
+  const dLat = (b.latitude - a.latitude) * radians;
+  const dLon = (b.longitude - a.longitude) * radians;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.latitude * radians) *
+    Math.cos(b.latitude * radians) * Math.sin(dLon / 2) ** 2;
+  return 6371000 * 2 * Math.asin(Math.sqrt(Math.min(1, h)));
+}
+
+/** Keep uncertainty separate from the displayed position; never learn from rejected fixes. */
+function createPositionFilter(staleAfterMs) {
+  let accepted = null, displayed = null, candidate = null;
+  return raw => {
+    if (!accepted || raw.timestamp - accepted.timestamp >= staleAfterMs) {
+      accepted = displayed = raw;
+      candidate = null;
+      return raw;
+    }
+    const elapsed = (raw.timestamp - accepted.timestamp) / 1000;
+    // A sudden loss of accuracy must not drag a previously good fix across campus.
+    if (raw.accuracy > Math.max(50, accepted.accuracy * 3)) {
+      candidate = null;
+      return null;
+    }
+    const distance = distanceMeters(displayed, raw);
+    const jumpLimit = Math.max(25, Math.min(25, accepted.accuracy) +
+      Math.min(25, raw.accuracy), 7 * Math.min(elapsed, 5));
+    if (distance > jumpLimit) {
+      const clusterRadius = Math.max(12, Math.min(20, raw.accuracy) +
+        Math.min(20, candidate?.anchor.accuracy ?? raw.accuracy));
+      if (!candidate || raw.timestamp - candidate.anchor.timestamp > 8000 ||
+          distanceMeters(candidate.anchor, raw) > clusterRadius) {
+        candidate = { anchor: raw, count: 1 };
+      } else {
+        candidate.count += 1;
+      }
+      // Confirm a relocation with independent readings spanning at least two seconds.
+      if (candidate.count < 3 || raw.timestamp - candidate.anchor.timestamp < 2000) return null;
+      accepted = displayed = raw;
+      candidate = null;
+      return raw;
+    }
+    candidate = null;
+    const deadband = Math.max(2, Math.min(8, raw.accuracy * 0.35));
+    const weight = distance <= deadband ? 0 : Math.max(0.1, Math.min(0.85,
+      (1 - Math.exp(-elapsed / 1.5)) * Math.min(1, accepted.accuracy / Math.max(1, raw.accuracy))));
+    const fix = {
+      ...raw,
+      latitude: displayed.latitude + (raw.latitude - displayed.latitude) * weight,
+      longitude: displayed.longitude + (raw.longitude - displayed.longitude) * weight,
+    };
+    // Include the smoothing offset instead of claiming more precision than the device.
+    fix.accuracy = raw.accuracy + distanceMeters(fix, raw);
+    accepted = raw;
+    displayed = fix;
+    return fix;
+  };
+}
+
 export function createLocationTracker({
   geolocation,
   secureContext = true,
@@ -118,6 +177,7 @@ export function createLocationTracker({
     const token = ++generation;
     state.tracking = true;
     lastTimestamp = -Infinity;
+    const filterPosition = createPositionFilter(staleAfterMs);
     emit('locating');
     if (!state.tracking || token !== generation) return snapshot();
 
@@ -132,17 +192,20 @@ export function createLocationTracker({
         finish('unavailable');
         return;
       }
-      if (timestamp < lastTimestamp) return;
+      if (timestamp <= lastTimestamp) return;
       lastTimestamp = timestamp;
-      clearStale();
       const age = Math.max(0, now() - timestamp);
       if (age >= staleAfterMs) {
+        clearStale();
         emit('stale');
         return;
       }
-      const fix = { latitude, longitude, accuracy, timestamp };
-      const onCampus = pointInPolygons(latitude, longitude, polygons);
-      emit(onCampus ? (accuracy > weakAccuracyMeters ? 'weak' : 'tracking') : 'outside', fix);
+      const fix = filterPosition({ latitude, longitude, accuracy, timestamp });
+      // Leave the accepted fix's expiry intact when rejecting a spike.
+      if (!fix) return;
+      clearStale();
+      const onCampus = pointInPolygons(fix.latitude, fix.longitude, polygons);
+      emit(onCampus ? (fix.accuracy > weakAccuracyMeters ? 'weak' : 'tracking') : 'outside', fix);
       if (!state.tracking || token !== generation) return;
       staleTimer = setTimer(() => {
         staleTimer = null;

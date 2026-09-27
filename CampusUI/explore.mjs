@@ -1,3 +1,4 @@
+import './mobileInput.js';
 import {createCampusCamera} from './camera.mjs';
 import {loadCampusCatalog} from '../ClassSearch/classData.mjs?v=numeric-course-search-1';
 const names={GL:'Green Library',GC:'Graham Center',PG5:'PG5 Market Station'};
@@ -40,7 +41,7 @@ export async function mountCampusExplorer({map,L,locationServices,navigation}) {
       b.addEventListener('click',()=>{ui.activate('classes');const query=document.getElementById('class-query');query.value=searchText;
        // The advertised count is unfiltered; do not carry stale filters into it.
        document.getElementById('class-professor').value='';document.getElementById('class-time').value='';
-       query.dispatchEvent(new Event('input',{bubbles:true}));query.focus({preventScroll:true});});results.append(b);
+       query.dispatchEvent(new Event('input',{bubbles:true}));window.CampusInput.focus(query,{preventScroll:true});});results.append(b);
      }catch{if(revision===searchRevision&&feedback)feedback.textContent='No places found. Class search is temporarily unavailable.';}
     },180);
    }

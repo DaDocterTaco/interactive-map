@@ -2,10 +2,11 @@ const assistantPanel = document.getElementById('chat-container');
 const assistantButton = document.getElementById('open-assistant');
 const assistantInput = document.getElementById('chat-input');
 const messageHistory = document.getElementById('chat-history');
+window.CampusInput.preserveScroll(messageHistory);
 function setAssistantOpen(open) {
     assistantPanel.hidden = !open;
     assistantButton.setAttribute('aria-expanded', String(open));
-    if (open) assistantInput.focus({preventScroll:true});
+    if (open) window.CampusInput.focus(assistantInput, {preventScroll:true});
     else if(window.CampusUI)window.CampusUI.activate('explore');
     else assistantButton.focus();
 }
@@ -73,6 +74,6 @@ document.getElementById('assistant-form').addEventListener('submit', async event
     } finally {
         formButton.disabled = false;
         messageHistory.scrollTop = messageHistory.scrollHeight;
-        if(!window.CampusUI||window.CampusUI.getState().tab==='assistant')assistantInput.focus({preventScroll:true});
+        if(!window.CampusUI||window.CampusUI.getState().tab==='assistant')window.CampusInput.focus(assistantInput, {preventScroll:true});
     }
 });

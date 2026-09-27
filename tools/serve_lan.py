@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBLIC_FILES = {
+    "CampusUI/mobileInput.js", "CampusUI/mobileInput.css", "Campus3D/mapControls.mjs",
     "Splash/campus-loop.css", "Splash/campus-loop.js", "Splash/preview.html",
     "Splash/assets/campus-map.png", "Splash/assets/campus-route.png", "Splash/assets/navigation.svg",
     "index.html", "app.css", "app.js", "Locations.JS", "firebase.js",

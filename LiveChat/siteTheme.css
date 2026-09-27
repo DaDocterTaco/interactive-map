@@ -74,7 +74,7 @@
 :root .map-page .cu-building-label {display:block;color:#102351;font:650 12px/1.2 Inter,system-ui;text-align:center;text-shadow:none;}
 /* Class route de-emphasis must not make readable building names translucent. */
 :root .class-map-focused .leaflet-marker-pane>.cu-building-marker {opacity:1;}
-:root body.map-page .campus-tools [data-action=north] {color:#0754d4;}
+:root body.map-page .campus-tools [data-action=north] {color:var(--cu-link);}
 :root .cu-selected-marker {color:#0754d4;background:#fff;border-radius:50%;border:1px solid #74839b;filter:none;}
 
 /* Local class tokens must track the shell even inside route/detail cards. */
@@ -133,3 +133,173 @@
 :root :is(.class-search-input,.ev-search,.cp-interest-composer,.cu-search):focus-within {
     outline:2px solid #102351;outline-offset:3px;box-shadow:0 0 0 3px #fff;
 }
+
+/* Compact account and map controls share geometry and the site theme. */
+#cu-account-controls {gap:8px;}
+#campus-theme-toggle {
+    width:44px;height:44px;border-radius:14px;
+    background:var(--cu-surface);color:var(--cu-navy);border-color:var(--cu-line);
+    box-shadow:0 3px 12px #10235112;
+}
+#campus-theme-toggle svg {width:20px;height:20px;}
+:root .map-page #cu-account-controls .campus-profile-launch {
+    width:auto!important;min-width:44px!important;height:44px!important;
+    padding:5px 12px 5px 5px!important;gap:8px;border:1px solid var(--cu-line)!important;
+    border-radius:14px;box-shadow:0 3px 12px #10235112;font:600 12px/1.2 Inter,system-ui;
+}
+:root .map-page #cu-account-controls .campus-profile-launch .cp-avatar {
+    width:32px!important;height:32px!important;min-width:32px;font-size:11px;border-radius:10px;
+}
+:root body.map-page .campus-tools {
+    top:max(80px,calc(env(safe-area-inset-top) + 56px));right:max(24px,env(safe-area-inset-right));
+    left:auto;width:auto;max-width:none;padding:4px;border-radius:16px;
+    background:var(--cu-surface);color:var(--cu-navy);border:1px solid var(--cu-line);
+    box-shadow:0 3px 12px #10235112;color-scheme:var(--cu-color-scheme);
+    font:12px/1.5 Inter,system-ui;
+}
+:root body.map-page .campus-tools .campus-tools-row {display:flex;align-items:center;gap:4px;}
+:root body.map-page .campus-tools .campus-view-switch {
+    display:flex;gap:2px;padding:2px;background:var(--cu-input);border-radius:12px;
+}
+:root body.map-page .campus-tools button,
+:root body.map-page .campus-tools .campus-options>summary {
+    display:grid;place-items:center;box-sizing:border-box;min-width:44px;min-height:44px;
+    padding:8px;border-radius:10px;font:600 12px/1 Inter,system-ui;
+    background:transparent;color:var(--cu-navy);border:0;cursor:pointer;
+}
+:root body.map-page .campus-tools button:hover:not(:disabled),
+:root body.map-page .campus-tools .campus-options>summary:hover,
+:root body.map-page .campus-tools .campus-options[open]>summary {background:var(--cu-hover);color:var(--cu-link);}
+:root body.map-page .campus-tools button[aria-pressed=true],
+:root body.map-page .campus-tools button[aria-pressed=true]:hover {
+    background:var(--cu-blue);color:#fff;box-shadow:0 1px 3px #10235120;
+}
+:root body.map-page .campus-tools button:disabled {color:var(--cu-muted);opacity:.5;cursor:default;}
+:root body.map-page .campus-tools svg {width:20px;height:20px;}
+:root body.map-page .campus-tools .campus-options {display:block;position:static;padding:0;font:inherit;}
+.campus-options>summary {list-style:none;}
+.campus-options>summary::-webkit-details-marker {display:none;}
+.campus-options-panel {
+    position:absolute;right:0;top:calc(100% + 8px);box-sizing:border-box;
+    width:260px;max-width:calc(100vw - 26px);max-height:calc(100dvh - 160px);overflow:auto;
+    padding:16px;border:1px solid var(--cu-line);border-radius:16px;
+    background:var(--cu-surface);color:var(--cu-navy);box-shadow:0 8px 28px #0002;
+}
+.campus-options-panel>strong {display:block;font-size:13px;margin-bottom:12px;}
+.campus-options-actions {display:flex;gap:8px;}
+:root body.map-page .campus-tools .campus-options-actions button {display:block;flex:1;background:var(--cu-input);line-height:1.3;}
+:root body.map-page .campus-tools .campus-options-panel .campus-orbit {display:flex;gap:1px;margin-top:8px;}
+:root body.map-page .campus-tools .campus-options-panel .campus-orbit button {min-width:40px;flex:1;padding:6px;}
+:root body.map-page .campus-tools details p {margin:12px 0 0;color:var(--cu-muted);font-size:11px;line-height:1.6;}
+:root body.map-page .campus-tools details a {color:var(--cu-link);text-underline-offset:2px;}
+.campus-tools .campus-load {max-width:188px;margin:8px 0 4px;}
+@media(max-width:640px) {
+    #cu-account-controls {top:max(24px,env(safe-area-inset-top));}
+    :root .map-page #cu-account-controls .campus-profile-launch {width:44px!important;padding:5px!important;}
+    :root .map-page #cu-account-controls .campus-profile-launch>span:last-child {display:none!important;}
+    :root body.map-page .campus-tools {right:max(13px,env(safe-area-inset-right));}
+}
+@media(max-height:520px) {
+    #cu-account-controls {top:max(8px,env(safe-area-inset-top));}
+    :root body.map-page .campus-tools {top:max(64px,calc(env(safe-area-inset-top) + 56px));}
+}
+
+/* Two independent knobs; disclosures grow toward the map, away from the edge. */
+:root body.map-page .campus-tools {
+    --cu-blue:#2160e8;--cu-control-ink:#0b1944;--cu-control-active:#cddcff;
+    padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;
+}
+:root body.map-page .campus-tools .campus-tools-row {gap:8px;align-items:flex-start;}
+:root body.map-page .campus-tools .campus-view-control {
+    width:48px;height:48px;border-radius:28px;background:var(--cu-blue);
+    box-shadow:0 3px 12px #10235120;transition:width 180ms ease,background-color 180ms ease;
+}
+:root body.map-page .campus-tools .campus-view-control.is-open {width:120px;background:var(--cu-surface);}
+:root body.map-page .campus-tools button {font:600 14px/1.25 Inter,system-ui;}
+:root body.map-page .campus-tools .campus-view-knob,
+:root body.map-page .campus-tools .campus-tools-knob {
+    width:48px;height:48px;min-width:48px;min-height:48px;padding:0;border-radius:50%;
+}
+:root body.map-page .campus-tools .campus-view-knob,
+:root body.map-page .campus-tools .campus-view-knob:hover:not(:disabled) {
+    display:flex;flex-direction:column;justify-content:center;gap:1px;
+    background:var(--cu-blue);color:#fff;font-size:15px;line-height:18px;
+}
+:root body.map-page .campus-tools .cu-icon {
+    display:inline-block;flex:none;width:22px;height:22px;padding:0;background:currentColor;
+    mask:var(--icon) center/contain no-repeat;-webkit-mask:var(--icon) center/contain no-repeat;
+}
+:root body.map-page .campus-tools .campus-current-view {transform:translateY(4px);}
+:root body.map-page .campus-tools .campus-view-knob .cu-icon {width:20px;height:14px;transform:translateY(2px);}
+:root body.map-page .campus-tools .campus-tools-knob {
+    background:var(--cu-surface);color:var(--cu-control-ink);border:0;box-shadow:0 3px 12px #10235120;
+}
+:root body.map-page .campus-tools .campus-tools-knob .cu-icon {width:26px;height:26px;transform:scaleX(-1);}
+:root body.map-page .campus-tools .campus-tools-knob[aria-expanded=true] {background:var(--cu-control-active);color:var(--cu-control-ink);}
+:root body.map-page .campus-tools .campus-view-switch {
+    box-sizing:border-box;width:120px;height:48px;padding:0;gap:0;border:6px solid var(--cu-surface);border-radius:28px;
+    background:var(--cu-input);animation:campus-control-reveal 150ms ease;
+}
+:root body.map-page .campus-tools .campus-view-switch button {
+    flex:1;min-width:44px;min-height:36px;padding:0 10px;border-radius:24px;font-size:15px;
+    background:var(--cu-input);color:var(--cu-control-ink);
+}
+:root body.map-page .campus-tools .campus-view-switch button[aria-pressed=true] {flex:1.15;background:var(--cu-blue);color:#fff;box-shadow:none;}
+:root body.map-page .campus-tools .campus-view-switch button:hover:not(:disabled) {color:var(--cu-control-ink);background:var(--cu-input);}
+:root body.map-page .campus-tools .campus-view-switch button[aria-pressed=true]:hover:not(:disabled) {color:#fff;background:var(--cu-blue);}
+:root body.map-page .campus-tools .campus-tools-knob:hover:not(:disabled) {color:var(--cu-control-ink);}
+:root body.map-page .campus-tools .campus-tools-menu {
+    display:block;position:absolute;top:60px;right:-4px;box-sizing:border-box;
+    width:136px;max-width:calc(100vw - 26px);max-height:calc(100dvh - 150px);
+    overflow:visible;overscroll-behavior:contain;padding:3px;border:0;
+    border-radius:14px;background:var(--cu-surface);color:var(--cu-control-ink);
+    box-shadow:0 8px 28px #10235124;animation:campus-control-reveal 150ms ease;
+}
+:root body.map-page .campus-tools .campus-tools-menu::before {
+    content:"";position:absolute;right:19px;top:-8px;width:18px;height:9px;
+    background:var(--cu-surface);clip-path:polygon(50% 0,100% 100%,0 100%);
+}
+:root body.map-page .campus-tools .campus-tools-shortcuts>button {
+    position:relative;display:flex;align-items:center;justify-content:flex-start;gap:10px;
+    width:100%;min-height:44px;padding:10px 14px;color:var(--cu-control-ink);font-size:11.5px;font-weight:400;text-align:left;white-space:nowrap;
+}
+:root body.map-page .campus-tools .campus-tools-shortcuts .cu-icon {width:24px;height:24px;}
+:root body.map-page .campus-tools .campus-recenter-action .cu-icon {transform:rotate(45deg);}
+:root body.map-page .campus-tools .campus-settings-action .cu-icon {transform:scaleX(-1);}
+:root body.map-page .campus-tools .campus-tools-shortcuts>button+button::before {content:"";position:absolute;top:0;left:10px;right:10px;height:1px;background:var(--cu-line);}
+:root body.map-page .campus-tools .campus-tools-menu.is-settings {right:0;width:280px;padding:12px;overflow-y:auto;}
+:root[data-chat-theme=dark] body.map-page .campus-tools {--cu-control-ink:var(--cu-navy);--cu-control-active:var(--cu-hover);}
+:root body.map-page .campus-tools .campus-settings-back {display:flex;align-items:center;gap:10px;width:100%;justify-content:flex-start;margin-bottom:8px;}
+:root body.map-page .campus-tools .campus-options-actions {display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+:root body.map-page .campus-tools .campus-options-actions button {display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;font-size:12px;}
+:root body.map-page .campus-tools .campus-options-actions button:first-child {grid-column:1 / -1;}
+:root body.map-page .campus-tools .campus-orbit {display:flex;gap:4px;margin-top:8px;}
+:root body.map-page .campus-tools .campus-orbit button {flex:1;min-width:44px;min-height:44px;padding:5px;background:var(--cu-input);font-size:12px;}
+:root body.map-page .campus-tools .campus-map-settings p {margin:12px 0 0;color:var(--cu-muted);font-size:11px;line-height:1.6;}
+:root body.map-page .campus-tools .campus-map-settings a {color:var(--cu-link);text-underline-offset:2px;}
+:root body.map-page .campus-tools button:focus-visible {outline:3px solid var(--cu-link);outline-offset:3px;}
+:root body.map-page .campus-tools .campus-load {
+    position:absolute;right:0;top:58px;box-sizing:border-box;width:240px;max-width:calc(100vw - 26px);
+    padding:10px 12px;margin:0;border:1px solid var(--cu-line);border-radius:12px;background:var(--cu-surface);box-shadow:0 3px 12px #10235120;
+}
+:root body.map-page .campus-tools:has(.campus-tools-menu:not([hidden])) .campus-load {position:static;width:168px;margin-top:8px;}
+:root body.map-page .campus-tools [hidden] {display:none!important;}
+@keyframes campus-control-reveal {from {opacity:0;transform:translateY(-3px);} to {opacity:1;transform:translateY(0);}}
+@media(prefers-reduced-motion:reduce) {
+    :root body.map-page .campus-tools .campus-view-control {transition:none;}
+    :root body.map-page .campus-tools .campus-view-switch,
+    :root body.map-page .campus-tools .campus-tools-menu {animation:none;}
+}
+
+/* Attribution stays a small line beneath the compact map controls. */
+:root body.map-page .campus-credit {
+  position:absolute;inset:auto;top:max(138px,calc(env(safe-area-inset-top) + 114px))!important;
+  right:max(24px,env(safe-area-inset-right));left:auto;bottom:auto;
+  width:max-content;height:auto;min-width:0;min-height:0;max-width:calc(100% - 26px);
+  margin:0;padding:3px 5px;border:0;border-radius:4px;box-shadow:none;
+  background:var(--cu-surface);color:var(--cu-muted);font:400 10px/1.4 Inter,system-ui;
+  pointer-events:auto;z-index:840;transform:none;
+}
+:root body.map-page .campus-credit a {color:inherit;}
+@media(max-width:640px){:root body.map-page .campus-credit{right:max(13px,env(safe-area-inset-right));}}
+@media(max-height:520px){:root body.map-page .campus-credit{top:max(122px,calc(env(safe-area-inset-top) + 114px))!important;}}

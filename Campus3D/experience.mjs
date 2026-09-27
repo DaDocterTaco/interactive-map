@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { modelToGeographic } from './campus3d-projection.mjs';
@@ -17,7 +18,7 @@ export function mountExperience({map, L}) {
   const popupHost=document.createElement('div'); popupHost.className='campus-popup'; popupHost.hidden=true;
   host.append(svg,pins,popupHost); container.append(host);
   const toolbar=document.createElement('section'); toolbar.className='campus-tools'; toolbar.setAttribute('aria-label','Map controls');
-  toolbar.innerHTML='<div><button data-action="3d" aria-pressed="false">3D</button><button data-action="2d" aria-pressed="true">2D</button><button data-action="home">Campus</button><button data-action="top">Top</button><button data-action="north" aria-label="Reset map north">N ↑</button></div><div class="campus-orbit"><button data-action="left" aria-label="Rotate left">↶</button><button data-action="right" aria-label="Rotate right">↷</button><button data-action="tilt" aria-label="Change viewing angle">Tilt</button><button data-action="in" aria-label="Zoom in">+</button><button data-action="out" aria-label="Zoom out">−</button></div><p role="status" class="campus-load" hidden></p><details><summary>Map info</summary><p>One finger to move · Two fingers to pinch and pan · Double-tap to zoom · Right-drag to rotate.</p><p>Approximate building heights. Exterior navigation only.</p><p>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · ODbL</p></details>';
+  const compactControls = createMapControls(toolbar);
   container.append(toolbar);
   L.DomEvent.disableClickPropagation(toolbar); L.DomEvent.disableScrollPropagation(toolbar);
   L.DomEvent.disableClickPropagation(host);
@@ -127,12 +128,12 @@ export function mountExperience({map, L}) {
     resize();
     const gltf=await new GLTFLoader().loadAsync(new URL('./fiu-mmc-simple.glb',import.meta.url).href);if(disposed)return;model=gltf.scene;scene.add(model);
   }
-  function paint(){toolbar.querySelector('[data-action="3d"]').setAttribute('aria-pressed',String(active));toolbar.querySelector('[data-action="2d"]').setAttribute('aria-pressed',String(!active));toolbar.querySelector('.campus-orbit').hidden=!active;toolbar.querySelector('[data-action="top"]').disabled=!active;toolbar.querySelector('[data-action="north"]').disabled=!active;}
+  function paint(){compactControls.setView(active); }
   function show2D(){cancelAnimationFrame(cameraFrame);interacting=interactionMoved=false;mapLoader?.remove();mapLoader=null;window.CampusLoopLoading?.ready();request++;active=false;host.hidden=true;container.classList.remove('campus-active');map.closePopup();popupClose();for(const handler of disabledHandlers.splice(0))handler.enable();clearInterval(interval);cancelAnimationFrame(frame);frame=null;notice.hidden=true;clearTimeout(creditTimer);paint();map.invalidateSize();message('');window.dispatchEvent(new Event('campus-map-viewchange'));}
-  async function show3D(){const token=++request;message('Loading 3D campus…');window.CampusLoopLoading?.message('Bringing your campus into view…');mapLoader?.remove();const pendingLoader=window.CampusLoopLoading?.mount(toolbar,{label:'Loading 3D campus…'});mapLoader=pendingLoader;try{loading ||= setup();await loading;if(disposed||token!==request)return;active=true;host.hidden=false;container.classList.add('campus-active');for(const name of ['dragging','scrollWheelZoom','doubleClickZoom','touchZoom','boxZoom','keyboard'])if(map[name]?.enabled()){disabledHandlers.push(map[name]);map[name].disable();}map.closePopup();paint();resize();if(initial){initial=false;home();}else fromMap();clearInterval(interval);interval=setInterval(draw,180);message('');notice.hidden=false;clearTimeout(creditTimer);creditTimer=setTimeout(()=>notice.hidden=true,6500);invalidate();window.dispatchEvent(new Event('campus-map-viewchange'));}catch(error){show2D();loading=null;controls?.dispose();renderer?.domElement.remove();renderer?.dispose();renderer=null;message('3D could not load. The original 2D map is available. Tap 3D to retry.');console.warn('Campus 3D unavailable',error);}finally{pendingLoader?.remove();if(mapLoader===pendingLoader)mapLoader=null;if(!disposed&&token===request)requestAnimationFrame(()=>window.CampusLoopLoading?.ready());}}
-  toolbar.addEventListener('click',event=>{const action=event.target.closest('[data-action]')?.dataset.action;if(!action)return;interactionMoved=false;if(action==='2d'){show2D();return;}if(action==='3d'){show3D();return;}if(action==='north'){window.dispatchEvent(new Event('campus-map-interaction'));const g=modelToGeographic(controls.target.x,controls.target.z);api.focusAt({lat:g.latitude,lng:g.longitude},map.getZoom(),{x:width/2-(camera.view?.offsetX||0),y:height/2-(camera.view?.offsetY||0)},{northUp:true});window.CampusUI?.announce('Map facing north');return;}if(action==='home'){if(!active){map.fitBounds([[25.7516,-80.3842],[25.7611,-80.3682]]);return;}home();}else if(active){const offset=camera.position.clone().sub(controls.target);if(action==='in'||action==='out')offset.multiplyScalar(action==='in'?.75:1.33);if(action==='left'||action==='right')offset.applyAxisAngle(new THREE.Vector3(0,1,0),action==='left'?.35:-.35);if(action==='top')offset.set(0,offset.length(),.01);if(action==='tilt'){const spherical=new THREE.Spherical().setFromVector3(offset);spherical.phi=spherical.phi>.8?.45:1.05;offset.setFromSpherical(spherical);}camera.position.copy(controls.target).add(offset);}else return;controls.update();syncMap();invalidate();});
+  async function show3D(){if(active)return;const token=++request;message('Loading 3D campus…');window.CampusLoopLoading?.message('Bringing your campus into view…');mapLoader?.remove();const pendingLoader=window.CampusLoopLoading?.mount(toolbar,{label:'Loading 3D campus…'});mapLoader=pendingLoader;try{loading ||= setup();await loading;if(disposed||token!==request)return;active=true;host.hidden=false;container.classList.add('campus-active');for(const name of ['dragging','scrollWheelZoom','doubleClickZoom','touchZoom','boxZoom','keyboard'])if(map[name]?.enabled()){disabledHandlers.push(map[name]);map[name].disable();}map.closePopup();paint();resize();if(initial){initial=false;home();}else fromMap();clearInterval(interval);interval=setInterval(draw,180);message('');notice.hidden=false;clearTimeout(creditTimer);creditTimer=setTimeout(()=>notice.hidden=true,6500);invalidate();window.dispatchEvent(new Event('campus-map-viewchange'));}catch(error){show2D();loading=null;controls?.dispose();renderer?.domElement.remove();renderer?.dispose();renderer=null;message('3D could not load. The original 2D map is available. Tap 3D to retry.');console.warn('Campus 3D unavailable',error);}finally{pendingLoader?.remove();if(mapLoader===pendingLoader)mapLoader=null;if(!disposed&&token===request)requestAnimationFrame(()=>window.CampusLoopLoading?.ready());}}
+  toolbar.addEventListener('click',event=>{const action=event.target.closest('[data-action]')?.dataset.action;if(!action)return;interactionMoved=false;if(action==='2d'){show2D();return;}if(action==='3d'){show3D();return;}if(action==='north'){if(!active)return;window.dispatchEvent(new Event('campus-map-interaction'));const g=modelToGeographic(controls.target.x,controls.target.z);api.focusAt({lat:g.latitude,lng:g.longitude},map.getZoom(),{x:width/2-(camera.view?.offsetX||0),y:height/2-(camera.view?.offsetY||0)},{northUp:true});window.CampusUI?.announce('Map facing north');return;}if(action==='home'){if(!active){map.fitBounds([[25.7516,-80.3842],[25.7611,-80.3682]]);return;}home();}else if(active){const offset=camera.position.clone().sub(controls.target);if(action==='in'||action==='out')offset.multiplyScalar(action==='in'?.75:1.33);if(action==='left'||action==='right')offset.applyAxisAngle(new THREE.Vector3(0,1,0),action==='left'?.35:-.35);if(action==='top')offset.set(0,offset.length(),.01);if(action==='tilt'){const spherical=new THREE.Spherical().setFromVector3(offset);spherical.phi=spherical.phi>.8?.45:1.05;offset.setFromSpherical(spherical);}camera.position.copy(controls.target).add(offset);}else return;controls.update();syncMap();invalidate();});
   map.on('moveend',fromMap);map.on('layeradd layerremove',invalidate);map.on('popupopen',popupOpen);map.on('popupclose',popupClose);
-  const dispose=()=>{disposed=true;cancelAnimationFrame(cameraFrame);show2D();observer.disconnect();map.off('moveend',fromMap);map.off('layeradd layerremove',invalidate);map.off('popupopen',popupOpen);map.off('popupclose',popupClose);controls?.dispose();model?.traverse(o=>{o.geometry?.dispose();for(const m of (Array.isArray(o.material)?o.material:[o.material]))m?.dispose();});renderer?.dispose();host.remove();toolbar.remove();notice.remove();};
+  const dispose=()=>{compactControls.dispose();disposed=true;cancelAnimationFrame(cameraFrame);show2D();observer.disconnect();map.off('moveend',fromMap);map.off('layeradd layerremove',invalidate);map.off('popupopen',popupOpen);map.off('popupclose',popupClose);controls?.dispose();model?.traverse(o=>{o.geometry?.dispose();for(const m of (Array.isArray(o.material)?o.material:[o.material]))m?.dispose();});renderer?.dispose();host.remove();toolbar.remove();notice.remove();};
   map.on('unload',dispose);const api={show3D,show2D,dispose,overview:home,
     frameRoute(points,{top=110,bottom=280,padding=36,animate=true}={}){
       if(!active||!points.length)return;
@@ -164,4 +165,124 @@ export function mountExperience({map, L}) {
       syncing=true;map.setView([ll.lat,ll.lng],zoom,{animate:false});syncing=false;
       const tick=()=>{const t=animate?Math.min(1,(performance.now()-startTime)/420):1,k=1-(1-t)**3;controls.target.lerpVectors(old,target,k);camera.position.lerpVectors(start,end,k);camera.setViewOffset(width,height,oldX+(dx-oldX)*k,oldY+(dy-oldY)*k,width,height);controls.update();invalidate();if(t<1)cameraFrame=requestAnimationFrame(tick);};tick();
     },get active(){return active;}};map.campusExperience=api;paint();if(new URLSearchParams(location.search).get('campusView')!=='2d')show3D();return api;
+}
+
+// Compact disclosures share the map adapter's existing action handlers.
+function createMapControls(toolbar) {
+  const icon = name => `<span class="cu-icon" aria-hidden="true" style="--icon:url('${new URL(`CampusUI/icons/${name}.svg`, document.baseURI).href}')"></span>`;
+  toolbar.innerHTML = `
+    <div class="campus-tools-row">
+      <div class="campus-view-control">
+        <button type="button" class="campus-view-knob" aria-label="Choose map view, current view 2D" aria-expanded="false" aria-controls="campus-view-choices"><span class="campus-current-view">2D</span>${icon('chevron-down')}</button>
+        <div id="campus-view-choices" class="campus-view-switch" role="group" aria-label="Map view" hidden>
+          <button type="button" data-action="3d" aria-pressed="false">3D</button>
+          <button type="button" data-action="2d" aria-pressed="true">2D</button>
+        </div>
+      </div>
+      <button type="button" class="campus-tools-knob" aria-label="Map tools" title="Map tools" aria-expanded="false" aria-controls="campus-tools-menu">${icon('adjustments-horizontal')}</button>
+    </div>
+    <div id="campus-tools-menu" class="campus-tools-menu" hidden>
+      <div class="campus-tools-shortcuts">
+        <button type="button" class="campus-recenter-action">${icon('navigation')}<span>Recenter</span></button>
+        <button type="button" class="campus-settings-action" aria-expanded="false" aria-controls="campus-map-settings">${icon('adjustments-horizontal')}<span>Map settings</span></button>
+      </div>
+      <section id="campus-map-settings" class="campus-map-settings" aria-label="Map settings" hidden>
+        <button type="button" class="campus-settings-back">${icon('arrow-left')}<span>Map settings</span></button>
+        <div class="campus-options-actions"><button type="button" data-action="home">View campus</button><button type="button" data-action="north">${icon('navigation')}<span>Face north</span></button><button type="button" data-action="top">Top view</button></div>
+        <div class="campus-orbit"><button type="button" data-action="left" aria-label="Rotate left">${icon('arrow-left')}</button><button type="button" data-action="right" aria-label="Rotate right">${icon('arrow-right')}</button><button type="button" data-action="tilt">Tilt</button><button type="button" data-action="in" aria-label="Zoom in">${icon('plus')}</button><button type="button" data-action="out" aria-label="Zoom out">${icon('minus')}</button></div>
+        <p>Drag to move · Pinch or scroll to zoom.<br>Right-drag to rotate in 3D.</p><p>Approximate building heights.<br>Exterior navigation only.</p><p>Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> · ODbL</p>
+      </section>
+    </div>
+    <p role="status" class="campus-load" hidden></p>`;
+  const view = toolbar.querySelector('.campus-view-control');
+  const viewKnob = toolbar.querySelector('.campus-view-knob');
+  const choices = toolbar.querySelector('.campus-view-switch');
+  const toolsKnob = toolbar.querySelector('.campus-tools-knob');
+  const menu = toolbar.querySelector('.campus-tools-menu');
+  const shortcuts = toolbar.querySelector('.campus-tools-shortcuts');
+  const settings = toolbar.querySelector('.campus-map-settings');
+  const settingsAction = toolbar.querySelector('.campus-settings-action');
+  const events = new AbortController();
+  const listen = (target, event, callback) => target.addEventListener(event, callback, {signal: events.signal});
+  let open = null;
+
+  function setSettings(expanded, focus = false) {
+    shortcuts.hidden = expanded;
+    settings.hidden = !expanded;
+    settingsAction.setAttribute('aria-expanded', String(expanded));
+    menu.classList.toggle('is-settings', expanded);
+    if (focus) (expanded ? toolbar.querySelector('.campus-settings-back') : settingsAction).focus({preventScroll:true});
+  }
+  function close({restoreFocus = false} = {}) {
+    const trigger = open === 'view' ? viewKnob : toolsKnob;
+    open = null;
+    view.classList.remove('is-open');
+    viewKnob.hidden = false;
+    choices.hidden = true;
+    menu.hidden = true;
+    viewKnob.setAttribute('aria-expanded', 'false');
+    toolsKnob.setAttribute('aria-expanded', 'false');
+    setSettings(false);
+    if (restoreFocus) trigger.focus({preventScroll:true});
+  }
+  function expand(which) {
+    if (open === which) { close({restoreFocus:true}); return; }
+    close();
+    open = which;
+    if (which === 'view') {
+      view.classList.add('is-open');
+      viewKnob.hidden = true;
+      choices.hidden = false;
+      viewKnob.setAttribute('aria-expanded', 'true');
+      choices.querySelector('[aria-pressed="true"]').focus({preventScroll:true});
+    } else {
+      menu.hidden = false;
+      toolsKnob.setAttribute('aria-expanded', 'true');
+      shortcuts.querySelector('button').focus({preventScroll:true});
+    }
+  }
+  listen(viewKnob, 'click', () => expand('view'));
+  listen(toolsKnob, 'click', () => expand('tools'));
+  listen(settingsAction, 'click', () => setSettings(true, true));
+  listen(toolbar.querySelector('.campus-settings-back'), 'click', () => setSettings(false, true));
+  listen(toolbar.querySelector('.campus-recenter-action'), 'click', () => {
+    close({restoreFocus:true});
+    document.getElementById('cu-recenter')?.click();
+  });
+  listen(toolbar, 'click', event => {
+    if (event.target.closest('[data-action="2d"], [data-action="3d"]')) close({restoreFocus:true});
+  });
+  listen(document, 'pointerdown', event => { if (!toolbar.contains(event.target)) close(); });
+  listen(toolbar, 'focusout', event => { if (event.relatedTarget && !toolbar.contains(event.relatedTarget)) close(); });
+  listen(toolbar, 'keydown', event => {
+    if (event.key === 'Escape' && open) {
+      event.preventDefault(); event.stopPropagation(); close({restoreFocus:true});
+    } else if (open === 'view' && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
+      event.preventDefault();
+      const buttons = [...choices.querySelectorAll('button')];
+      const index = buttons.indexOf(document.activeElement);
+      buttons[event.key === 'Home' ? 0 : event.key === 'End' ? 1 : (index + 1) % 2].focus();
+    } else if (open === 'tools' && ['ArrowDown','ArrowUp','Home','End'].includes(event.key)) {
+      event.preventDefault();
+      const buttons = [...(settings.hidden ? shortcuts : settings).querySelectorAll('button:not(:disabled)')].filter(button => !button.closest('[hidden]'));
+      const index = buttons.indexOf(document.activeElement);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[next]?.focus();
+    }
+  });
+  listen(window, 'campus-panel-layout', () => { if (document.getElementById('campus-sheet')?.dataset.snap === 'full') close(); });
+  return {
+    close,
+    setView(active) {
+      const label = active ? '3D' : '2D';
+      toolbar.querySelector('.campus-current-view').textContent = label;
+      viewKnob.setAttribute('aria-label', `Choose map view, current view ${label}`);
+      toolbar.querySelector('[data-action="3d"]').setAttribute('aria-pressed', String(active));
+      toolbar.querySelector('[data-action="2d"]').setAttribute('aria-pressed', String(!active));
+      toolbar.querySelector('.campus-orbit').hidden = !active;
+      toolbar.querySelector('[data-action="top"]').disabled = !active;
+      toolbar.querySelector('[data-action="north"]').disabled = !active;
+    },
+    dispose() { events.abort(); }
+  };
 }
