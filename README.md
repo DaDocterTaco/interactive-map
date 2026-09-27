@@ -10,6 +10,8 @@ From the project folder, run `python3 -m http.server 8000`, then open `http://lo
 - **Campus live chat** opens the existing community chat. Its configuration and setup are documented in `LiveChat/README.md`.
 - **Ask the assistant** opens a small question panel. Its Python endpoint is `http://127.0.0.1:5000/chat`; run `campus_ai.py` and configure its dependencies/API key to use it locally. The rest of the map still runs if the assistant server is unavailable.
 
+For the Python assistant, copy `.env.example` to `.env` and add your Gemini API key. If you run `AlertNode.js`, copy `service-account_example.json` to `service-account.json` and add your Firebase service account credentials. Both local credential files are ignored by Git.
+
 The map uses Leaflet and OpenStreetMap tiles. This first UI pass is a responsive 2D map; a 3D scene and turn-by-turn routes are future features, not current navigation behavior.
 
 ## Where to change the UI
