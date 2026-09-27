@@ -9,21 +9,15 @@
     <link rel="stylesheet" href="LiveChat/bottomSheet.css?v=forum-approved-4">
     <link rel="stylesheet" href="LiveChat/mapWarnings.css">
     <link rel="stylesheet" href="ClassSearch/classSearch.css?v=class-refined-20260927">
-    <link rel="stylesheet" href="locationservices/locationservices.css">
-    <link rel="stylesheet" href="app.css">
-    <link rel="stylesheet" href="ActionBar/actionBar.css">
-    <script src="ActionBar/actionBar.js" defer></script>
+    <link rel="stylesheet" href="app.css?v=header-removed-2">
+    <link rel="stylesheet" href="ActionBar/actionBar.css?v=location-menu-2">
+    <script src="ActionBar/actionBar.js?v=location-menu-2" defer></script>
     <script src="LiveChat/mapChat.js?v=forum-approved-4" defer></script>
     <script src="app.js" defer></script>
 </head>
 <body class="map-page">
     <main class="app-shell">
         <div id="map" role="application" aria-label="Interactive map of FIU Modesto A. Maidique Campus"></div>
-        <header class="app-header" aria-label="Campus navigation">
-            <div class="brand-mark" aria-hidden="true">FIU</div>
-            <div class="brand-copy"><strong>FIU Navigator</strong><span>Modesto A. Maidique Campus</span></div>
-            <span class="campus-pill"><span aria-hidden="true">●</span> MMC campus</span>
-        </header>
         <p id="chat-status" role="status"></p>
         <div class="map-hint" aria-hidden="true">Drag to explore · Select a marker for details</div>
     </main>
@@ -46,10 +40,15 @@
     <script type="module">
         import { mountMapWarnings } from './LiveChat/mapWarnings.js';
         import { mountClassSearch } from './ClassSearch/classSearch.js?v=class-refined-20260927';
-        import { mountLocationServices } from './locationservices/leafletLocation.js';
+        import { mountLocationServices } from './locationservices/leafletLocation.js?v=location-menu-2';
         mountMapWarnings({ map, L });
         mountClassSearch({ map, L });
-        mountLocationServices({ map, L });
+        mountLocationServices({
+            map, L,
+            locateButton: document.getElementById('open-location'),
+            stopButton: document.getElementById('stop-location'),
+            statusElement: document.getElementById('location-status'),
+        });
     </script>
 </body>
 </html>

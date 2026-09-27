@@ -18,17 +18,20 @@ const messages = {
   paused: 'Location paused. Tap Locate me to restart.',
 };
 
-/** Adds independent location controls and layers to an existing Leaflet map. */
+/** Connects location actions to the campus menu and adds layers to a Leaflet map. */
 export function mountLocationServices({
   map,
   L,
+  locateButton,
+  stopButton,
+  statusElement,
   geolocation = globalThis.navigator?.geolocation,
   secureContext = globalThis.isSecureContext,
   boundaryUrl = new URL('./campus-boundary.geojson', import.meta.url),
   fetchBoundary = globalThis.fetch?.bind(globalThis),
 } = {}) {
-  if (!map || !L?.control || !L?.circle || !L?.circleMarker) {
-    throw new TypeError('A Leaflet map and Leaflet library are required.');
+  if (!map || !L?.circle || !L?.circleMarker || !locateButton || !stopButton || !statusElement) {
+    throw new TypeError('A Leaflet map, Leaflet library, and location menu elements are required.');
   }
 
   let state = { status: 'idle', tracking: false, fix: null, markerVisible: false };
@@ -39,50 +42,12 @@ export function mountLocationServices({
   let disposed = false;
   let request = 0;
   let boundaryAbort = null;
-  const control = L.control({ position: 'topleft' });
+  const locationLabel = locateButton.querySelector('strong');
 
-  control.onAdd = () => {
-    const root = document.createElement('div');
-    root.className = 'ls-control';
-    root.setAttribute('aria-label', 'Map location controls');
-
-    const actions = document.createElement('div');
-    actions.className = 'ls-actions';
-    const locate = document.createElement('button');
-    locate.type = 'button';
-    locate.className = 'ls-button ls-locate';
-    locate.textContent = '◎ Locate me';
-    const center = document.createElement('button');
-    center.type = 'button';
-    center.className = 'ls-button';
-    center.textContent = 'Find me';
-    center.disabled = true;
-    const stop = document.createElement('button');
-    stop.type = 'button';
-    stop.className = 'ls-button';
-    stop.textContent = 'Stop';
-    stop.hidden = true;
-    actions.append(locate, center, stop);
-
-    const status = document.createElement('p');
-    status.className = 'ls-status';
-    status.setAttribute('role', 'status');
-    status.setAttribute('aria-live', 'polite');
-    root.append(actions, status);
-    L.DomEvent.disableClickPropagation(root);
-    L.DomEvent.disableScrollPropagation(root);
-
-    locate.addEventListener('click', start);
-    center.addEventListener('click', centerOnFix);
-    stop.addEventListener('click', stopTracking);
-    control.root = root;
-    control.locate = locate;
-    control.center = center;
-    control.stop = stop;
-    control.status = status;
-    render();
-    return root;
-  };
+  function handleLocate() {
+    if (state.markerVisible) centerOnFix();
+    else start();
+  }
 
   function clearLayers() {
     if (marker && map.hasLayer(marker)) map.removeLayer(marker);
@@ -90,16 +55,16 @@ export function mountLocationServices({
   }
 
   function render() {
-    if (disposed || !control.root) return;
+    if (disposed) return;
     const { status, tracking, fix, markerVisible } = state;
-    control.status.textContent = (messages[status] || messages.unavailable) +
+    statusElement.textContent = (messages[status] || messages.unavailable) +
       (markerVisible && fix ? ` (±${Math.ceil(fix.accuracy)} m)` : '');
-    control.root.dataset.state = status;
-    control.locate.disabled = loading || (tracking && !['stale', 'outside'].includes(status));
-    control.locate.textContent = ['stale', 'denied', 'timeout', 'unavailable',
-      'boundary-error', 'outside'].includes(status) ? '↻ Retry location' : '◎ Locate me';
-    control.center.disabled = !markerVisible;
-    control.stop.hidden = !tracking && !loading;
+    locateButton.dataset.state = status;
+    locateButton.disabled = loading || (tracking && !markerVisible && !['stale', 'outside'].includes(status));
+    locationLabel.textContent = markerVisible ? 'Center on me' :
+      ['stale', 'denied', 'timeout', 'unavailable', 'boundary-error', 'outside'].includes(status)
+        ? 'Retry location' : 'Locate me';
+    stopButton.hidden = !tracking && !loading;
 
     if (!markerVisible || !fix) {
       clearLayers();
@@ -223,13 +188,16 @@ export function mountLocationServices({
     disposed = true;
     tracker?.destroy();
     clearLayers();
-    control.remove();
+    locateButton.removeEventListener('click', handleLocate);
+    stopButton.removeEventListener('click', stopTracking);
     window.removeEventListener('pagehide', pause);
     document.removeEventListener('visibilitychange', pauseWhenHidden);
     map.off('unload', dispose);
   }
 
-  control.addTo(map);
+  locateButton.addEventListener('click', handleLocate);
+  stopButton.addEventListener('click', stopTracking);
+  render();
   window.addEventListener('pagehide', pause);
   document.addEventListener('visibilitychange', pauseWhenHidden);
   map.on('unload', dispose);

@@ -9,6 +9,7 @@
 .map-page .action-bar-actions button, .map-page .action-bar-actions #open-class { position: static; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; min-height: 64px; padding: 5px; border: 0; border-radius: 12px; background: transparent; color: #183b80; font-size: 12px; font-weight: 700; cursor: pointer; }
 .map-page .action-bar-actions button:hover:not(:disabled), .map-page .action-bar-actions button:active:not(:disabled) { background: #eaf1ff; }
 .map-page .action-bar-actions button:disabled { opacity: .55; cursor: wait; }
+.map-page .action-bar-actions button[hidden] { display: none; }
 .action-bar-icon { font-size: 22px; line-height: 1; }
 .action-bar-copy { display: block; min-width: 0; }
 .action-bar-copy strong { display: block; white-space: nowrap; }
@@ -18,6 +19,11 @@
 .action-bar:is(.is-expanded,.is-dragging) .action-bar-icon { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 12px; background: #eaf1ff; }
 .action-bar:is(.is-expanded,.is-dragging) .action-bar-copy strong { font-size: 15px; }
 .action-bar:is(.is-expanded,.is-dragging) .action-bar-copy small { display: block; margin-top: 3px; color: #647596; font-size: 12px; font-weight: 400; }
+.action-bar #location-status { white-space: normal; }
+.action-bar #open-location[data-state="denied"] #location-status,
+.action-bar #open-location[data-state="unavailable"] #location-status,
+.action-bar #open-location[data-state="timeout"] #location-status,
+.action-bar #open-location[data-state="boundary-error"] #location-status { color: #a52a2a; }
 :root[data-chat-theme="dark"] .action-bar { border-color: #344e6c; background: #102135; }
 :root[data-chat-theme="dark"] .map-page .action-bar .action-bar-handle { color: #aec5ec; }
 :root[data-chat-theme="dark"] .map-page .action-bar-actions button, :root[data-chat-theme="dark"] .map-page .action-bar-actions #open-class { color: #e1ebff; }

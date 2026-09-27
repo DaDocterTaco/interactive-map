@@ -6,6 +6,8 @@ actionBar.setAttribute('aria-label', 'Campus actions');
 actionBar.innerHTML = `
     <button id="action-bar-handle" class="action-bar-handle" type="button" aria-controls="action-bar-actions" aria-expanded="false" aria-label="Expand campus actions"><span class="action-bar-grip" aria-hidden="true"></span><span class="action-bar-hint">Swipe up for options</span></button>
     <div id="action-bar-actions" class="action-bar-actions">
+        <button id="open-location" type="button"><span class="action-bar-icon" aria-hidden="true">◎</span><span class="action-bar-copy"><strong>Locate me</strong><small id="location-status" role="status" aria-live="polite">Find your position on campus.</small></span></button>
+        <button id="stop-location" type="button" hidden><span class="action-bar-icon" aria-hidden="true">◌</span><span class="action-bar-copy"><strong>Stop location</strong><small>Turn off live location tracking</small></span></button>
         <button id="open-class" type="button" aria-haspopup="dialog" aria-controls="class-dialog"><span class="action-bar-icon" aria-hidden="true">▣</span><span class="action-bar-copy"><strong>Classes</strong><small>Find a class on the map</small></span></button>
         <button id="open-chat" type="button" aria-haspopup="dialog" aria-controls="chat-panel" disabled><span class="action-bar-icon" aria-hidden="true">◌</span><span class="action-bar-copy"><strong>Live chat</strong><small>Talk with other Panthers</small></span></button>
         <button id="open-assistant" type="button" aria-controls="chat-container" aria-expanded="false"><span class="action-bar-icon" aria-hidden="true">✦</span><span class="action-bar-copy"><strong>Assistant</strong><small>Ask about campus and events</small></span></button>
@@ -19,7 +21,7 @@ let barDrag = null;
 let ignoreHandleClick = false;
 
 function expandedBarHeight() {
-    return Math.min(340, Math.max(collapsedBarHeight + 80, window.innerHeight * .55), window.innerHeight - 60);
+    return Math.min(360, Math.max(collapsedBarHeight + 80, window.innerHeight * .55), window.innerHeight - 60);
 }
 
 function setActionBarOpen(open) {
