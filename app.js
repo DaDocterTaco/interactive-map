@@ -1,3 +1,5 @@
+
+
 const assistantPanel = document.getElementById('chat-container');
 const assistantButton = document.getElementById('open-assistant');
 const assistantInput = document.getElementById('chat-input');
@@ -41,7 +43,7 @@ document.getElementById('assistant-form').addEventListener('submit', async event
         });
         if (!response.ok) throw new Error('Chat service unavailable');
         const data = await response.json();
-        pending.textContent = typeof data.reply === 'string' ? data.reply : 'I could not find an answer.';
+        pending.innerHTML = typeof data.reply === 'string' ? marked.parse(data.reply) : 'I could not find an answer.';
     } catch {
         pending.textContent = 'The assistant is unavailable. Start the Python chat server and try again.';
     } finally {

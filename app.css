@@ -48,3 +48,16 @@ button { font: inherit; }
     .assistant-form input { font-size: 16px; }
     .assistant-form button { min-height: 44px; }
 }
+.assistant-message p {
+    margin: 0 0 8px;
+}
+
+.assistant-message p:last-child {
+    margin-bottom: 0;
+}
+
+.assistant-message ul,
+.assistant-message ol {
+    margin: 4px 0 8px;
+    padding-left: 20px;
+}
