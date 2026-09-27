@@ -50,7 +50,7 @@
     },
     {
       "abbreviation": "ASTRO",
-      "full_name": "Stocker Astroscience Center",
+      "full_name": "Astroscience Center",
       "latitude": 25.757901,
       "longitude": -80.372544,
       "description": ""
@@ -78,14 +78,14 @@
     },
     {
       "abbreviation": "CASE",
-      "full_name": "Computing, Arts, Sciences and Education",
+      "full_name": "CASE",
       "latitude": 25.758968,
       "longitude": -80.373872,
       "description": ""
     },
     {
       "abbreviation": "CBC",
-      "full_name": "College of Business Complex",
+      "full_name": "College of Business",
       "latitude": 25.757799,
       "longitude": -80.377147,
       "description": ""
@@ -141,35 +141,35 @@
     },
     {
       "abbreviation": "FROST",
-      "full_name": "Patricia and Phillip Frost Art Museum",
+      "full_name": "Frost Art Museum",
       "latitude": 25.753723,
       "longitude": -80.37314,
       "description": ""
     },
     {
       "abbreviation": "FSB",
-      "full_name": "Field Support Building",
+      "full_name": "Field Support",
       "latitude": 25.755405,
       "longitude": -80.378801,
       "description": ""
     },
     {
       "abbreviation": "GC",
-      "full_name": "Ernest R. Graham Center",
+      "full_name": "Graham Center",
       "latitude": 25.756263,
       "longitude": -80.372708,
       "description": ""
     },
     {
       "abbreviation": "INV",
-      "full_name": "Innovation Complex (Building 1)",
+      "full_name": "Innovation Complex",
       "latitude": 25.760607,
       "longitude": -80.369313,
       "description": ""
     },
     {
       "abbreviation": "GL",
-      "full_name": "Steven and Dorothea Green Library",
+      "full_name": "Green Library",
       "latitude": 25.757165,
       "longitude": -80.373853,
       "description": ""
@@ -197,14 +197,14 @@
     },
     {
       "abbreviation": "MANGO",
-      "full_name": "Management and New Growth Opportunities Building",
+      "full_name": "MANGO",
       "latitude": 25.757392,
       "longitude": -80.376949,
       "description": ""
     },
     {
       "abbreviation": "MARC",
-      "full_name": "Management and Advanced Research Center",
+      "full_name": "MARC",
       "latitude": 25.754613,
       "longitude": -80.373562,
       "description": ""
@@ -239,14 +239,14 @@
     },
     {
       "abbreviation": "PC",
-      "full_name": "Charles E. Perry Building (Primera Casa)",
+      "full_name": "Primera Casa",
       "latitude": 25.755542,
       "longitude": -80.373745,
       "description": ""
     },
     {
       "abbreviation": "PCA",
-      "full_name": "Paul L. Cejas School of Architecture",
+      "full_name": "School of Architecture",
       "latitude": 25.7587,
       "longitude": -80.375337,
       "description": ""
@@ -309,21 +309,21 @@
     },
     {
       "abbreviation": "RB",
-      "full_name": "Ryder Business Building",
+      "full_name": "Ryder Business",
       "latitude": 25.757427,
       "longitude": -80.376124,
       "description": ""
     },
     {
       "abbreviation": "RDB",
-      "full_name": "Rafael Diaz-Balart Hall",
+      "full_name": "Diaz-Balart Hall",
       "latitude": 25.756828,
       "longitude": -80.377819,
       "description": ""
     },
     {
       "abbreviation": "RH",
-      "full_name": "Ronald W. Reagan Presidential House",
+      "full_name": "Presidential House",
       "latitude": 25.755495,
       "longitude": -80.36944,
       "description": ""
@@ -358,14 +358,14 @@
     },
     {
       "abbreviation": "SIPA1",
-      "full_name": "Steven J. Green School of International and Public Affairs 1",
+      "full_name": "SIPA I",
       "latitude": 25.756495,
       "longitude": -80.376126,
       "description": ""
     },
     {
       "abbreviation": "SIPA2",
-      "full_name": "Steven J. Green School of International and Public Affairs 2",
+      "full_name": "SIPA II",
       "latitude": 25.756477,
       "longitude": -80.376716,
       "description": ""
@@ -386,91 +386,91 @@
     },
     {
       "abbreviation": "TWR",
-      "full_name": "Tower / Veteran and Military Affairs",
+      "full_name": "The Tower",
       "latitude": 25.75612,
       "longitude": -80.376356,
       "description": ""
     },
     {
       "abbreviation": "TDBC",
-      "full_name": "Trish and Dan Bell Chapel",
+      "full_name": "Bell Chapel",
       "latitude": 25.75631,
       "longitude": -80.37036,
       "description": ""
     },
     {
       "abbreviation": "UAA",
-      "full_name": "University Apartments — Building A",
+      "full_name": "University Apartments Building A",
       "latitude": 25.758053,
       "longitude": -80.369831,
       "description": ""
     },
     {
       "abbreviation": "UAB",
-      "full_name": "University Apartments — Building B",
+      "full_name": "University Apartments Building B",
       "latitude": 25.75806,
       "longitude": -80.369123,
       "description": ""
     },
     {
       "abbreviation": "UAC",
-      "full_name": "University Apartments — Building C",
+      "full_name": "University Apartments Building C",
       "latitude": 25.757858,
       "longitude": -80.369549,
       "description": ""
     },
     {
       "abbreviation": "UAD",
-      "full_name": "University Apartments — Building D",
+      "full_name": "University Apartments Building D",
       "latitude": 25.757414,
       "longitude": -80.369418,
       "description": ""
     },
     {
       "abbreviation": "UAE",
-      "full_name": "University Apartments — Building E",
+      "full_name": "University Apartments Building E",
       "latitude": 25.757381,
       "longitude": -80.368908,
       "description": ""
     },
     {
       "abbreviation": "UAF",
-      "full_name": "University Apartments — Building F",
+      "full_name": "University Apartments Building F",
       "latitude": 25.758731,
       "longitude": -80.368971,
       "description": ""
     },
     {
       "abbreviation": "UAG",
-      "full_name": "University Apartments — Building G",
+      "full_name": "University Apartments Building G",
       "latitude": 25.758683,
       "longitude": -80.36943,
       "description": ""
     },
     {
       "abbreviation": "UAH",
-      "full_name": "University Apartments — Building H",
+      "full_name": "University Apartments Building H",
       "latitude": 25.758642,
       "longitude": -80.369874,
       "description": ""
     },
     {
       "abbreviation": "UAJ",
-      "full_name": "University Apartments — Building J",
+      "full_name": "University Apartments Building J",
       "latitude": 25.758688,
       "longitude": -80.370317,
       "description": ""
     },
     {
       "abbreviation": "UAK",
-      "full_name": "University Apartments — Building K",
+      "full_name": "University Apartments Building K",
       "latitude": 25.757699,
       "longitude": -80.370048,
       "description": ""
     },
     {
       "abbreviation": "UAL",
-      "full_name": "University Apartments — Building L",
+      "full_name": "University Apartments Building L",
       "latitude": 25.757366,
       "longitude": -80.370402,
       "description": ""
@@ -491,63 +491,63 @@
     },
     {
       "abbreviation": "WRC",
-      "full_name": "Wellness And Recreation Center",
+      "full_name": "Wellness and Recreation Center",
       "latitude": 25.755798,
       "longitude": -80.377967,
       "description": ""
     },
     {
       "abbreviation": "W01",
-      "full_name": "West 1 - Sculpture + Art Foundation",
+      "full_name": "West 1",
       "latitude": 25.752764,
       "longitude": -80.382307,
       "description": ""
     },
     {
       "abbreviation": "W01C",
-      "full_name": "West 01C - Ceramics",
+      "full_name": "West Ceramics",
       "latitude": 25.752764,
       "longitude": -80.381504,
       "description": ""
     },
     {
       "abbreviation": "W03",
-      "full_name": "West 3 - Key Control",
+      "full_name": "West Key Control",
       "latitude": 25.753497,
       "longitude": -80.382476,
       "description": ""
     },
     {
       "abbreviation": "W06",
-      "full_name": "West 6 — Training Lab",
+      "full_name": "West Training Lab",
       "latitude": 25.755708,
       "longitude": -80.382104,
       "description": ""
     },
     {
       "abbreviation": "W09",
-      "full_name": "West 9 — Painting",
+      "full_name": "West Painting",
       "latitude": 25.756827,
       "longitude": -80.382651,
       "description": ""
     },
     {
       "abbreviation": "W10",
-      "full_name": "West 10 — Drawing and MFA Studios",
+      "full_name": "West Drawing and MFA Studios",
       "latitude": 25.756922,
       "longitude": -80.383894,
       "description": ""
     },
     {
       "abbreviation": "W10A",
-      "full_name": "ROTC — Reserve Officers’ Training Corps",
+      "full_name": "ROTC",
       "latitude": 25.757269,
       "longitude": -80.383632,
       "description": ""
     },
     {
       "abbreviation": "W10C",
-      "full_name": "Trailer (Administrative Systems II)",
+      "full_name": "Administrative Systems Trailer",
       "latitude": 25.756894,
       "longitude": -80.382927,
       "description": ""
@@ -561,21 +561,21 @@
     },
     {
       "abbreviation": "WPAC",
-      "full_name": "Herbert and Nicole Wertheim Performing Arts Center",
+      "full_name": "Wertheim Performing Arts Center",
       "latitude": 25.752534,
       "longitude": -80.372669,
       "description": ""
     },
     {
       "abbreviation": "WSTC",
-      "full_name": "Women’s Softball/Tennis Center",
+      "full_name": "Softball/Tennis Center",
       "latitude": 25.757484,
       "longitude": -80.381723,
       "description": ""
     },
     {
       "abbreviation": "ZEB",
-      "full_name": "Sanford L. Ziff Family Education Building",
+      "full_name": "Ziff Education",
       "latitude": 25.758904,
       "longitude": -80.37673,
       "description": ""

@@ -45,10 +45,26 @@ document.getElementById('assistant-form').addEventListener('submit', async event
         if (!response.ok) throw new Error('Chat service unavailable');
         const data = await response.json();
         const reply=typeof data.reply === 'string' ? data.reply : 'I could not find an answer.';
-        pending.replaceChildren();
-        for(const part of reply.split(/(\*\*[^*]+\*\*)/g)){
-            if(part.startsWith('**')&&part.endsWith('**')){const strong=document.createElement('strong');strong.textContent=part.slice(2,-2);pending.append(strong);}
-            else pending.append(document.createTextNode(part));
+        // Markdown is rendered only after sanitizing the model's HTML output.
+        pending.textContent = reply;
+        if (window.marked && window.DOMPurify?.isSupported) {
+            try {
+                const html = window.marked.parse(reply, { gfm: true, breaks: true });
+                const content = window.DOMPurify.sanitize(html, {
+                    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'del', 'ul', 'ol', 'li',
+                        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'code',
+                        'a', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+                    ALLOWED_ATTR: ['href', 'title', 'start'],
+                    ALLOW_DATA_ATTR: false,
+                    ALLOW_ARIA_ATTR: false,
+                    RETURN_DOM_FRAGMENT: true,
+                });
+                pending.replaceChildren(content);
+                pending.classList.add('is-markdown');
+            } catch {
+                // Keep a readable reply even if Markdown rendering is unavailable.
+                pending.textContent = reply;
+            }
         }
     } catch {
         pending.textContent = 'The assistant is unavailable right now. Your message is saved above. Please try again shortly.';

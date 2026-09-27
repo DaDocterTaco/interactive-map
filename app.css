@@ -36,3 +36,19 @@ button { font: inherit; }
     .assistant-form input { font-size: 16px; }
     .assistant-form button { min-height: 44px; }
 }
+
+/* Markdown styling is scoped to formatted assistant replies. */
+.assistant-message.from-assistant.is-markdown { white-space: normal; }
+.assistant-message.is-markdown > :first-child { margin-top: 0; }
+.assistant-message.is-markdown > :last-child { margin-bottom: 0; }
+.assistant-message.is-markdown p { margin: 0 0 8px; }
+.assistant-message.is-markdown ul,
+.assistant-message.is-markdown ol { margin: 4px 0 8px; padding-left: 20px; }
+.assistant-message.is-markdown li + li { margin-top: 4px; }
+.assistant-message.is-markdown :is(h1,h2,h3,h4,h5,h6) { margin: 12px 0 6px; font-size: 1.1em; line-height: 1.3; }
+.assistant-message.is-markdown blockquote { margin: 8px 0; padding-left: 12px; border-left: 3px solid currentColor; }
+.assistant-message.is-markdown pre { max-width: 100%; overflow-x: auto; white-space: pre; padding: 8px; border-radius: 8px; background: #10265a0b; }
+.assistant-message.is-markdown code { font-size: .9em; }
+.assistant-message.is-markdown a { color: inherit; text-decoration: underline; }
+.assistant-message.is-markdown table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.assistant-message.is-markdown :is(th,td) { padding: 5px 8px; border: 1px solid #ccd8ea; }
