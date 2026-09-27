@@ -1,3 +1,5 @@
+#NOTE: This script MUST be running to initiate a Python server that provides Gemini with instruction for the campus map's chatbot
+
 import os
 import json
 from flask import Flask, request, jsonify
@@ -27,6 +29,13 @@ try:
 except FileNotFoundError:
     events_data = "No event data available."
 
+#Update: now including alerts from forum posts
+try:
+    with open('forum_alerts.json', 'r') as f:
+        alerts_data = f.read()
+except FileNotFoundError:
+        alerts_data = "No events data available."
+
 # 3. Create the endpoint that your website will talk to
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -34,10 +43,11 @@ def chat():
     user_message = data.get('message', '')
 
     prompt = f"""
-    You are a helpful FIU campus map assistant.
-    Answer the user's question using ONLY the provided building and event data below.
-    If the question cannot be answered using this data, politely inform them that you only have information on FIU campus buildings and events.
-    Keep answers concise and friendly.
+    You are a helpful Florida International University (FIU) campus map assistant.
+    For questions about specific campus locations or today's schedule, use the provided BUILDINGS DATA and EVENTS DATA below.
+    You can also provide users information about current warnings or alerts on campus as posted from forum posts using ALERTS DATA below.
+    For general questions about FIU (history, admissions, mascots, academic programs), use your own general knowledge.
+    Keep answers concise, friendly, and formatted in Markdown.
 
     BUILDINGS DATA:
     {buildings_data}
@@ -45,13 +55,16 @@ def chat():
     EVENTS DATA:
     {events_data}
 
+    ALERTS DATA:
+    {alerts_data}
+
     USER QUESTION:
     {user_message}
     """
 
     try:
         response = client.models.generate_content(
-            model='gemini-3.8-flash',
+            model='gemini-3.5-flash-lite', #WARNING: Free plan limits this model to 500 responses per day (RPD)
             contents=prompt,
         )
         return jsonify({'reply': response.text})
