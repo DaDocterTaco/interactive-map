@@ -15,13 +15,13 @@
 .group-symbol[data-symbol="cup-hot"] { --symbol: url('./assets/icons/cup-hot.svg'); }
 .group-symbol[data-symbol="moon-stars"] { --symbol: url('./assets/icons/moon-stars.svg'); }
 .group-symbol[data-symbol="sun"] { --symbol: url('./assets/icons/sun.svg'); }
-.logo-editor { border: 0; padding: 0; margin: 20px 0; min-width: 0; }
+.logo-editor { border: 0; padding: 0; margin: 20px 0; min-width: 0; container-type: inline-size; }
 .logo-editor legend { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
 .logo-editor-top { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
 .logo-editor .logo-preview { width: 64px; height: 64px; flex: 0 0 64px; font-size: 23px; border-radius: 50%; }
 .logo-editor-top>div { flex: 1; min-width: 0; }
 .logo-editor label { font-size: 13px; }
-.logo-editor .logo-colors { display: grid; grid-template-columns: repeat(6, 44px); gap: 8px; margin: 16px 0; }
+.logo-editor .logo-colors { display: grid; grid-template-columns: repeat(6, 44px); gap: 8px; margin: 16px 0; max-width:100%; }
 .logo-editor .logo-icons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
 /* Match the panel's specificity so shared button states cannot erase swatches. */
 #chat-panel .logo-editor button.logo-color { width: 44px; height: 44px; min-height: 44px; padding: 0; border: 6px solid transparent; border-radius: 50%; background: var(--logo-color); background-clip: padding-box; color: #fff; }
@@ -31,7 +31,25 @@
 #chat-panel .logo-editor button.logo-icon-choice { display: grid; place-items: center; width: 100%; height: 48px; min-height: 48px; padding: 8px; font-size: 21px; }
 #chat-panel .logo-editor input[type="file"] { width: 100%; padding: 8px; font-size: 12px; }
 .logo-editor input[type="file"]::file-selector-button { padding: 8px 12px; border: 0; border-radius: 7px; margin-right: 8px; cursor: pointer; }
-.logo-editor .logo-note { font-size: 12px; line-height: 1.5; color: var(--chat-muted,#60708c); margin: 8px 0; }
+.logo-editor .logo-note { font-size: 12px; line-height: 1.5; color: var(--chat-muted,#60708c); margin: 8px 0; overflow-wrap:anywhere; }
 .logo-editor .logo-feedback:empty { display: none; }
 .logo-editor .logo-feedback { font-size: 12px; line-height: 1.5; margin: 8px 0 0; }
-@media (max-width: 360px) { .logo-editor .logo-colors { grid-template-columns: repeat(3, 44px); } }
+/* Fit the dialog's actual content width, including when its padding changes. */
+@container (max-width:303px) { .logo-editor .logo-colors { grid-template-columns:repeat(3,44px); } }
+@supports not (container-type:inline-size) {
+ @media (max-width:390px) { .logo-editor .logo-colors { grid-template-columns:repeat(3,44px); } }
+}
+@media (max-height:600px) {
+ .logo-editor { margin:12px 0; }
+ .logo-editor legend { margin-bottom:8px; }
+ .logo-editor-top { margin-bottom:8px;gap:12px; }
+ .logo-editor .logo-preview { width:52px;height:52px;flex-basis:52px;font-size:21px; }
+ .logo-editor :is(.logo-colors,.logo-icons) { margin:10px 0; }
+ #chat-panel .logo-editor label { margin-top:10px; }
+}
+#chat-panel[data-compact-height="true"] .logo-editor { margin:12px 0; }
+#chat-panel[data-compact-height="true"] .logo-editor legend { margin-bottom:8px; }
+#chat-panel[data-compact-height="true"] .logo-editor-top { margin-bottom:8px;gap:12px; }
+#chat-panel[data-compact-height="true"] .logo-editor .logo-preview { width:52px;height:52px;flex-basis:52px;font-size:21px; }
+#chat-panel[data-compact-height="true"] .logo-editor :is(.logo-colors,.logo-icons) { margin:10px 0; }
+#chat-panel[data-compact-height="true"] .logo-editor label { margin-top:10px; }

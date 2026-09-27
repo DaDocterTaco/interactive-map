@@ -6,7 +6,7 @@
     const status = document.getElementById("chat-status");
     try {
         // Never pair a cached template with newer controller code.
-        const response = await fetch(new URL("mainChat.html?v=forum-approved-4", scriptUrl), { cache: "no-store" });
+        const response = await fetch(new URL("mainChat.html?v=responsive-1", scriptUrl), { cache: "no-store" });
         if (!response.ok) throw new Error("Could not load the chat panel.");
         const page = new DOMParser().parseFromString(await response.text(), "text/html");
         // Keep the shared template's styles in the same order on both routes.
@@ -26,7 +26,7 @@
         document.body.append(...panels);
         // Load handlers only after their buttons, forms, and panels are mounted.
         const handlers = document.createElement("script");
-        handlers.src = new URL("chat.js?v=forum-approved-4", scriptUrl).href;
+        handlers.src = new URL("chat.js?v=responsive-1", scriptUrl).href;
         handlers.onload = () => { openButton.disabled = false; if (new URL(location.href).searchParams.has("forum")) openButton.click(); };
         handlers.onerror = () => { status.textContent = "Chat could not load. Refresh the page to try again."; };
         document.body.append(handlers);

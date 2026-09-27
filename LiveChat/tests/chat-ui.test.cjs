@@ -160,6 +160,7 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
             state.closeExplore = closeExplore;
             return { dispose() { closeExplore(); }, selectExternal: onSelect, closeExplore };
         } },
+        'chatViewport.js': { mountChatViewport: () => { state.viewportMounts = (state.viewportMounts || 0) + 1; return { dispose() { state.viewportDisposals = (state.viewportDisposals || 0) + 1; } }; } },
         'chatInfoUI.js': { mountChatInfo: () => ({
             setConversation(group) { state.infoGroup = group; get('chat-info-panel').close(); },
             refresh(group) { state.infoGroup = group; },
@@ -568,4 +569,13 @@ test('only pending and latest outgoing delivery states display; sent feedback is
     assert.equal(app.row('one').querySelector('.message-delivery').hidden, true);
     app.get('message-input').value = 'Hello'; await app.fire('message-form', 'submit');
     assert.equal(app.get('message-status').dataset.kind, 'delivery');
+});
+
+
+test('viewport sizing attaches once per open and cleans up on close', async () => {
+    const app = createApp({ reduced: true }); await app.open();
+    assert.equal(app.state.viewportMounts, 1); assert.equal(app.state.viewportDisposals, undefined);
+    await app.fire('close-chat'); assert.equal(app.state.viewportDisposals, 1);
+    await app.open(); assert.equal(app.state.viewportMounts, 2);
+    await app.fire('close-chat'); assert.equal(app.state.viewportDisposals, 2);
 });

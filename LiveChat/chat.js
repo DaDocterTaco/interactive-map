@@ -23,6 +23,7 @@ let groupController;
 let peopleController;
 let forumController;
 let infoController;
+let viewportController;
 let activeSection = "chats";
 let chatView = "conversation";
 let currentGroup = null;
@@ -726,6 +727,7 @@ function selectConversation(group, { reveal = true } = {}) {
 }
 
 async function showChat(user) {
+    viewportController?.dispose(); viewportController = null;
     infoController?.dispose(); infoController = null;
     disconnectModerator();
     disconnectMessages();
@@ -746,9 +748,10 @@ async function showChat(user) {
     discardOldLocalHistory();
     if (!chatPanel.open) chatPanel.showModal();
     try {
-        const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js?v=nav-5"), import("./forums/forumUI.js?v=forum-approved-4"), import("./people.js"), import("./peopleUI.js?v=nav-5"), import("./chatInfoUI.js?v=nav-5")]);
+        const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js?v=nav-5"), import("./forums/forumUI.js?v=forum-approved-4"), import("./people.js"), import("./peopleUI.js?v=nav-5"), import("./chatInfoUI.js?v=nav-5"), import("./chatViewport.js?v=responsive-1")]);
         await modules[4].saveProfile(user);
         if (version !== viewVersion || !chatPanel.open) return;
+        viewportController = modules[7].mountChatViewport(chatPanel);
         [chatService, groupService] = modules;
         let disposed = false;
         const stop = chatService.watchModerator(user.uid, enabled => {
@@ -859,6 +862,7 @@ chatPanel.addEventListener("cancel", event => {
     event.preventDefault(); closeChat();
 });
 chatPanel.addEventListener("close", () => {
+    viewportController?.dispose(); viewportController = null;
     closing = false; clearTimeout(closeTimer); chatPanel.classList.remove("is-closing");
     drafts.set(currentGroup?.id || "Campus Chat", messageInput.value);
     setMenu(false); finishModeration();
