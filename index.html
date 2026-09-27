@@ -1,74 +1,61 @@
-<!DOCTYPE html>
-<!-- Original RSS map with independent chat, class search, and warning layers. -->
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Campus Map</title>
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin=""/>
-    <style>
-        .live-chat-link {
-            position: fixed;
-            top: 16px;
-            right: 16px;
-            z-index: 1000;
-            padding: 11px 16px;
-            border-radius: 999px;
-            background: #081f40;
-            color: #fff;
-            font: 600 15px/1.2 Arial, sans-serif;
-            text-decoration: none;
-            box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
-        }
-
-        .live-chat-link:hover,
-        .live-chat-link:focus-visible {
-            background: #123d71;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#071d4b">
+    <title>FIU Navigator · Modesto A. Maidique Campus</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <link rel="stylesheet" href="LiveChat/bottomSheet.css?v=polish-3">
     <link rel="stylesheet" href="LiveChat/mapWarnings.css">
     <link rel="stylesheet" href="ClassSearch/classSearch.css">
+    <link rel="stylesheet" href="app.css">
     <script src="LiveChat/mapChat.js?v=polish-3" defer></script>
-
-    <!--This is to help with AI chatbot formatting / responses-->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="app.js" defer></script>
 </head>
 <body class="map-page">
-
-    <div id="map" style="height: 1500;"></div>
-    <button id="open-chat" class="live-chat-link" type="button" aria-haspopup="dialog" aria-controls="chat-panel" disabled>Open chat</button>
-    <button id="open-class" class="live-chat-link" type="button" aria-haspopup="dialog" aria-controls="class-dialog">Open Class</button>
-    <p id="chat-status" role="status"></p>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin=""></script>
-
+    <main class="app-shell">
+        <div id="map" role="application" aria-label="Interactive map of FIU Modesto A. Maidique Campus"></div>
+        <header class="app-header" aria-label="Campus navigation">
+            <div class="brand-mark" aria-hidden="true">FIU</div>
+            <div class="brand-copy"><strong>FIU Navigator</strong><span>Modesto A. Maidique Campus</span></div>
+            <span class="campus-pill"><span aria-hidden="true">●</span> MMC campus</span>
+        </header>
+        <section class="explore-card" aria-labelledby="explore-title">
+            <div class="explore-heading"><span class="explore-icon" aria-hidden="true">⌖</span><div><p class="eyebrow">EXPLORE CAMPUS</p><h1 id="explore-title">Where to?</h1></div></div>
+            <p class="explore-intro">Find your class, explore the map, or connect with other Panthers.</p>
+            <button id="open-class" class="action action-primary" type="button" aria-haspopup="dialog" aria-controls="class-dialog"><span class="action-symbol" aria-hidden="true">▣</span><span><strong>Find a class</strong><small>Search sections and locate a building</small></span><span class="action-arrow" aria-hidden="true">›</span></button>
+            <button id="open-chat" class="action" type="button" aria-haspopup="dialog" aria-controls="chat-panel" disabled><span class="action-symbol" aria-hidden="true">◌</span><span><strong>Campus live chat</strong><small>Talk with the FIU community</small></span><span class="action-arrow" aria-hidden="true">›</span></button>
+            <button id="open-assistant" class="action" type="button" aria-controls="chat-container" aria-expanded="false"><span class="action-symbol" aria-hidden="true">✦</span><span><strong>Ask the assistant</strong><small>Questions about campus and events</small></span><span class="action-arrow" aria-hidden="true">›</span></button>
+            <p id="chat-status" role="status"></p>
+        </section>
+        <div class="map-hint" aria-hidden="true">Drag to explore · Select a marker for details</div>
+        <nav class="mobile-nav" aria-label="Quick actions">
+            <button type="button" data-open="open-class"><span aria-hidden="true">▣</span>Classes</button>
+            <button type="button" data-open="open-chat"><span aria-hidden="true">◌</span>Chat</button>
+            <button type="button" data-open="open-assistant"><span aria-hidden="true">✦</span>Assistant</button>
+        </nav>
+    </main>
+    <section id="chat-container" class="assistant-panel" aria-labelledby="assistant-title" hidden>
+        <header class="assistant-header"><div><span class="assistant-spark" aria-hidden="true">✦</span><div><h2 id="assistant-title">FIU Campus Assistant</h2><p>Ask about buildings or events</p></div></div><button id="close-assistant" type="button" aria-label="Close assistant">×</button></header>
+        <div id="chat-history" class="assistant-history" role="log" aria-live="polite" aria-relevant="additions"><div class="assistant-message">Hi! What would you like to know about campus?</div></div>
+        <form id="assistant-form" class="assistant-form"><label for="chat-input" class="sr-only">Your question</label><input id="chat-input" type="text" placeholder="Ask a question..." autocomplete="off" maxlength="1000" required><button type="submit">Send</button></form>
+    </section>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        // Initialize the shared Leaflet map before the feature modules mount.
-        const map = L.map('map').setView([25.75396, -80.37662], 16);
-
+        // Feature modules share this map and add their own independent markers.
+        const map = L.map('map', { zoomControl: false }).setView([25.75396, -80.37662], 16);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            }).addTo(map);
+            maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(map);
     </script>
-
-    <!-- Building/event markers use the classic script's global map variable. -->
-    <script src = "Locations.JS?v=clean-rss-1"></script>
-
-    <!-- Feature modules use Firebase through firebase.js and their own services. -->
+    <script src="Locations.JS?v=clean-rss-1"></script>
     <script type="module" src="firebase.js"></script>
     <script type="module">
-        import { mountMapWarnings } from "./LiveChat/mapWarnings.js";
+        import { mountMapWarnings } from './LiveChat/mapWarnings.js';
+        import { mountClassSearch } from './ClassSearch/classSearch.js';
         mountMapWarnings({ map, L });
-    </script>
-    <script type="module">
-        import { mountClassSearch } from "./ClassSearch/classSearch.js";
         mountClassSearch({ map, L });
     </script>
 
@@ -168,5 +155,6 @@
             if (e.key === 'Enter') sendMessage();
         });
     </script>
+
 </body>
 </html>
