@@ -29,14 +29,15 @@
             background: #123d71;
         }
     </style>
-    <link rel="stylesheet" href="LiveChat/bottomSheet.css?v=nav-5">
+    <link rel="stylesheet" href="LiveChat/bottomSheet.css?v=forum-approved-4">
     <link rel="stylesheet" href="LiveChat/mapWarnings.css">
-    <link rel="stylesheet" href="ClassSearch/classSearch.css?v=experience-20260927-2">
-    <script src="LiveChat/mapChat.js?v=nav-5" defer></script>
+    <link rel="stylesheet" href="ClassSearch/classSearch.css?v=class-refined-20260927">
+    <script src="LiveChat/mapChat.js?v=forum-approved-4" defer></script>
+    <link rel="stylesheet" href="./locationservices/locationservices.css">
 </head>
 <body class="map-page">
 
-    <div id="map" style="height: 1000px;"></div>
+    <div id="map" ></div>
     <button id="open-chat" class="live-chat-link" type="button" aria-haspopup="dialog" aria-controls="chat-panel" disabled>Open chat</button>
     <button id="open-class" class="live-chat-link" type="button" aria-haspopup="dialog" aria-controls="class-dialog">Open Class</button>
     <p id="chat-status" role="status"></p>
@@ -65,9 +66,13 @@
         mountMapWarnings({ map, L });
     </script>
     <script type="module">
-        import { mountClassSearch } from "./ClassSearch/classSearch.js?v=experience-20260927-2";
+        import { mountClassSearch } from "./ClassSearch/classSearch.js?v=class-refined-20260927";
         mountClassSearch({ map, L });
     </script>
 
+    <script type="module">
+        import { mountLocationServices } from "./locationservices/leafletLocation.js";
+        mountLocationServices({ map, L });
+    </script>
 </body>
 </html>

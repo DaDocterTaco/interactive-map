@@ -34,18 +34,21 @@ export function createCatalog(data) {
         metadata: data.metadata,
         search({ mode = 'course', term = data.metadata.term_code, classId = '', course = '', professor = '', time = '' } = {}) {
             if (term !== data.metadata.term_code) return [];
-            if (mode === 'id') {
-                const id = String(classId).trim();
+            const unifiedId = mode === 'auto' && /^\d+$/.test(String(course).trim());
+            if (mode === 'id' || unifiedId) {
+                const id = String(unifiedId ? course : classId).trim();
                 if (!/^\d+$/.test(id)) return [];
-                return byId.has(id) ? [byId.get(id)] : [];
+                const section = byId.get(id);
+                return section && wordsMatch(section.instructor, professor) && (!time || section.start_time === time) ? [section] : [];
             }
             if (!normalize(course)) return [];
-            // A course code needs an exact match; title searches accept all
-            // query words anywhere in the normalized course name.
+            // Full course codes match exactly; department/number prefixes
+            // and title words also work in the unified search field.
             const code = normalize(course).replace(/[\s-]/g, '').match(/^([a-z]{2,4})(\d{4}[a-z]?)$/);
+            const prefix = normalize(course).replace(/[\s-]/g, '').match(/^[a-z]{2,4}\d{0,3}$/);
             return sections.filter(section => (code
                 ? normalize(section.course_code).replace(/\s/g, '') === code[1] + code[2]
-                : wordsMatch(section.course_name, course))
+                : (prefix && normalize(section.course_code).replace(/\s/g, '').startsWith(prefix[0])) || wordsMatch(section.course_name, course))
                 && wordsMatch(section.instructor, professor)
                 && (!time || section.start_time === time))
                 .sort((a, b) => a.start_time.localeCompare(b.start_time) || a.course_code.localeCompare(b.course_code) || a.section.localeCompare(b.section));

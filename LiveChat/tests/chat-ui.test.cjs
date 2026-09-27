@@ -169,10 +169,10 @@ function createApp({ stored = {}, dark = false, reduced = false, mobile = false,
         'peopleUI.js': { mountPeople: () => ({ setConversation() {}, dispose() {} }) },
         'forums/forumUI.js': { mountForums: () => ({ setActive(value) { state.forumsActive = value; }, dispose() { state.forumDisposals++; } }) }
     };
-    vm.runInNewContext(code, { document, Date, console,
+    vm.runInNewContext(code, { document, Date, console, URL,
         window: { matchMedia: query => { assert.ok(media[query], query); return media[query]; } },
         localStorage: { getItem: key => preferences.get(key) ?? null, setItem: (key, value) => preferences.set(key, value), removeItem: key => preferences.delete(key) },
-        location: { protocol: 'http:' }, loadModule: async file => { assert.ok(modules[file], file); return modules[file]; },
+        location: { protocol: 'http:', href: 'http://localhost/LiveChat/mainChat.html' }, loadModule: async file => { assert.ok(modules[file], file); return modules[file]; },
         setTimeout(fn, delay) { const id = ++timerId; timers.set(id, { fn, delay }); return id; }, clearTimeout: id => timers.delete(id),
         CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options?.detail; } }
     });

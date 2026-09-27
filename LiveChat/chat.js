@@ -746,7 +746,7 @@ async function showChat(user) {
     discardOldLocalHistory();
     if (!chatPanel.open) chatPanel.showModal();
     try {
-        const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js?v=nav-5"), import("./forums/forumUI.js"), import("./people.js"), import("./peopleUI.js?v=nav-5"), import("./chatInfoUI.js?v=nav-5")]);
+        const modules = await Promise.all([import("./chatService.js"), import("./groups.js"), import("./groupUI.js?v=nav-5"), import("./forums/forumUI.js?v=forum-approved-4"), import("./people.js"), import("./peopleUI.js?v=nav-5"), import("./chatInfoUI.js?v=nav-5")]);
         await modules[4].saveProfile(user);
         if (version !== viewVersion || !chatPanel.open) return;
         [chatService, groupService] = modules;
@@ -767,6 +767,7 @@ async function showChat(user) {
         forumController = modules[3].mountForums({ user });
         forumController.setActive(activeSection === "forums");
         selectConversation(null, { reveal: false });
+        if (new URL(location.href).searchParams.has("forum")) selectSection("forums");
     } catch (error) {
         if (version === viewVersion) {
             connectionMessage(errorMessage(error), "error");
@@ -799,6 +800,9 @@ openButton.addEventListener("click", async () => {
 });
 
 nameInput.addEventListener("input", () => nameInput.setCustomValidity(""));
+// Standalone shared links open their discussion after restoring the current account.
+// The map loader handles this itself once the open button has been enabled.
+if (new URL(location.href).searchParams.has("forum") && !openButton.disabled) openButton.click();
 nameForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (joining) return;
