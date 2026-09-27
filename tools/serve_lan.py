@@ -10,6 +10,7 @@ PUBLIC_FILES = {
     "Splash/campus-loop.css", "Splash/campus-loop.js", "Splash/preview.html",
     "Splash/assets/campus-map.png", "Splash/assets/campus-route.png", "Splash/assets/navigation.svg",
     "index.html", "app.css", "app.js", "Locations.JS", "firebase.js",
+    "vendor/marked/marked.umd.js", "vendor/dompurify/purify.min.js",
     "Buildings.json", "events.json", "forum_alerts.json",
     "navigation/classNavigation.js", "navigation/classNavigation.css",
     "navigation/classNavigationSession.js", "navigation/index.js",
